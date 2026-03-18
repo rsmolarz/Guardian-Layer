@@ -40,6 +40,10 @@ import {
   RotateCcw,
   Mail,
   Hash,
+  BarChart3,
+  Smartphone,
+  MessageSquare,
+  CircleSlash,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -59,7 +63,7 @@ const EVENT_BADGE: Record<string, string> = {
   key_revoked: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen";
+type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen" | "mfa-compliance";
 type StatusFilter = "active" | "suspended" | "revoked" | "unassigned" | undefined;
 type EventFilter = "auth_success" | "auth_failure" | "key_enrolled" | "key_revoked" | undefined;
 
@@ -115,6 +119,7 @@ export default function YubikeySecurity() {
           { id: "failed-auth" as Tab, label: "Failed Auth", icon: Ban },
           { id: "policies" as Tab, label: "Policies", icon: BookOpen },
           { id: "lost-stolen" as Tab, label: "Lost/Stolen", icon: ShieldAlert },
+          { id: "mfa-compliance" as Tab, label: "MFA Compliance", icon: ShieldCheck },
         ]).map((t) => (
           <button
             key={t.id}
@@ -136,6 +141,7 @@ export default function YubikeySecurity() {
       {tab === "failed-auth" && <FailedAuthPanel />}
       {tab === "policies" && <PoliciesPanel />}
       {tab === "lost-stolen" && <LostStolenPanel />}
+      {tab === "mfa-compliance" && <MfaCompliancePanel />}
     </div>
   );
 }
@@ -1303,6 +1309,198 @@ function LostStolenPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <ShieldAlert className="w-8 h-8 mx-auto mb-3 text-primary" />
             <p className="font-display text-sm uppercase tracking-wider">No incidents match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+const MFA_METHOD_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  hardware_key: { label: "Hardware Key", color: "text-emerald-400", icon: <Key className="w-4 h-4" /> },
+  totp: { label: "TOTP", color: "text-yellow-400", icon: <Smartphone className="w-4 h-4" /> },
+  sms: { label: "SMS", color: "text-orange-400", icon: <MessageSquare className="w-4 h-4" /> },
+  none: { label: "None", color: "text-red-400", icon: <CircleSlash className="w-4 h-4" /> },
+};
+
+const RISK_BADGE: Record<string, string> = {
+  low: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  high: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+function MfaCompliancePanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [methodFilter, setMethodFilter] = useState<string | undefined>(undefined);
+  const [showNonCompliantOnly, setShowNonCompliantOnly] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/yubikey/mfa-compliance")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="LOADING MFA COMPLIANCE..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load compliance data.</div>;
+
+  const { users, summary } = data;
+  let filtered = methodFilter ? users.filter((u: any) => u.mfaMethod === methodFilter) : users;
+  if (showNonCompliantOnly) filtered = filtered.filter((u: any) => !u.compliant);
+
+  const compliancePercent = Math.round((summary.compliant / summary.totalUsers) * 100);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
+        <div className="glass-panel p-4 rounded-xl border border-white/5 col-span-2 sm:col-span-1">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">Compliance Rate</span>
+          </div>
+          <p className={`text-3xl font-mono font-bold ${compliancePercent >= 80 ? "text-emerald-400" : compliancePercent >= 50 ? "text-yellow-400" : "text-red-400"}`}>
+            {compliancePercent}%
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">{summary.compliant}/{summary.totalUsers} users compliant</p>
+        </div>
+        {[
+          { label: "Hardware Key", value: summary.hardwareKey, icon: Key, color: "text-emerald-400" },
+          { label: "TOTP Only", value: summary.totp, icon: Smartphone, color: "text-yellow-400" },
+          { label: "SMS Only", value: summary.sms, icon: MessageSquare, color: "text-orange-400" },
+          { label: "No MFA", value: summary.none, icon: CircleSlash, color: "text-red-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {(summary.criticalRisk > 0 || summary.highRisk > 0) && (
+        <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <span className="text-xs font-display uppercase tracking-widest text-red-400">Risk Alert</span>
+          </div>
+          <p className="text-sm text-gray-300">
+            {summary.criticalRisk > 0 && <span className="text-red-400 font-mono">{summary.criticalRisk} critical</span>}
+            {summary.criticalRisk > 0 && summary.highRisk > 0 && " and "}
+            {summary.highRisk > 0 && <span className="text-orange-400 font-mono">{summary.highRisk} high-risk</span>}
+            {" "}user{(summary.criticalRisk + summary.highRisk) !== 1 ? "s" : ""} require immediate attention. Non-compliant accounts increase exposure to phishing, SIM swap, and credential theft attacks.
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-6 flex-wrap items-center">
+        {[undefined, "hardware_key", "totp", "sms", "none"].map((m) => (
+          <button
+            key={m ?? "all"}
+            onClick={() => setMethodFilter(m)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              methodFilter === m ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {m ? m.replace(/_/g, " ") : "All Methods"}
+          </button>
+        ))}
+        <div className="h-6 w-px bg-white/10 mx-1" />
+        <button
+          onClick={() => setShowNonCompliantOnly(!showNonCompliantOnly)}
+          className={clsx(
+            "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+            showNonCompliantOnly ? "bg-red-500/20 border-red-500/50 text-red-400" : "border-white/10 text-muted-foreground hover:border-white/20"
+          )}
+        >
+          Non-Compliant Only
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {filtered.map((user: any) => {
+          const methodCfg = MFA_METHOD_CONFIG[user.mfaMethod] || MFA_METHOD_CONFIG.none;
+
+          return (
+            <motion.div
+              key={user.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`glass-panel rounded-xl p-4 border-l-4 ${
+                user.compliant ? "border-emerald-500" :
+                user.riskLevel === "critical" ? "border-red-500" :
+                user.riskLevel === "high" ? "border-orange-500" : "border-yellow-500"
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-lg bg-black/40 ${methodCfg.color}`}>
+                  {methodCfg.icon}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-mono text-white text-sm">{user.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{user.role}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                      user.compliant ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"
+                    }`}>
+                      {user.compliant ? "compliant" : "non-compliant"}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${RISK_BADGE[user.riskLevel] || ""}`}>
+                      {user.riskLevel}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    <span>{user.department}</span>
+                    <span className="font-mono">{user.email}</span>
+                    <span className={`font-mono ${methodCfg.color}`}>{methodCfg.label}</span>
+                    {user.deviceSerial && <span className="font-mono">Key: {user.deviceSerial}</span>}
+                    {user.protocols.length > 0 && <span className="font-mono">{user.protocols.join(", ")}</span>}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-1 justify-end mb-1">
+                    <span className="text-[10px] text-muted-foreground">Score:</span>
+                    <span className={`text-sm font-mono font-bold ${
+                      user.complianceScore >= 80 ? "text-emerald-400" :
+                      user.complianceScore >= 50 ? "text-yellow-400" :
+                      user.complianceScore > 0 ? "text-orange-400" : "text-red-400"
+                    }`}>
+                      {user.complianceScore}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Last auth: {format(new Date(user.lastAuth), "MMM d, HH:mm")}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Backup: {user.backupMethod.replace(/_/g, " ")}
+                  </p>
+                </div>
+              </div>
+
+              {user.nonComplianceReason && (
+                <div className="mt-3 p-3 rounded-lg bg-red-500/5 border border-red-500/15">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-gray-300">{user.nonComplianceReason}</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-emerald-400" />
+            <p className="font-display text-sm uppercase tracking-wider">
+              {showNonCompliantOnly ? "All visible users are compliant" : "No users match this filter"}
+            </p>
           </div>
         )}
       </div>

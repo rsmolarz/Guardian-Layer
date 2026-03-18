@@ -216,6 +216,46 @@ router.get("/yubikey/lost-stolen", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/yubikey/mfa-compliance", async (_req, res): Promise<void> => {
+  try {
+    const users = [
+      { id: "USR-001", name: "Priya Sharma", email: "p.sharma@guardianlayer.io", department: "Engineering", role: "Senior DevOps Engineer", mfaMethod: "hardware_key", deviceSerial: "YK-BIO-62837461", deviceModel: "YubiKey Bio", lastAuth: new Date(Date.now() - 3600000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 180).toISOString(), protocols: ["FIDO2", "WebAuthn"], backupMethod: "recovery_codes" },
+      { id: "USR-002", name: "James Mitchell", email: "j.mitchell@guardianlayer.io", department: "Engineering", role: "VP Engineering", mfaMethod: "hardware_key", deviceSerial: "YK5-18294731", deviceModel: "YubiKey 5 NFC", lastAuth: new Date(Date.now() - 7200000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 365).toISOString(), protocols: ["FIDO2", "PIV"], backupMethod: "hardware_key_backup" },
+      { id: "USR-003", name: "Marcus Johnson", email: "m.johnson@guardianlayer.io", department: "Executive", role: "CTO", mfaMethod: "hardware_key", deviceSerial: "YK5C-84019273", deviceModel: "YubiKey 5C NFC", lastAuth: new Date(Date.now() - 14400000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 400).toISOString(), protocols: ["FIDO2", "PIV", "OpenPGP"], backupMethod: "hardware_key_backup" },
+      { id: "USR-004", name: "Sarah Chen", email: "s.chen@guardianlayer.io", department: "Executive", role: "CISO", mfaMethod: "hardware_key", deviceSerial: "YK5-28371642", deviceModel: "YubiKey 5 NFC", lastAuth: new Date(Date.now() - 28800000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 500).toISOString(), protocols: ["FIDO2", "PIV"], backupMethod: "recovery_codes" },
+      { id: "USR-005", name: "Maria Rodriguez", email: "m.rodriguez@guardianlayer.io", department: "Finance", role: "Financial Controller", mfaMethod: "hardware_key", deviceSerial: "YK5-39182734", deviceModel: "YubiKey 5 NFC", lastAuth: new Date(Date.now() - 86400000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 90).toISOString(), protocols: ["FIDO2"], backupMethod: "totp_backup" },
+      { id: "USR-006", name: "Alex Thompson", email: "a.thompson@guardianlayer.io", department: "Sales", role: "Account Executive", mfaMethod: "totp", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 43200000).toISOString(), compliant: false, complianceScore: 60, riskLevel: "medium", enrolledAt: new Date(Date.now() - 86400000 * 200).toISOString(), protocols: ["TOTP"], backupMethod: "sms_backup", nonComplianceReason: "TOTP-only — hardware key required for SOC 2 compliance. Enrollment reminder sent 3 times." },
+      { id: "USR-007", name: "Lisa Wang", email: "l.wang@guardianlayer.io", department: "Finance", role: "Senior Accountant", mfaMethod: "totp", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 2).toISOString(), compliant: false, complianceScore: 55, riskLevel: "medium", enrolledAt: new Date(Date.now() - 86400000 * 150).toISOString(), protocols: ["TOTP"], backupMethod: "email_backup", nonComplianceReason: "TOTP-only — previous YubiKey (YK5-REVOKED-0042) was stolen, replacement pending re-enrollment." },
+      { id: "USR-008", name: "Tom Richards", email: "t.richards@guardianlayer.io", department: "HR", role: "HR Manager", mfaMethod: "sms", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 3).toISOString(), compliant: false, complianceScore: 25, riskLevel: "high", enrolledAt: new Date(Date.now() - 86400000 * 300).toISOString(), protocols: ["SMS OTP"], backupMethod: "none", nonComplianceReason: "SMS-only MFA — highly vulnerable to SIM swap attacks. YubiKey suspended (LSK-002), TOTP fallback active but SMS still primary." },
+      { id: "USR-009", name: "David Kim", email: "d.kim@guardianlayer.io", department: "Engineering", role: "Backend Developer", mfaMethod: "hardware_key", deviceSerial: "YK5C-NEW-0077", deviceModel: "YubiKey 5C", lastAuth: new Date(Date.now() - 3600000 * 6).toISOString(), compliant: true, complianceScore: 95, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 5).toISOString(), protocols: ["FIDO2"], backupMethod: "recovery_codes" },
+      { id: "USR-010", name: "Anita Kumar", email: "a.kumar@guardianlayer.io", department: "Engineering", role: "Frontend Developer", mfaMethod: "none", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 10).toISOString(), compliant: false, complianceScore: 0, riskLevel: "critical", enrolledAt: null, protocols: [], backupMethod: "none", nonComplianceReason: "No MFA configured — YubiKey stolen (LSK-004, active investigation), all auth methods disabled pending security clearance." },
+      { id: "USR-011", name: "Robert Chang", email: "r.chang@guardianlayer.io", department: "Legal", role: "General Counsel", mfaMethod: "totp", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 1).toISOString(), compliant: false, complianceScore: 50, riskLevel: "medium", enrolledAt: new Date(Date.now() - 86400000 * 60).toISOString(), protocols: ["TOTP"], backupMethod: "recovery_codes", nonComplianceReason: "TOTP-only — hardware key enrollment requested but not yet completed. Handles privileged legal documents." },
+      { id: "USR-012", name: "Emily Foster", email: "e.foster@guardianlayer.io", department: "Marketing", role: "Marketing Director", mfaMethod: "sms", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 5).toISOString(), compliant: false, complianceScore: 20, riskLevel: "high", enrolledAt: new Date(Date.now() - 86400000 * 250).toISOString(), protocols: ["SMS OTP"], backupMethod: "email_backup", nonComplianceReason: "SMS-only MFA — multiple enrollment reminders ignored. Access to brand and social media accounts creates phishing risk." },
+      { id: "USR-013", name: "svc-ci-pipeline", email: "svc-ci@guardianlayer.io", department: "Engineering", role: "Service Account", mfaMethod: "hardware_key", deviceSerial: "YK-HSM-001", deviceModel: "YubiKey HSM 2", lastAuth: new Date(Date.now() - 600000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 730).toISOString(), protocols: ["PKCS#11", "PIV"], backupMethod: "hsm_cluster_backup" },
+      { id: "USR-014", name: "Nathan Okafor", email: "n.okafor@guardianlayer.io", department: "Support", role: "Support Engineer", mfaMethod: "totp", deviceSerial: null, deviceModel: null, lastAuth: new Date(Date.now() - 86400000 * 4).toISOString(), compliant: false, complianceScore: 45, riskLevel: "medium", enrolledAt: new Date(Date.now() - 86400000 * 120).toISOString(), protocols: ["TOTP"], backupMethod: "sms_backup", nonComplianceReason: "TOTP with SMS backup — has access to customer PII through support tickets. Hardware key enrollment overdue." },
+      { id: "USR-015", name: "Jessica Park", email: "j.park@guardianlayer.io", department: "Engineering", role: "Security Engineer", mfaMethod: "hardware_key", deviceSerial: "YK5C-93817264", deviceModel: "YubiKey 5C NFC", lastAuth: new Date(Date.now() - 1800000).toISOString(), compliant: true, complianceScore: 100, riskLevel: "low", enrolledAt: new Date(Date.now() - 86400000 * 220).toISOString(), protocols: ["FIDO2", "PIV", "OpenPGP"], backupMethod: "hardware_key_backup" },
+    ];
+
+    const summary = {
+      totalUsers: users.length,
+      hardwareKey: users.filter((u) => u.mfaMethod === "hardware_key").length,
+      totp: users.filter((u) => u.mfaMethod === "totp").length,
+      sms: users.filter((u) => u.mfaMethod === "sms").length,
+      none: users.filter((u) => u.mfaMethod === "none").length,
+      compliant: users.filter((u) => u.compliant).length,
+      nonCompliant: users.filter((u) => !u.compliant).length,
+      avgComplianceScore: Math.round(users.reduce((a, u) => a + u.complianceScore, 0) / users.length),
+      criticalRisk: users.filter((u) => u.riskLevel === "critical").length,
+      highRisk: users.filter((u) => u.riskLevel === "high").length,
+    };
+
+    res.json({ users, summary });
+  } catch (err: any) {
+    console.error("[yubikey] GET /mfa-compliance failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve MFA compliance data." });
+  }
+});
+
 router.get("/yubikey/audit-log", async (_req, res): Promise<void> => {
   try {
     const now = Date.now();
