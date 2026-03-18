@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListOpenclawContracts,
   useGetOpenclawStats,
@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { clsx } from "clsx";
 import {
   FileText,
   Scale,
@@ -21,6 +22,16 @@ import {
   Building,
   Globe,
   Scan,
+  Activity,
+  Server,
+  Wifi,
+  WifiOff,
+  Wrench,
+  Zap,
+  BarChart3,
+  CheckCircle,
+  XCircle,
+  Brain,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -46,10 +57,46 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
+type Tab = "contracts" | "health";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
 export default function OpenclawMonitor() {
+  const [tab, setTab] = useState<Tab>("contracts");
+
+  return (
+    <div className="pb-12">
+      <PageHeader
+        title="OpenClaw Monitor"
+        description="AI-powered contract analysis, clause risk detection, and regulatory compliance monitoring."
+      />
+
+      <div className="mb-6 flex gap-1 glass-panel p-1.5 rounded-xl w-fit">
+        {([
+          { id: "contracts" as Tab, label: "Contracts", icon: Scale },
+          { id: "health" as Tab, label: "UI Health Monitor", icon: Activity },
+        ]).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={clsx(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wider transition-colors",
+              tab === t.id ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
+            )}
+          >
+            <t.icon className="w-4 h-4" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "contracts" && <ContractsPanel />}
+      {tab === "health" && <HealthMonitorPanel />}
+    </div>
+  );
+}
+
+function ContractsPanel() {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -63,12 +110,7 @@ export default function OpenclawMonitor() {
   if (isStatsLoading) return <CyberLoading text="SCANNING CONTRACTS..." />;
 
   return (
-    <div className="pb-12">
-      <PageHeader
-        title="OpenClaw Monitor"
-        description="AI-powered contract analysis, clause risk detection, and regulatory compliance monitoring."
-      />
-
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-9 gap-4 mb-8">
         {[
           { label: "Total Contracts", value: stats?.totalContracts ?? 0, icon: FileText, color: "text-primary" },
@@ -237,6 +279,270 @@ export default function OpenclawMonitor() {
           </AnimatePresence>
         </div>
       )}
-    </div>
+    </>
+  );
+}
+
+const SERVICE_STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  operational: { label: "Operational", color: "text-emerald-400", icon: <CheckCircle className="w-5 h-5" /> },
+  degraded: { label: "Degraded", color: "text-yellow-400", icon: <AlertTriangle className="w-5 h-5" /> },
+  maintenance: { label: "Maintenance", color: "text-blue-400", icon: <Wrench className="w-5 h-5" /> },
+  down: { label: "Down", color: "text-red-400", icon: <XCircle className="w-5 h-5" /> },
+};
+
+const SERVICE_STATUS_BADGE: Record<string, string> = {
+  operational: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  degraded: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  maintenance: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  down: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const HEALTH_CHECK_BADGE: Record<string, string> = {
+  passing: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  warning: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const INCIDENT_SEVERITY_BADGE: Record<string, string> = {
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+  warning: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  info: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+};
+
+function HealthMonitorPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/openclaw/health")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="CHECKING SYSTEM HEALTH..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load health data.</div>;
+
+  const { services, recentIncidents, summary } = data;
+  const filtered = statusFilter ? services.filter((s: any) => s.status === statusFilter) : services;
+
+  return (
+    <>
+      <div className={`glass-panel p-4 rounded-xl mb-6 border-l-4 ${
+        summary.status === "operational" ? "border-emerald-500" :
+        summary.status === "degraded" ? "border-yellow-500" : "border-blue-500"
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-lg bg-black/40 ${
+            summary.status === "operational" ? "text-emerald-400" :
+            summary.status === "degraded" ? "text-yellow-400" : "text-blue-400"
+          }`}>
+            {summary.status === "operational" ? <Wifi className="w-6 h-6" /> :
+             summary.status === "degraded" ? <AlertTriangle className="w-6 h-6" /> :
+             <Wrench className="w-6 h-6" />}
+          </div>
+          <div>
+            <h3 className="font-display text-lg uppercase tracking-wider text-white">
+              System Status: <span className={
+                summary.status === "operational" ? "text-emerald-400" :
+                summary.status === "degraded" ? "text-yellow-400" : "text-blue-400"
+              }>{summary.status}</span>
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {summary.operational}/{summary.totalServices} services operational
+              {summary.degraded > 0 && ` · ${summary.degraded} degraded`}
+              {summary.maintenance > 0 && ` · ${summary.maintenance} in maintenance`}
+              {summary.activeIncidents > 0 && ` · ${summary.activeIncidents} active incident${summary.activeIncidents !== 1 ? "s" : ""}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: "Overall Uptime", value: `${summary.overallUptime}%`, icon: Activity, color: summary.overallUptime >= 99.5 ? "text-emerald-400" : "text-yellow-400" },
+          { label: "Avg Response", value: `${summary.avgResponseTime}ms`, icon: Zap, color: summary.avgResponseTime < 500 ? "text-emerald-400" : "text-yellow-400" },
+          { label: "Requests/min", value: summary.totalRequestsPerMinute.toLocaleString(), icon: BarChart3, color: "text-primary" },
+          { label: "Active Incidents", value: summary.activeIncidents, icon: AlertTriangle, color: summary.activeIncidents > 0 ? "text-yellow-400" : "text-emerald-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "operational", "degraded", "maintenance"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setStatusFilter(s)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              statusFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All Services"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3 mb-8">
+        {filtered.map((service: any) => {
+          const isExpanded = expandedId === service.id;
+          const statusCfg = SERVICE_STATUS_CONFIG[service.status] || SERVICE_STATUS_CONFIG.operational;
+
+          return (
+            <motion.div
+              key={service.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                service.status === "operational" ? "border-emerald-500" :
+                service.status === "degraded" ? "border-yellow-500" :
+                service.status === "maintenance" ? "border-blue-500" : "border-red-500"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : service.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-lg bg-black/40 ${statusCfg.color}`}>
+                  {statusCfg.icon}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-sm font-display text-white">{service.name}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${SERVICE_STATUS_BADGE[service.status] || ""}`}>
+                      {service.status}
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                      {service.type.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>Uptime: <span className={`font-mono ${service.uptime >= 99.9 ? "text-emerald-400" : service.uptime >= 99 ? "text-yellow-400" : "text-red-400"}`}>{service.uptime}%</span></span>
+                    <span>Avg: <span className="font-mono text-white">{service.avgResponseTime}ms</span></span>
+                    <span>Error: <span className={`font-mono ${service.errorRate < 1 ? "text-emerald-400" : service.errorRate < 5 ? "text-yellow-400" : "text-red-400"}`}>{service.errorRate}%</span></span>
+                    <span className="font-mono">{service.requestsPerMinute} req/min</span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs text-muted-foreground">
+                  <p className="font-mono">{service.version}</p>
+                  <p>{service.region}</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">P95 Response</span>
+                      <span className={`text-sm font-mono ${service.p95ResponseTime > 1000 ? "text-yellow-400" : "text-white"}`}>{service.p95ResponseTime}ms</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">P99 Response</span>
+                      <span className={`text-sm font-mono ${service.p99ResponseTime > 2000 ? "text-yellow-400" : "text-white"}`}>{service.p99ResponseTime}ms</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Uptime (24h)</span>
+                      <span className={`text-sm font-mono ${service.uptimeLast24h >= 99.9 ? "text-emerald-400" : service.uptimeLast24h >= 95 ? "text-yellow-400" : "text-red-400"}`}>{service.uptimeLast24h}%</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Last Incident</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(service.lastIncident), "MMM d")}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-display uppercase tracking-widest text-primary">Health Checks</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {service.healthChecks.map((check: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-lg bg-black/20 border border-white/5 flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${
+                            check.status === "passing" ? "bg-emerald-400" :
+                            check.status === "warning" ? "bg-yellow-400" : "bg-red-400"
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-display text-white">{check.name}</span>
+                              <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border ${HEALTH_CHECK_BADGE[check.status] || ""}`}>
+                                {check.status}
+                              </span>
+                            </div>
+                            {check.details && <p className="text-[10px] text-muted-foreground mt-0.5">{check.details}</p>}
+                          </div>
+                          {check.latency > 0 && (
+                            <span className={`text-xs font-mono shrink-0 ${check.latency > 1000 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                              {check.latency}ms
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Server className="w-8 h-8 mx-auto mb-3 text-primary" />
+            <p className="font-display text-sm uppercase tracking-wider">No services match this filter</p>
+          </div>
+        )}
+      </div>
+
+      {recentIncidents.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-primary" />
+            <span className="text-sm font-display uppercase tracking-widest text-primary">Recent Incidents</span>
+          </div>
+          <div className="space-y-2">
+            {recentIncidents.map((incident: any) => (
+              <div key={incident.id} className={`glass-panel p-4 rounded-xl border-l-4 ${
+                incident.severity === "critical" ? "border-red-500" :
+                incident.severity === "warning" ? "border-yellow-500" : "border-blue-500"
+              }`}>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-xs font-mono text-muted-foreground">{incident.id}</span>
+                  <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${INCIDENT_SEVERITY_BADGE[incident.severity] || ""}`}>
+                    {incident.severity}
+                  </span>
+                  <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                    incident.status === "resolved" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                    incident.status === "ongoing" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                    "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                  }`}>
+                    {incident.status.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{incident.service}</span>
+                </div>
+                <p className="text-sm text-white mb-1">{incident.title}</p>
+                <p className="text-xs text-muted-foreground mb-2">{incident.impact}</p>
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <span>Started: {format(new Date(incident.startedAt), "MMM d, HH:mm")}</span>
+                  {incident.resolvedAt && <span>Resolved: {format(new Date(incident.resolvedAt), "MMM d, HH:mm")}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
