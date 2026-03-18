@@ -324,4 +324,111 @@ router.get("/email-security/attachment-analysis", async (_req, res): Promise<voi
   }
 });
 
+router.get("/email-security/account-compromise", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const accounts = [
+      {
+        id: 1,
+        email: "j.mitchell@corp.com",
+        displayName: "James Mitchell",
+        department: "Finance",
+        riskLevel: "critical",
+        riskScore: 0.96,
+        compromised: true,
+        lastNormalActivity: new Date(now - 86400000 * 3).toISOString(),
+        events: [
+          { type: "impossible_travel", severity: "critical", timestamp: new Date(now - 3600000 * 2).toISOString(), detail: "Login from Moscow, RU (185.220.101.34) — 12 minutes after login from New York, US", deviceInfo: "Chrome 122 / Windows 11" },
+          { type: "forwarding_rule", severity: "critical", timestamp: new Date(now - 3600000 * 3).toISOString(), detail: "New auto-forward rule created: all emails forwarded to ext-backup-j.m@protonmail.com", deviceInfo: null },
+          { type: "mass_deletion", severity: "high", timestamp: new Date(now - 3600000 * 4).toISOString(), detail: "847 emails deleted from Sent Items and Deleted Items purged within 6 minutes", deviceInfo: "Chrome 122 / Windows 11" },
+          { type: "new_device", severity: "high", timestamp: new Date(now - 3600000 * 5).toISOString(), detail: "First login from unrecognized device: Linux / Firefox 121 — IP geolocated to Tor exit node", deviceInfo: "Firefox 121 / Linux" },
+          { type: "password_change", severity: "medium", timestamp: new Date(now - 3600000 * 6).toISOString(), detail: "Password changed via OWA without MFA re-verification", deviceInfo: "Chrome 122 / Windows 11" },
+        ],
+      },
+      {
+        id: 2,
+        email: "s.chen@corp.com",
+        displayName: "Sarah Chen",
+        department: "Engineering",
+        riskLevel: "high",
+        riskScore: 0.74,
+        compromised: false,
+        lastNormalActivity: new Date(now - 86400000).toISOString(),
+        events: [
+          { type: "new_device", severity: "high", timestamp: new Date(now - 7200000).toISOString(), detail: "Login from new device: iPhone 15 Pro — previously only used MacBook Pro", deviceInfo: "Safari / iOS 17.4" },
+          { type: "unusual_hours", severity: "medium", timestamp: new Date(now - 10800000).toISOString(), detail: "Active session from 02:15 AM to 03:48 AM local time — outside normal pattern (8 AM-7 PM)", deviceInfo: "Chrome 122 / macOS Sonoma" },
+          { type: "bulk_download", severity: "high", timestamp: new Date(now - 14400000).toISOString(), detail: "Downloaded 234 attachments from shared engineering drive in 18 minutes", deviceInfo: "Chrome 122 / macOS Sonoma" },
+        ],
+      },
+      {
+        id: 3,
+        email: "m.rodriguez@corp.com",
+        displayName: "Maria Rodriguez",
+        department: "HR",
+        riskLevel: "medium",
+        riskScore: 0.45,
+        compromised: false,
+        lastNormalActivity: new Date(now - 3600000 * 4).toISOString(),
+        events: [
+          { type: "unusual_hours", severity: "medium", timestamp: new Date(now - 18000000).toISOString(), detail: "Email access from 11:30 PM — slightly outside normal hours but within tolerance", deviceInfo: "Outlook Mobile / iOS 17.3" },
+          { type: "failed_logins", severity: "medium", timestamp: new Date(now - 86400000).toISOString(), detail: "3 failed login attempts from IP 192.168.1.105 before successful auth", deviceInfo: "Chrome 122 / Windows 11" },
+        ],
+      },
+      {
+        id: 4,
+        email: "d.patel@corp.com",
+        displayName: "Dev Patel",
+        department: "IT Security",
+        riskLevel: "low",
+        riskScore: 0.12,
+        compromised: false,
+        lastNormalActivity: new Date(now - 1800000).toISOString(),
+        events: [
+          { type: "new_device", severity: "low", timestamp: new Date(now - 86400000 * 2).toISOString(), detail: "New corporate laptop enrolled — matches IT provisioning ticket #4521", deviceInfo: "Edge 122 / Windows 11" },
+        ],
+      },
+      {
+        id: 5,
+        email: "a.kumar@corp.com",
+        displayName: "Anita Kumar",
+        department: "Sales",
+        riskLevel: "critical",
+        riskScore: 0.91,
+        compromised: true,
+        lastNormalActivity: new Date(now - 86400000 * 2).toISOString(),
+        events: [
+          { type: "oauth_grant", severity: "critical", timestamp: new Date(now - 7200000).toISOString(), detail: "OAuth consent granted to unknown app 'MailSync Pro' with full mailbox read/write access", deviceInfo: "Chrome 121 / Windows 10" },
+          { type: "forwarding_rule", severity: "critical", timestamp: new Date(now - 10800000).toISOString(), detail: "New forwarding rule: emails containing 'contract', 'payment', 'wire' forwarded to sales-backup@yandex.ru", deviceInfo: null },
+          { type: "impossible_travel", severity: "high", timestamp: new Date(now - 14400000).toISOString(), detail: "Login from Lagos, NG (154.118.42.8) — 45 minutes after login from Chicago, US", deviceInfo: "Chrome 120 / Ubuntu" },
+          { type: "delegate_access", severity: "high", timestamp: new Date(now - 18000000).toISOString(), detail: "Full mailbox delegate access granted to unknown account temp-admin@corp.com (not in directory)", deviceInfo: "Chrome 121 / Windows 10" },
+        ],
+      },
+      {
+        id: 6,
+        email: "r.thompson@corp.com",
+        displayName: "Rachel Thompson",
+        department: "Legal",
+        riskLevel: "low",
+        riskScore: 0.08,
+        compromised: false,
+        lastNormalActivity: new Date(now - 600000).toISOString(),
+        events: [],
+      },
+    ];
+
+    const totalMonitored = accounts.length;
+    const compromisedCount = accounts.filter((a) => a.compromised).length;
+    const atRisk = accounts.filter((a) => a.riskLevel === "high" || a.riskLevel === "critical").length;
+    const totalEvents = accounts.reduce((s, a) => s + a.events.length, 0);
+
+    res.json({
+      accounts,
+      summary: { totalMonitored, compromised: compromisedCount, atRisk, totalEvents },
+    });
+  } catch (err: any) {
+    console.error("[email-security] GET /account-compromise failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve account compromise data." });
+  }
+});
+
 export default router;

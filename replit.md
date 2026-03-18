@@ -46,10 +46,11 @@ artifacts-monorepo/
 2. **Transaction Ledger** - Lists all transactions with filtering by status (ALLOWED, HELD, BLOCKED, APPROVED, REJECTED). Includes "Scan Payload" button for submitting new transactions for ML risk analysis
 3. **Manual Override Queue (Approvals)** - Shows HELD transactions for manual review with Approve/Reject actions
 4. **Security Advisories (Alerts)** - Security alerts with severity levels (low, medium, high, critical), dismiss functionality, and **auto-remediate buttons** that execute predefined remediation actions per alert type with animated status transitions
-5. **Email Security** - Three-tab page:
+5. **Email Security** - Four-tab page:
    - **Threat Scanner** - AI-powered email threat detection with phishing detection dashboard, suspicious email list, sender reputation scoring, attachment scanning results, quarantine/release actions, and email stats overview
    - **Auth Monitor** - SPF, DKIM, DMARC record monitoring for connected domains with pass/fail/warning status, DNS record display, key length analysis, policy enforcement tracking, and actionable recommendations
    - **Attachment Analyzer** - AI-powered analysis of email attachments with threat scoring, sandbox execution results (malware family detection, network connections, files dropped, registry changes), file hash display, and status filtering (blocked/quarantined/clean)
+   - **Compromise Detector** - Email account compromise detection monitoring unusual login patterns (impossible travel, new devices, unusual hours), forwarding rule changes, mass deletion events, OAuth grants, bulk downloads, and delegate access changes with per-account risk scoring and event timelines
 6. **Endpoint Security** - Device inventory with compliance status, vulnerability scanning, patch management, EDR alerts, and device risk scoring
 7. **Network Security** - Real-time network monitoring with firewall events, IDS/IPS alerts, traffic anomaly detection, port scanning detection, DDoS monitoring, and attack source country mapping
 8. **YubiKey MFA** - Hardware key management with key inventory, authentication event tracking, enrollment management, failed auth monitoring, and policy management
@@ -114,6 +115,7 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/email-security/stats` - Email security statistics
 - `GET /api/email-security/auth-monitor` - SPF/DKIM/DMARC domain authentication status
 - `GET /api/email-security/attachment-analysis` - AI attachment analysis with sandbox results
+- `GET /api/email-security/account-compromise` - Account compromise detection with event timelines
 - `POST /api/email-security/:id/quarantine` - Quarantine email
 - `POST /api/email-security/:id/release` - Release email
 - `GET /api/endpoints` - List endpoints

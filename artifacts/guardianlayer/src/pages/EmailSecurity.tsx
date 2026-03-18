@@ -39,6 +39,15 @@ import {
   Cpu,
   Network,
   Ban,
+  UserCheck,
+  MapPin,
+  Clock,
+  Smartphone,
+  Download,
+  Trash2,
+  KeyRound,
+  Share2,
+  Users,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -71,7 +80,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 type ThreatFilter = "phishing" | "malware" | "spoofing" | "bec" | "spam" | undefined;
 type StatusFilter = "detected" | "quarantined" | "released" | "blocked" | undefined;
-type Tab = "threats" | "auth-monitor" | "attachments";
+type Tab = "threats" | "auth-monitor" | "attachments" | "compromise";
 
 export default function EmailSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("threats");
@@ -80,6 +89,7 @@ export default function EmailSecurity() {
     { id: "threats", label: "Threat Scanner", icon: ShieldAlert },
     { id: "auth-monitor", label: "Auth Monitor", icon: Key },
     { id: "attachments", label: "Attachment Analyzer", icon: Paperclip },
+    { id: "compromise", label: "Compromise Detector", icon: UserX },
   ];
 
   return (
@@ -110,6 +120,7 @@ export default function EmailSecurity() {
       {activeTab === "threats" && <ThreatScannerPanel />}
       {activeTab === "auth-monitor" && <AuthMonitorPanel />}
       {activeTab === "attachments" && <AttachmentAnalyzerPanel />}
+      {activeTab === "compromise" && <CompromiseDetectorPanel />}
     </div>
   );
 }
@@ -839,6 +850,243 @@ function AttachmentAnalyzerPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <CheckCircle className="w-8 h-8 mx-auto mb-3 text-green-400" />
             <p className="font-display text-sm uppercase tracking-wider">No attachments match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface CompromiseEvent {
+  type: string;
+  severity: string;
+  timestamp: string;
+  detail: string;
+  deviceInfo: string | null;
+}
+
+interface CompromiseAccount {
+  id: number;
+  email: string;
+  displayName: string;
+  department: string;
+  riskLevel: string;
+  riskScore: number;
+  compromised: boolean;
+  lastNormalActivity: string;
+  events: CompromiseEvent[];
+}
+
+interface CompromiseData {
+  accounts: CompromiseAccount[];
+  summary: { totalMonitored: number; compromised: number; atRisk: number; totalEvents: number };
+}
+
+const EVENT_ICONS: Record<string, typeof Mail> = {
+  impossible_travel: MapPin,
+  forwarding_rule: Share2,
+  mass_deletion: Trash2,
+  new_device: Smartphone,
+  password_change: KeyRound,
+  unusual_hours: Clock,
+  bulk_download: Download,
+  failed_logins: XCircle,
+  oauth_grant: Key,
+  delegate_access: Users,
+};
+
+function CompromiseDetectorPanel() {
+  const [data, setData] = useState<CompromiseData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetch("/api/email-security/account-compromise")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load compromise detection data.</div>;
+
+  const { accounts, summary } = data;
+
+  const filtered = filter === "all"
+    ? accounts
+    : filter === "compromised"
+    ? accounts.filter((a) => a.compromised)
+    : accounts.filter((a) => a.riskLevel === filter);
+
+  const severityColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const summaryCards = [
+    { label: "Monitored Accounts", value: summary.totalMonitored, icon: Users, color: "text-primary" },
+    { label: "Compromised", value: summary.compromised, icon: ShieldAlert, color: "text-red-400" },
+    { label: "At Risk", value: summary.atRisk, icon: AlertTriangle, color: "text-orange-400" },
+    { label: "Security Events", value: summary.totalEvents, icon: Globe, color: "text-yellow-400" },
+  ];
+
+  const filterButtons = [
+    { label: "All", value: "all" },
+    { label: "Compromised", value: "compromised" },
+    { label: "Critical", value: "critical" },
+    { label: "High", value: "high" },
+    { label: "Medium", value: "medium" },
+    { label: "Low", value: "low" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground self-center mr-2">Filter</span>
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.value}
+            onClick={() => setFilter(btn.value)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider transition-all",
+              filter === btn.value
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-white hover:bg-white/5 border border-transparent"
+            )}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((account) => {
+          const isExpanded = expandedId === account.id;
+
+          return (
+            <motion.div
+              key={account.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : account.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`relative p-2.5 rounded-xl ${account.compromised ? "bg-red-500/15" : account.riskLevel === "high" ? "bg-orange-500/10" : "bg-green-500/10"}`}>
+                  <UserCheck className={`w-5 h-5 ${account.compromised ? "text-red-400" : account.riskLevel === "high" ? "text-orange-400" : "text-green-400"}`} />
+                  {account.compromised && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white">{account.displayName}</span>
+                    {account.compromised && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border bg-red-500/20 text-red-400 border-red-500/30 font-display uppercase animate-pulse">
+                        Compromised
+                      </span>
+                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${severityColor(account.riskLevel)} border-current/30`}>
+                      {account.riskLevel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-primary/80">{account.email}</span>
+                    <span className="mx-2">|</span>
+                    {account.department}
+                    <span className="mx-2">|</span>
+                    {account.events.length} event{account.events.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Risk</span>
+                    <span className={`text-lg font-mono font-bold ${account.riskScore > 0.7 ? "text-red-400" : account.riskScore > 0.3 ? "text-yellow-400" : "text-green-400"}`}>
+                      {(account.riskScore * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                    <span>Last normal activity: <span className="text-white font-mono">{format(new Date(account.lastNormalActivity), "MMM d, HH:mm")}</span></span>
+                  </div>
+
+                  {account.events.length > 0 ? (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3">Security Events Timeline</h4>
+                      <div className="space-y-2">
+                        {account.events.map((evt, i) => {
+                          const EventIcon = EVENT_ICONS[evt.type] || AlertTriangle;
+                          return (
+                            <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                              <div className={`p-1.5 rounded-lg flex-shrink-0 ${evt.severity === "critical" ? "bg-red-500/15" : evt.severity === "high" ? "bg-orange-500/10" : "bg-yellow-500/10"}`}>
+                                <EventIcon className={`w-4 h-4 ${severityColor(evt.severity)}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${severityColor(evt.severity)}`}>
+                                    {evt.severity}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-display uppercase">
+                                    {evt.type.replace(/_/g, " ")}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-mono ml-auto">
+                                    {format(new Date(evt.timestamp), "MMM d, HH:mm")}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-300">{evt.detail}</p>
+                                {evt.deviceInfo && (
+                                  <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                                    <Smartphone className="w-3 h-3" /> {evt.deviceInfo}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">No suspicious events detected</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <UserCheck className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No accounts match this filter</p>
           </div>
         )}
       </div>
