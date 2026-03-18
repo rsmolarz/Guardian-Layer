@@ -1,0 +1,16 @@
+packages:
+  "recharts": "For the risk timeline and analytical dashboard charts"
+  "framer-motion": "For page transitions and interactive micro-animations"
+  "date-fns": "For formatting transaction and alert timestamps"
+  "clsx": "For merging dynamic class names"
+  "tailwind-merge": "For safely merging Tailwind utility classes"
+  "@hookform/resolvers": "For Zod schema validation in forms"
+  "react-hook-form": "For robust form state management in the Scan Transaction modal"
+  "zod": "For strict schema validation of form inputs"
+
+images: []
+
+notes:
+  - "App uses a strict dark-mode 'professional cybersecurity' theme with neon accents."
+  - "Imports auto-generated React Query hooks from @workspace/api-client-react."
+  - "Missing or failing endpoints will display a stylized 'CyberError' state."

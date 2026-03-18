@@ -1,15 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: GuardianLayer Enterprise API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: transactions
+    description: Transaction security operations
+  - name: approvals
+    description: Approval workflow operations
+  - name: dashboard
+    description: Dashboard analytics operations
+  - name: integrations
+    description: Integration status operations
+  - name: alerts
+    description: Security alert operations
 paths:
   /healthz:
     get:
@@ -24,6 +33,200 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List all transactions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALLOWED, HELD, BLOCKED, APPROVED]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionList"
+
+  /transactions/scan:
+    post:
+      operationId: scanTransaction
+      tags: [transactions]
+      summary: Scan a transaction for risk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionScanRequest"
+      responses:
+        "200":
+          description: Scan result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionScanResult"
+
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get transaction details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /approvals/{id}/approve:
+    post:
+      operationId: approveTransaction
+      tags: [approvals]
+      summary: Approve a held transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approval result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResult"
+
+  /approvals/{id}/reject:
+    post:
+      operationId: rejectTransaction
+      tags: [approvals]
+      summary: Reject a held transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalResult"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/risk-timeline:
+    get:
+      operationId: getRiskTimeline
+      tags: [dashboard]
+      summary: Get risk score timeline data
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Risk timeline data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskTimeline"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List security alerts
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertList"
+
+  /alerts/{id}/dismiss:
+    post:
+      operationId: dismissAlert
+      tags: [alerts]
+      summary: Dismiss an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /integrations:
+    get:
+      operationId: listIntegrations
+      tags: [integrations]
+      summary: List all integrations and their status
+      responses:
+        "200":
+          description: Integration list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationList"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +237,228 @@ components:
       required:
         - status
 
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+        destination:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        riskScore:
+          type: number
+        status:
+          type: string
+          enum: [ALLOWED, HELD, BLOCKED, APPROVED, REJECTED]
+        category:
+          type: string
+        ipAddress:
+          type: string
+        country:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - source
+        - destination
+        - amount
+        - currency
+        - riskScore
+        - status
+        - category
+        - createdAt
+
+    TransactionList:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        total:
+          type: integer
+      required:
+        - transactions
+        - total
+
+    TransactionScanRequest:
+      type: object
+      properties:
+        source:
+          type: string
+        destination:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        category:
+          type: string
+        ipAddress:
+          type: string
+        country:
+          type: string
+      required:
+        - source
+        - destination
+        - amount
+        - currency
+
+    TransactionScanResult:
+      type: object
+      properties:
+        transaction:
+          $ref: "#/components/schemas/Transaction"
+        riskFactors:
+          type: array
+          items:
+            type: string
+      required:
+        - transaction
+        - riskFactors
+
+    ApprovalResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [APPROVED, REJECTED]
+        approvedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - status
+        - approvedAt
+
+    DashboardStats:
+      type: object
+      properties:
+        totalTransactions:
+          type: integer
+        totalBlocked:
+          type: integer
+        totalHeld:
+          type: integer
+        totalAllowed:
+          type: integer
+        averageRiskScore:
+          type: number
+        blockRate:
+          type: number
+        activeAlerts:
+          type: integer
+        integrationsOnline:
+          type: integer
+      required:
+        - totalTransactions
+        - totalBlocked
+        - totalHeld
+        - totalAllowed
+        - averageRiskScore
+        - blockRate
+        - activeAlerts
+        - integrationsOnline
+
+    RiskTimeline:
+      type: object
+      properties:
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              avgRisk:
+                type: number
+              transactionCount:
+                type: integer
+              blockedCount:
+                type: integer
+            required:
+              - date
+              - avgRisk
+              - transactionCount
+              - blockedCount
+      required:
+        - dataPoints
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        dismissed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - message
+        - severity
+        - dismissed
+        - createdAt
+
+    AlertList:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        total:
+          type: integer
+      required:
+        - alerts
+        - total
+
+    Integration:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, degraded]
+        lastChecked:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - provider
+        - status
+        - lastChecked
+
+    IntegrationList:
+      type: object
+      properties:
+        integrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Integration"
+      required:
+        - integrations

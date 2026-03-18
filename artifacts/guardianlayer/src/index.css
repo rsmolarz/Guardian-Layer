@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-border: hsl(var(--border));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-ring: hsl(var(--ring));
+
+  --animate-scanline: scanline 8s linear infinite;
+  --animate-pulse-glow: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+:root {
+  /* Enforce Dark Mode Enterprise Cyber Aesthetic natively */
+  --background: 225 39% 4%;
+  --foreground: 210 40% 98%;
+  
+  --card: 225 39% 7%;
+  --card-foreground: 210 40% 98%;
+  
+  --popover: 225 39% 7%;
+  --popover-foreground: 210 40% 98%;
+  
+  --primary: 188 86% 53%; /* Neon Cyan */
+  --primary-foreground: 225 39% 4%;
+  
+  --secondary: 243 75% 59%; /* Deep Indigo */
+  --secondary-foreground: 210 40% 98%;
+  
+  --muted: 225 25% 15%;
+  --muted-foreground: 215 20% 65%;
+  
+  --accent: 188 86% 53%;
+  --accent-foreground: 225 39% 4%;
+  
+  --destructive: 348 83% 47%; /* Crimson */
+  --destructive-foreground: 210 40% 98%;
+  
+  --border: 225 25% 18%;
+  --input: 225 25% 18%;
+  --ring: 188 86% 53%;
+  
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-primary;
+    background-image: 
+      radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.05) 0%, transparent 50%),
+      linear-gradient(to right, hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 100vw 100vh, 40px 40px, 40px 40px;
+    background-attachment: fixed;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-wide uppercase font-bold;
+  }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100vh); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
+  50% { opacity: 0.6; filter: drop-shadow(0 0 2px currentColor); }
+}
+
+.cyber-grid {
+  position: relative;
+}
+.cyber-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(90deg, hsl(var(--primary) / 0.05) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(0deg, hsl(var(--primary) / 0.05) 1px, transparent 1px) 0 0 / 20px 20px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-panel {
+  @apply bg-card/60 backdrop-blur-xl border-border shadow-2xl;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255,255,255,0.05);
+}
+
+.cyber-button {
+  @apply relative overflow-hidden transition-all duration-300 font-display uppercase tracking-widest font-bold;
+}
+.cyber-button::after {
+  content: '';
+  @apply absolute inset-0 bg-white/20 translate-y-full transition-transform duration-300 ease-out;
+}
+.cyber-button:hover::after {
+  @apply translate-y-0;
+}
