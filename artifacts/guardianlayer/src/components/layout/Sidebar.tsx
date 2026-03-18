@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale } from "lucide-react";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
@@ -7,6 +7,11 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "Transactions", icon: Activity },
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/alerts", label: "Security Alerts", icon: Bell },
+  { href: "/email-security", label: "Email Security", icon: Mail },
+  { href: "/endpoints", label: "Endpoint Security", icon: Laptop },
+  { href: "/network", label: "Network Security", icon: Network },
+  { href: "/yubikey", label: "YubiKey MFA", icon: Key },
+  { href: "/openclaw", label: "OpenClaw Monitor", icon: Scale },
   { href: "/integrations", label: "Integrations", icon: Plug2 },
   { href: "/monitoring", label: "Monitoring", icon: Monitor },
   { href: "/dark-web", label: "Dark Web Monitor", icon: Eye },
@@ -26,7 +31,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 py-8 px-4 space-y-2">
+      <nav className="flex-1 py-4 px-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = location === item.href;
           return (

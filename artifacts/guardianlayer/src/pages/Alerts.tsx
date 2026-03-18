@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Bell, CheckCircle2, ShieldAlert, Zap, Shield } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
@@ -16,10 +16,37 @@ import { CyberError } from "@/components/ui/CyberError";
 import { SEVERITY_COLORS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
+const REMEDIATION_MAP: Record<string, string[]> = {
+  "Suspicious IP Cluster Detected": ["Block IP range 89.44.x.x", "Enable geo-fencing for Eastern Europe", "Escalate to SOC team"],
+  "High-Value Wire Transfer Blocked": ["Verify sender identity", "Flag account for review", "Generate SAR report"],
+  "Unusual Crypto Activity": ["Restrict crypto category transactions", "Enable enhanced monitoring", "Notify compliance officer"],
+  "New Region Activity": ["Add region to watchlist", "Require manual approval for region", "Update geo-risk policy"],
+  "Gambling Transactions Detected": ["Block gambling merchant category", "Notify HR department", "Update acceptable use policy"],
+  "Failed Authentication Attempts": ["Lock affected account", "Reset credentials", "Enable IP-based 2FA enforcement"],
+  "Phone Number on Dark Web": ["Enable SIM swap protection", "Rotate 2FA phone number", "Alert mobile carrier"],
+  "Email on Dark Web": ["Change email password", "Enable email 2FA", "Monitor for phishing attempts"],
+  "Critical: Financial Account Found on Dark Web": ["Freeze affected cards", "Initiate fraud alert", "Contact financial institution"],
+  "Credentials Leaked in Data Breach": ["Force password reset", "Revoke active sessions", "Enable credential monitoring"],
+  "Social Security Number Exposure": ["Place credit freeze", "File FTC report", "Enable identity monitoring"],
+  "Integration Health Check": ["Restart affected service", "Switch to backup provider", "Notify operations team"],
+  "Rate Limit Approaching": ["Optimize API request patterns", "Enable request caching", "Review rate limit policy"],
+};
+
 export default function Alerts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState<AlertSeverity | "ALL">("ALL");
+  const [remediating, setRemediating] = useState<Record<number, boolean>>({});
+  const [remediated, setRemediated] = useState<Record<number, boolean>>({});
+
+  const handleRemediate = (alertId: number, alertTitle: string) => {
+    setRemediating((prev) => ({ ...prev, [alertId]: true }));
+    setTimeout(() => {
+      setRemediating((prev) => ({ ...prev, [alertId]: false }));
+      setRemediated((prev) => ({ ...prev, [alertId]: true }));
+      toast({ description: `Auto-remediation applied for "${alertTitle}". All actions executed.` });
+    }, 1500);
+  };
 
   const { data, isLoading, isError } = useListAlerts({ 
     severity: filter === "ALL" ? undefined : filter,
@@ -119,12 +146,33 @@ export default function Alerts() {
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => handleDismiss(alert.id)}
-                  className="shrink-0 px-4 py-2 border border-white/10 rounded-lg text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Dismiss
-                </button>
+                <div className="flex flex-col gap-2 shrink-0">
+                  {REMEDIATION_MAP[alert.title] && !remediated[alert.id] && (
+                    <button
+                      onClick={() => handleRemediate(alert.id, alert.title)}
+                      disabled={remediating[alert.id]}
+                      className={`px-4 py-2 rounded-lg text-xs font-display uppercase tracking-widest transition-colors flex items-center gap-2 ${
+                        remediating[alert.id]
+                          ? "bg-primary/10 text-primary border border-primary/20 animate-pulse cursor-wait"
+                          : "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
+                      }`}
+                    >
+                      <Zap className="w-3 h-3" />
+                      {remediating[alert.id] ? "Remediating..." : "Auto-Remediate"}
+                    </button>
+                  )}
+                  {remediated[alert.id] && (
+                    <div className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-widest bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2">
+                      <Shield className="w-3 h-3" /> Remediated
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleDismiss(alert.id)}
+                    className="px-4 py-2 border border-white/10 rounded-lg text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>

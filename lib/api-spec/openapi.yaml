@@ -231,6 +231,303 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntegrationList"
 
+  /email-security/threats:
+    get:
+      operationId: listEmailThreats
+      tags: [email-security]
+      summary: List detected email threats
+      parameters:
+        - name: threatType
+          in: query
+          schema:
+            type: string
+            enum: [phishing, malware, spoofing, bec, spam]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [detected, quarantined, released, blocked]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Email threats list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailThreatList"
+
+  /email-security/threats/{id}/quarantine:
+    post:
+      operationId: quarantineEmail
+      tags: [email-security]
+      summary: Quarantine a detected email threat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quarantine result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailActionResult"
+
+  /email-security/threats/{id}/release:
+    post:
+      operationId: releaseEmail
+      tags: [email-security]
+      summary: Release a quarantined email
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Release result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailActionResult"
+
+  /email-security/stats:
+    get:
+      operationId: getEmailSecurityStats
+      tags: [email-security]
+      summary: Get email security overview stats
+      responses:
+        "200":
+          description: Email security stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSecurityStats"
+
+  /endpoints:
+    get:
+      operationId: listEndpoints
+      tags: [endpoints]
+      summary: List all monitored endpoints
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [online, offline, degraded]
+        - name: complianceStatus
+          in: query
+          schema:
+            type: string
+            enum: [compliant, non_compliant, at_risk]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Endpoints list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndpointList"
+
+  /endpoints/stats:
+    get:
+      operationId: getEndpointStats
+      tags: [endpoints]
+      summary: Get endpoint security overview stats
+      responses:
+        "200":
+          description: Endpoint stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndpointStats"
+
+  /network/events:
+    get:
+      operationId: listNetworkEvents
+      tags: [network]
+      summary: List network security events
+      parameters:
+        - name: eventType
+          in: query
+          schema:
+            type: string
+            enum: [firewall, ids, anomaly, portscan, ddos]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Network events list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkEventList"
+
+  /network/stats:
+    get:
+      operationId: getNetworkStats
+      tags: [network]
+      summary: Get network security overview stats
+      responses:
+        "200":
+          description: Network stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkStats"
+
+  /yubikey/devices:
+    get:
+      operationId: listYubikeyDevices
+      tags: [yubikey]
+      summary: List YubiKey devices
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, revoked, unassigned]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: YubiKey devices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YubikeyDeviceList"
+
+  /yubikey/events:
+    get:
+      operationId: listYubikeyEvents
+      tags: [yubikey]
+      summary: List YubiKey auth events
+      parameters:
+        - name: eventType
+          in: query
+          schema:
+            type: string
+            enum: [auth_success, auth_failure, key_enrolled, key_revoked]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: YubiKey auth events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YubikeyEventList"
+
+  /yubikey/stats:
+    get:
+      operationId: getYubikeyStats
+      tags: [yubikey]
+      summary: Get YubiKey overview stats
+      responses:
+        "200":
+          description: YubiKey stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YubikeyStats"
+
+  /openclaw/contracts:
+    get:
+      operationId: listOpenclawContracts
+      tags: [openclaw]
+      summary: List monitored contracts
+      parameters:
+        - name: riskLevel
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, expired, expiring_soon, draft]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Contracts list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenclawContractList"
+
+  /openclaw/stats:
+    get:
+      operationId: getOpenclawStats
+      tags: [openclaw]
+      summary: Get contract monitoring overview stats
+      responses:
+        "200":
+          description: OpenClaw stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenclawStats"
+
   /integrations/{id}/configure:
     post:
       operationId: configureIntegration
@@ -781,6 +1078,578 @@ components:
         - services
         - connectedCount
         - totalCount
+
+    EmailThreat:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        sender:
+          type: string
+        recipient:
+          type: string
+        threatType:
+          type: string
+          enum: [phishing, malware, spoofing, bec, spam]
+        riskScore:
+          type: number
+        status:
+          type: string
+          enum: [detected, quarantined, released, blocked]
+        senderReputation:
+          type: number
+        hasAttachment:
+          type: boolean
+        attachmentName:
+          type: string
+          nullable: true
+        attachmentScanResult:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        quarantined:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - subject
+        - sender
+        - recipient
+        - threatType
+        - riskScore
+        - status
+        - senderReputation
+        - hasAttachment
+        - quarantined
+        - createdAt
+
+    EmailThreatList:
+      type: object
+      properties:
+        threats:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailThreat"
+        total:
+          type: integer
+      required:
+        - threats
+        - total
+
+    EmailActionResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+      required:
+        - id
+        - status
+        - message
+
+    EmailSecurityStats:
+      type: object
+      properties:
+        totalScanned:
+          type: integer
+        threatsDetected:
+          type: integer
+        phishingBlocked:
+          type: integer
+        malwareBlocked:
+          type: integer
+        quarantined:
+          type: integer
+        avgRiskScore:
+          type: number
+        topSenderDomains:
+          type: array
+          items:
+            type: object
+            properties:
+              domain:
+                type: string
+              count:
+                type: integer
+              avgRisk:
+                type: number
+            required:
+              - domain
+              - count
+              - avgRisk
+      required:
+        - totalScanned
+        - threatsDetected
+        - phishingBlocked
+        - malwareBlocked
+        - quarantined
+        - avgRiskScore
+        - topSenderDomains
+
+    EndpointDevice:
+      type: object
+      properties:
+        id:
+          type: integer
+        hostname:
+          type: string
+        deviceType:
+          type: string
+        os:
+          type: string
+        osVersion:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [online, offline, degraded]
+        complianceStatus:
+          type: string
+          enum: [compliant, non_compliant, at_risk]
+        riskScore:
+          type: number
+        agentVersion:
+          type: string
+          nullable: true
+        encryptionEnabled:
+          type: boolean
+        firewallEnabled:
+          type: boolean
+        antivirusEnabled:
+          type: boolean
+        patchesPending:
+          type: integer
+        vulnerabilities:
+          type: integer
+        assignedUser:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - hostname
+        - deviceType
+        - os
+        - osVersion
+        - lastSeen
+        - status
+        - complianceStatus
+        - riskScore
+        - encryptionEnabled
+        - firewallEnabled
+        - antivirusEnabled
+        - patchesPending
+        - vulnerabilities
+        - createdAt
+
+    EndpointList:
+      type: object
+      properties:
+        endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/EndpointDevice"
+        total:
+          type: integer
+      required:
+        - endpoints
+        - total
+
+    EndpointStats:
+      type: object
+      properties:
+        totalDevices:
+          type: integer
+        onlineCount:
+          type: integer
+        offlineCount:
+          type: integer
+        compliantCount:
+          type: integer
+        nonCompliantCount:
+          type: integer
+        atRiskCount:
+          type: integer
+        avgRiskScore:
+          type: number
+        totalVulnerabilities:
+          type: integer
+        totalPatchesPending:
+          type: integer
+      required:
+        - totalDevices
+        - onlineCount
+        - offlineCount
+        - compliantCount
+        - nonCompliantCount
+        - atRiskCount
+        - avgRiskScore
+        - totalVulnerabilities
+        - totalPatchesPending
+
+    NetworkEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventType:
+          type: string
+          enum: [firewall, ids, anomaly, portscan, ddos]
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        sourceIp:
+          type: string
+        destinationIp:
+          type: string
+        sourcePort:
+          type: integer
+          nullable: true
+        destinationPort:
+          type: integer
+          nullable: true
+        protocol:
+          type: string
+        action:
+          type: string
+        riskScore:
+          type: number
+        country:
+          type: string
+          nullable: true
+        details:
+          type: string
+          nullable: true
+        ruleName:
+          type: string
+          nullable: true
+        bytesTransferred:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - eventType
+        - severity
+        - sourceIp
+        - destinationIp
+        - protocol
+        - action
+        - riskScore
+        - status
+        - createdAt
+
+    NetworkEventList:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/NetworkEvent"
+        total:
+          type: integer
+      required:
+        - events
+        - total
+
+    NetworkStats:
+      type: object
+      properties:
+        totalEvents:
+          type: integer
+        blockedCount:
+          type: integer
+        alertedCount:
+          type: integer
+        criticalCount:
+          type: integer
+        highCount:
+          type: integer
+        activeDdos:
+          type: integer
+        topSourceCountries:
+          type: array
+          items:
+            type: object
+            properties:
+              country:
+                type: string
+              count:
+                type: integer
+            required:
+              - country
+              - count
+      required:
+        - totalEvents
+        - blockedCount
+        - alertedCount
+        - criticalCount
+        - highCount
+        - activeDdos
+        - topSourceCountries
+
+    YubikeyDevice:
+      type: object
+      properties:
+        id:
+          type: integer
+        serialNumber:
+          type: string
+        model:
+          type: string
+        firmwareVersion:
+          type: string
+        assignedUser:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, suspended, revoked, unassigned]
+        enrolledAt:
+          type: string
+          format: date-time
+        lastUsed:
+          type: string
+          format: date-time
+          nullable: true
+        authSuccessCount:
+          type: integer
+        authFailCount:
+          type: integer
+        protocols:
+          type: string
+        department:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - serialNumber
+        - model
+        - firmwareVersion
+        - status
+        - enrolledAt
+        - authSuccessCount
+        - authFailCount
+        - protocols
+        - createdAt
+
+    YubikeyDeviceList:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/YubikeyDevice"
+        total:
+          type: integer
+      required:
+        - devices
+        - total
+
+    YubikeyAuthEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        deviceSerial:
+          type: string
+        user:
+          type: string
+        eventType:
+          type: string
+          enum: [auth_success, auth_failure, key_enrolled, key_revoked]
+        protocol:
+          type: string
+        ipAddress:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - deviceSerial
+        - user
+        - eventType
+        - protocol
+        - createdAt
+
+    YubikeyEventList:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/YubikeyAuthEvent"
+        total:
+          type: integer
+      required:
+        - events
+        - total
+
+    YubikeyStats:
+      type: object
+      properties:
+        totalDevices:
+          type: integer
+        activeCount:
+          type: integer
+        suspendedCount:
+          type: integer
+        unassignedCount:
+          type: integer
+        totalAuthSuccess:
+          type: integer
+        totalAuthFail:
+          type: integer
+        recentFailures:
+          type: integer
+      required:
+        - totalDevices
+        - activeCount
+        - suspendedCount
+        - unassignedCount
+        - totalAuthSuccess
+        - totalAuthFail
+        - recentFailures
+
+    OpenclawContract:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        contractType:
+          type: string
+        status:
+          type: string
+          enum: [active, expired, expiring_soon, draft]
+        riskLevel:
+          type: string
+          enum: [low, medium, high, critical]
+        riskScore:
+          type: number
+        counterparty:
+          type: string
+        jurisdiction:
+          type: string
+        flaggedClauses:
+          type: integer
+        totalClauses:
+          type: integer
+        complianceStatus:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastScanned:
+          type: string
+          format: date-time
+        details:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - contractType
+        - status
+        - riskLevel
+        - riskScore
+        - counterparty
+        - jurisdiction
+        - flaggedClauses
+        - totalClauses
+        - complianceStatus
+        - lastScanned
+        - createdAt
+
+    OpenclawContractList:
+      type: object
+      properties:
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenclawContract"
+        total:
+          type: integer
+      required:
+        - contracts
+        - total
+
+    OpenclawStats:
+      type: object
+      properties:
+        totalContracts:
+          type: integer
+        activeCount:
+          type: integer
+        expiredCount:
+          type: integer
+        expiringSoonCount:
+          type: integer
+        compliantCount:
+          type: integer
+        nonCompliantCount:
+          type: integer
+        avgRiskScore:
+          type: number
+        totalFlaggedClauses:
+          type: integer
+        criticalRiskCount:
+          type: integer
+      required:
+        - totalContracts
+        - activeCount
+        - expiredCount
+        - expiringSoonCount
+        - compliantCount
+        - nonCompliantCount
+        - avgRiskScore
+        - totalFlaggedClauses
+        - criticalRiskCount
 
     ConfigureIntegrationRequest:
       type: object

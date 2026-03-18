@@ -225,6 +225,339 @@ export const ListIntegrationsResponse = zod.object({
 });
 
 /**
+ * @summary List detected email threats
+ */
+export const listEmailThreatsQueryLimitDefault = 50;
+export const listEmailThreatsQueryOffsetDefault = 0;
+
+export const ListEmailThreatsQueryParams = zod.object({
+  threatType: zod
+    .enum(["phishing", "malware", "spoofing", "bec", "spam"])
+    .optional(),
+  status: zod
+    .enum(["detected", "quarantined", "released", "blocked"])
+    .optional(),
+  limit: zod.coerce.number().default(listEmailThreatsQueryLimitDefault),
+  offset: zod.coerce.number().default(listEmailThreatsQueryOffsetDefault),
+});
+
+export const ListEmailThreatsResponse = zod.object({
+  threats: zod.array(
+    zod.object({
+      id: zod.number(),
+      subject: zod.string(),
+      sender: zod.string(),
+      recipient: zod.string(),
+      threatType: zod.enum(["phishing", "malware", "spoofing", "bec", "spam"]),
+      riskScore: zod.number(),
+      status: zod.enum(["detected", "quarantined", "released", "blocked"]),
+      senderReputation: zod.number(),
+      hasAttachment: zod.boolean(),
+      attachmentName: zod.string().nullish(),
+      attachmentScanResult: zod.string().nullish(),
+      country: zod.string().nullish(),
+      ipAddress: zod.string().nullish(),
+      details: zod.string().nullish(),
+      quarantined: zod.boolean(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Quarantine a detected email threat
+ */
+export const QuarantineEmailParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const QuarantineEmailResponse = zod.object({
+  id: zod.number(),
+  status: zod.string(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Release a quarantined email
+ */
+export const ReleaseEmailParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReleaseEmailResponse = zod.object({
+  id: zod.number(),
+  status: zod.string(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Get email security overview stats
+ */
+export const GetEmailSecurityStatsResponse = zod.object({
+  totalScanned: zod.number(),
+  threatsDetected: zod.number(),
+  phishingBlocked: zod.number(),
+  malwareBlocked: zod.number(),
+  quarantined: zod.number(),
+  avgRiskScore: zod.number(),
+  topSenderDomains: zod.array(
+    zod.object({
+      domain: zod.string(),
+      count: zod.number(),
+      avgRisk: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary List all monitored endpoints
+ */
+export const listEndpointsQueryLimitDefault = 50;
+export const listEndpointsQueryOffsetDefault = 0;
+
+export const ListEndpointsQueryParams = zod.object({
+  status: zod.enum(["online", "offline", "degraded"]).optional(),
+  complianceStatus: zod
+    .enum(["compliant", "non_compliant", "at_risk"])
+    .optional(),
+  limit: zod.coerce.number().default(listEndpointsQueryLimitDefault),
+  offset: zod.coerce.number().default(listEndpointsQueryOffsetDefault),
+});
+
+export const ListEndpointsResponse = zod.object({
+  endpoints: zod.array(
+    zod.object({
+      id: zod.number(),
+      hostname: zod.string(),
+      deviceType: zod.string(),
+      os: zod.string(),
+      osVersion: zod.string(),
+      lastSeen: zod.date(),
+      status: zod.enum(["online", "offline", "degraded"]),
+      complianceStatus: zod.enum(["compliant", "non_compliant", "at_risk"]),
+      riskScore: zod.number(),
+      agentVersion: zod.string().nullish(),
+      encryptionEnabled: zod.boolean(),
+      firewallEnabled: zod.boolean(),
+      antivirusEnabled: zod.boolean(),
+      patchesPending: zod.number(),
+      vulnerabilities: zod.number(),
+      assignedUser: zod.string().nullish(),
+      ipAddress: zod.string().nullish(),
+      location: zod.string().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get endpoint security overview stats
+ */
+export const GetEndpointStatsResponse = zod.object({
+  totalDevices: zod.number(),
+  onlineCount: zod.number(),
+  offlineCount: zod.number(),
+  compliantCount: zod.number(),
+  nonCompliantCount: zod.number(),
+  atRiskCount: zod.number(),
+  avgRiskScore: zod.number(),
+  totalVulnerabilities: zod.number(),
+  totalPatchesPending: zod.number(),
+});
+
+/**
+ * @summary List network security events
+ */
+export const listNetworkEventsQueryLimitDefault = 50;
+export const listNetworkEventsQueryOffsetDefault = 0;
+
+export const ListNetworkEventsQueryParams = zod.object({
+  eventType: zod
+    .enum(["firewall", "ids", "anomaly", "portscan", "ddos"])
+    .optional(),
+  severity: zod.enum(["critical", "high", "medium", "low"]).optional(),
+  limit: zod.coerce.number().default(listNetworkEventsQueryLimitDefault),
+  offset: zod.coerce.number().default(listNetworkEventsQueryOffsetDefault),
+});
+
+export const ListNetworkEventsResponse = zod.object({
+  events: zod.array(
+    zod.object({
+      id: zod.number(),
+      eventType: zod.enum(["firewall", "ids", "anomaly", "portscan", "ddos"]),
+      severity: zod.enum(["critical", "high", "medium", "low"]),
+      sourceIp: zod.string(),
+      destinationIp: zod.string(),
+      sourcePort: zod.number().nullish(),
+      destinationPort: zod.number().nullish(),
+      protocol: zod.string(),
+      action: zod.string(),
+      riskScore: zod.number(),
+      country: zod.string().nullish(),
+      details: zod.string().nullish(),
+      ruleName: zod.string().nullish(),
+      bytesTransferred: zod.number().nullish(),
+      status: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get network security overview stats
+ */
+export const GetNetworkStatsResponse = zod.object({
+  totalEvents: zod.number(),
+  blockedCount: zod.number(),
+  alertedCount: zod.number(),
+  criticalCount: zod.number(),
+  highCount: zod.number(),
+  activeDdos: zod.number(),
+  topSourceCountries: zod.array(
+    zod.object({
+      country: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary List YubiKey devices
+ */
+export const listYubikeyDevicesQueryLimitDefault = 50;
+export const listYubikeyDevicesQueryOffsetDefault = 0;
+
+export const ListYubikeyDevicesQueryParams = zod.object({
+  status: zod.enum(["active", "suspended", "revoked", "unassigned"]).optional(),
+  limit: zod.coerce.number().default(listYubikeyDevicesQueryLimitDefault),
+  offset: zod.coerce.number().default(listYubikeyDevicesQueryOffsetDefault),
+});
+
+export const ListYubikeyDevicesResponse = zod.object({
+  devices: zod.array(
+    zod.object({
+      id: zod.number(),
+      serialNumber: zod.string(),
+      model: zod.string(),
+      firmwareVersion: zod.string(),
+      assignedUser: zod.string().nullish(),
+      status: zod.enum(["active", "suspended", "revoked", "unassigned"]),
+      enrolledAt: zod.date(),
+      lastUsed: zod.date().nullish(),
+      authSuccessCount: zod.number(),
+      authFailCount: zod.number(),
+      protocols: zod.string(),
+      department: zod.string().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary List YubiKey auth events
+ */
+export const listYubikeyEventsQueryLimitDefault = 50;
+export const listYubikeyEventsQueryOffsetDefault = 0;
+
+export const ListYubikeyEventsQueryParams = zod.object({
+  eventType: zod
+    .enum(["auth_success", "auth_failure", "key_enrolled", "key_revoked"])
+    .optional(),
+  limit: zod.coerce.number().default(listYubikeyEventsQueryLimitDefault),
+  offset: zod.coerce.number().default(listYubikeyEventsQueryOffsetDefault),
+});
+
+export const ListYubikeyEventsResponse = zod.object({
+  events: zod.array(
+    zod.object({
+      id: zod.number(),
+      deviceSerial: zod.string(),
+      user: zod.string(),
+      eventType: zod.enum([
+        "auth_success",
+        "auth_failure",
+        "key_enrolled",
+        "key_revoked",
+      ]),
+      protocol: zod.string(),
+      ipAddress: zod.string().nullish(),
+      userAgent: zod.string().nullish(),
+      location: zod.string().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get YubiKey overview stats
+ */
+export const GetYubikeyStatsResponse = zod.object({
+  totalDevices: zod.number(),
+  activeCount: zod.number(),
+  suspendedCount: zod.number(),
+  unassignedCount: zod.number(),
+  totalAuthSuccess: zod.number(),
+  totalAuthFail: zod.number(),
+  recentFailures: zod.number(),
+});
+
+/**
+ * @summary List monitored contracts
+ */
+export const listOpenclawContractsQueryLimitDefault = 50;
+export const listOpenclawContractsQueryOffsetDefault = 0;
+
+export const ListOpenclawContractsQueryParams = zod.object({
+  riskLevel: zod.enum(["low", "medium", "high", "critical"]).optional(),
+  status: zod.enum(["active", "expired", "expiring_soon", "draft"]).optional(),
+  limit: zod.coerce.number().default(listOpenclawContractsQueryLimitDefault),
+  offset: zod.coerce.number().default(listOpenclawContractsQueryOffsetDefault),
+});
+
+export const ListOpenclawContractsResponse = zod.object({
+  contracts: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      contractType: zod.string(),
+      status: zod.enum(["active", "expired", "expiring_soon", "draft"]),
+      riskLevel: zod.enum(["low", "medium", "high", "critical"]),
+      riskScore: zod.number(),
+      counterparty: zod.string(),
+      jurisdiction: zod.string(),
+      flaggedClauses: zod.number(),
+      totalClauses: zod.number(),
+      complianceStatus: zod.string(),
+      expiresAt: zod.date().nullish(),
+      lastScanned: zod.date(),
+      details: zod.string().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get contract monitoring overview stats
+ */
+export const GetOpenclawStatsResponse = zod.object({
+  totalContracts: zod.number(),
+  activeCount: zod.number(),
+  expiredCount: zod.number(),
+  expiringSoonCount: zod.number(),
+  compliantCount: zod.number(),
+  nonCompliantCount: zod.number(),
+  avgRiskScore: zod.number(),
+  totalFlaggedClauses: zod.number(),
+  criticalRiskCount: zod.number(),
+});
+
+/**
  * @summary Configure credentials for a pending integration
  */
 export const ConfigureIntegrationParams = zod.object({

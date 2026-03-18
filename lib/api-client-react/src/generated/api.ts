@@ -27,6 +27,11 @@ import type {
   DarkWebExposureList,
   DarkWebSummary,
   DashboardStats,
+  EmailActionResult,
+  EmailSecurityStats,
+  EmailThreatList,
+  EndpointList,
+  EndpointStats,
   GetActivityLogParams,
   GetRiskTimelineParams,
   GetThroughputParams,
@@ -35,8 +40,18 @@ import type {
   IntegrationList,
   ListAlertsParams,
   ListDarkWebExposuresParams,
+  ListEmailThreatsParams,
+  ListEndpointsParams,
+  ListNetworkEventsParams,
+  ListOpenclawContractsParams,
   ListRecoveryActionsParams,
   ListTransactionsParams,
+  ListYubikeyDevicesParams,
+  ListYubikeyEventsParams,
+  NetworkEventList,
+  NetworkStats,
+  OpenclawContractList,
+  OpenclawStats,
   RecoveryAction,
   RecoveryActionList,
   RiskDistribution,
@@ -51,6 +66,9 @@ import type {
   TransactionList,
   TransactionScanRequest,
   TransactionScanResult,
+  YubikeyDeviceList,
+  YubikeyEventList,
+  YubikeyStats,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -990,6 +1008,1134 @@ export function useListIntegrations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListIntegrationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List detected email threats
+ */
+export const getListEmailThreatsUrl = (params?: ListEmailThreatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/email-security/threats?${stringifiedParams}`
+    : `/api/email-security/threats`;
+};
+
+export const listEmailThreats = async (
+  params?: ListEmailThreatsParams,
+  options?: RequestInit,
+): Promise<EmailThreatList> => {
+  return customFetch<EmailThreatList>(getListEmailThreatsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListEmailThreatsQueryKey = (
+  params?: ListEmailThreatsParams,
+) => {
+  return [`/api/email-security/threats`, ...(params ? [params] : [])] as const;
+};
+
+export const getListEmailThreatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEmailThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListEmailThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEmailThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListEmailThreatsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listEmailThreats>>
+  > = ({ signal }) => listEmailThreats(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEmailThreats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEmailThreatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEmailThreats>>
+>;
+export type ListEmailThreatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List detected email threats
+ */
+
+export function useListEmailThreats<
+  TData = Awaited<ReturnType<typeof listEmailThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListEmailThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEmailThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEmailThreatsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Quarantine a detected email threat
+ */
+export const getQuarantineEmailUrl = (id: number) => {
+  return `/api/email-security/threats/${id}/quarantine`;
+};
+
+export const quarantineEmail = async (
+  id: number,
+  options?: RequestInit,
+): Promise<EmailActionResult> => {
+  return customFetch<EmailActionResult>(getQuarantineEmailUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getQuarantineEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof quarantineEmail>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof quarantineEmail>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["quarantineEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof quarantineEmail>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return quarantineEmail(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type QuarantineEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof quarantineEmail>>
+>;
+
+export type QuarantineEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Quarantine a detected email threat
+ */
+export const useQuarantineEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof quarantineEmail>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof quarantineEmail>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getQuarantineEmailMutationOptions(options));
+};
+
+/**
+ * @summary Release a quarantined email
+ */
+export const getReleaseEmailUrl = (id: number) => {
+  return `/api/email-security/threats/${id}/release`;
+};
+
+export const releaseEmail = async (
+  id: number,
+  options?: RequestInit,
+): Promise<EmailActionResult> => {
+  return customFetch<EmailActionResult>(getReleaseEmailUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getReleaseEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof releaseEmail>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof releaseEmail>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["releaseEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof releaseEmail>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return releaseEmail(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReleaseEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof releaseEmail>>
+>;
+
+export type ReleaseEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Release a quarantined email
+ */
+export const useReleaseEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof releaseEmail>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof releaseEmail>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getReleaseEmailMutationOptions(options));
+};
+
+/**
+ * @summary Get email security overview stats
+ */
+export const getGetEmailSecurityStatsUrl = () => {
+  return `/api/email-security/stats`;
+};
+
+export const getEmailSecurityStats = async (
+  options?: RequestInit,
+): Promise<EmailSecurityStats> => {
+  return customFetch<EmailSecurityStats>(getGetEmailSecurityStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEmailSecurityStatsQueryKey = () => {
+  return [`/api/email-security/stats`] as const;
+};
+
+export const getGetEmailSecurityStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEmailSecurityStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailSecurityStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEmailSecurityStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getEmailSecurityStats>>
+  > = ({ signal }) => getEmailSecurityStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailSecurityStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEmailSecurityStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEmailSecurityStats>>
+>;
+export type GetEmailSecurityStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get email security overview stats
+ */
+
+export function useGetEmailSecurityStats<
+  TData = Awaited<ReturnType<typeof getEmailSecurityStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getEmailSecurityStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEmailSecurityStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all monitored endpoints
+ */
+export const getListEndpointsUrl = (params?: ListEndpointsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/endpoints?${stringifiedParams}`
+    : `/api/endpoints`;
+};
+
+export const listEndpoints = async (
+  params?: ListEndpointsParams,
+  options?: RequestInit,
+): Promise<EndpointList> => {
+  return customFetch<EndpointList>(getListEndpointsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListEndpointsQueryKey = (params?: ListEndpointsParams) => {
+  return [`/api/endpoints`, ...(params ? [params] : [])] as const;
+};
+
+export const getListEndpointsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEndpoints>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListEndpointsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEndpoints>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListEndpointsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listEndpoints>>> = ({
+    signal,
+  }) => listEndpoints(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEndpoints>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEndpointsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEndpoints>>
+>;
+export type ListEndpointsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all monitored endpoints
+ */
+
+export function useListEndpoints<
+  TData = Awaited<ReturnType<typeof listEndpoints>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListEndpointsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEndpoints>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEndpointsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get endpoint security overview stats
+ */
+export const getGetEndpointStatsUrl = () => {
+  return `/api/endpoints/stats`;
+};
+
+export const getEndpointStats = async (
+  options?: RequestInit,
+): Promise<EndpointStats> => {
+  return customFetch<EndpointStats>(getGetEndpointStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetEndpointStatsQueryKey = () => {
+  return [`/api/endpoints/stats`] as const;
+};
+
+export const getGetEndpointStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEndpointStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getEndpointStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEndpointStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getEndpointStats>>
+  > = ({ signal }) => getEndpointStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getEndpointStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetEndpointStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEndpointStats>>
+>;
+export type GetEndpointStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get endpoint security overview stats
+ */
+
+export function useGetEndpointStats<
+  TData = Awaited<ReturnType<typeof getEndpointStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getEndpointStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetEndpointStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List network security events
+ */
+export const getListNetworkEventsUrl = (params?: ListNetworkEventsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/network/events?${stringifiedParams}`
+    : `/api/network/events`;
+};
+
+export const listNetworkEvents = async (
+  params?: ListNetworkEventsParams,
+  options?: RequestInit,
+): Promise<NetworkEventList> => {
+  return customFetch<NetworkEventList>(getListNetworkEventsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNetworkEventsQueryKey = (
+  params?: ListNetworkEventsParams,
+) => {
+  return [`/api/network/events`, ...(params ? [params] : [])] as const;
+};
+
+export const getListNetworkEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNetworkEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListNetworkEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listNetworkEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListNetworkEventsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listNetworkEvents>>
+  > = ({ signal }) => listNetworkEvents(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNetworkEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNetworkEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNetworkEvents>>
+>;
+export type ListNetworkEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List network security events
+ */
+
+export function useListNetworkEvents<
+  TData = Awaited<ReturnType<typeof listNetworkEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListNetworkEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listNetworkEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNetworkEventsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get network security overview stats
+ */
+export const getGetNetworkStatsUrl = () => {
+  return `/api/network/stats`;
+};
+
+export const getNetworkStats = async (
+  options?: RequestInit,
+): Promise<NetworkStats> => {
+  return customFetch<NetworkStats>(getGetNetworkStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNetworkStatsQueryKey = () => {
+  return [`/api/network/stats`] as const;
+};
+
+export const getGetNetworkStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNetworkStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNetworkStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNetworkStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNetworkStats>>> = ({
+    signal,
+  }) => getNetworkStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNetworkStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNetworkStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNetworkStats>>
+>;
+export type GetNetworkStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get network security overview stats
+ */
+
+export function useGetNetworkStats<
+  TData = Awaited<ReturnType<typeof getNetworkStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNetworkStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNetworkStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List YubiKey devices
+ */
+export const getListYubikeyDevicesUrl = (params?: ListYubikeyDevicesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/yubikey/devices?${stringifiedParams}`
+    : `/api/yubikey/devices`;
+};
+
+export const listYubikeyDevices = async (
+  params?: ListYubikeyDevicesParams,
+  options?: RequestInit,
+): Promise<YubikeyDeviceList> => {
+  return customFetch<YubikeyDeviceList>(getListYubikeyDevicesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListYubikeyDevicesQueryKey = (
+  params?: ListYubikeyDevicesParams,
+) => {
+  return [`/api/yubikey/devices`, ...(params ? [params] : [])] as const;
+};
+
+export const getListYubikeyDevicesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listYubikeyDevices>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListYubikeyDevicesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYubikeyDevices>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListYubikeyDevicesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listYubikeyDevices>>
+  > = ({ signal }) => listYubikeyDevices(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listYubikeyDevices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListYubikeyDevicesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listYubikeyDevices>>
+>;
+export type ListYubikeyDevicesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List YubiKey devices
+ */
+
+export function useListYubikeyDevices<
+  TData = Awaited<ReturnType<typeof listYubikeyDevices>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListYubikeyDevicesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYubikeyDevices>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListYubikeyDevicesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List YubiKey auth events
+ */
+export const getListYubikeyEventsUrl = (params?: ListYubikeyEventsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/yubikey/events?${stringifiedParams}`
+    : `/api/yubikey/events`;
+};
+
+export const listYubikeyEvents = async (
+  params?: ListYubikeyEventsParams,
+  options?: RequestInit,
+): Promise<YubikeyEventList> => {
+  return customFetch<YubikeyEventList>(getListYubikeyEventsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListYubikeyEventsQueryKey = (
+  params?: ListYubikeyEventsParams,
+) => {
+  return [`/api/yubikey/events`, ...(params ? [params] : [])] as const;
+};
+
+export const getListYubikeyEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listYubikeyEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListYubikeyEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYubikeyEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListYubikeyEventsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listYubikeyEvents>>
+  > = ({ signal }) => listYubikeyEvents(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listYubikeyEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListYubikeyEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listYubikeyEvents>>
+>;
+export type ListYubikeyEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List YubiKey auth events
+ */
+
+export function useListYubikeyEvents<
+  TData = Awaited<ReturnType<typeof listYubikeyEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListYubikeyEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listYubikeyEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListYubikeyEventsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get YubiKey overview stats
+ */
+export const getGetYubikeyStatsUrl = () => {
+  return `/api/yubikey/stats`;
+};
+
+export const getYubikeyStats = async (
+  options?: RequestInit,
+): Promise<YubikeyStats> => {
+  return customFetch<YubikeyStats>(getGetYubikeyStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetYubikeyStatsQueryKey = () => {
+  return [`/api/yubikey/stats`] as const;
+};
+
+export const getGetYubikeyStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getYubikeyStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getYubikeyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetYubikeyStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getYubikeyStats>>> = ({
+    signal,
+  }) => getYubikeyStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getYubikeyStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetYubikeyStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getYubikeyStats>>
+>;
+export type GetYubikeyStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get YubiKey overview stats
+ */
+
+export function useGetYubikeyStats<
+  TData = Awaited<ReturnType<typeof getYubikeyStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getYubikeyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetYubikeyStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List monitored contracts
+ */
+export const getListOpenclawContractsUrl = (
+  params?: ListOpenclawContractsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/openclaw/contracts?${stringifiedParams}`
+    : `/api/openclaw/contracts`;
+};
+
+export const listOpenclawContracts = async (
+  params?: ListOpenclawContractsParams,
+  options?: RequestInit,
+): Promise<OpenclawContractList> => {
+  return customFetch<OpenclawContractList>(
+    getListOpenclawContractsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListOpenclawContractsQueryKey = (
+  params?: ListOpenclawContractsParams,
+) => {
+  return [`/api/openclaw/contracts`, ...(params ? [params] : [])] as const;
+};
+
+export const getListOpenclawContractsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listOpenclawContracts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenclawContractsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenclawContracts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListOpenclawContractsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listOpenclawContracts>>
+  > = ({ signal }) =>
+    listOpenclawContracts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listOpenclawContracts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListOpenclawContractsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listOpenclawContracts>>
+>;
+export type ListOpenclawContractsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List monitored contracts
+ */
+
+export function useListOpenclawContracts<
+  TData = Awaited<ReturnType<typeof listOpenclawContracts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListOpenclawContractsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listOpenclawContracts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListOpenclawContractsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get contract monitoring overview stats
+ */
+export const getGetOpenclawStatsUrl = () => {
+  return `/api/openclaw/stats`;
+};
+
+export const getOpenclawStats = async (
+  options?: RequestInit,
+): Promise<OpenclawStats> => {
+  return customFetch<OpenclawStats>(getGetOpenclawStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOpenclawStatsQueryKey = () => {
+  return [`/api/openclaw/stats`] as const;
+};
+
+export const getGetOpenclawStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOpenclawStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenclawStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOpenclawStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOpenclawStats>>
+  > = ({ signal }) => getOpenclawStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenclawStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOpenclawStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOpenclawStats>>
+>;
+export type GetOpenclawStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get contract monitoring overview stats
+ */
+
+export function useGetOpenclawStats<
+  TData = Awaited<ReturnType<typeof getOpenclawStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getOpenclawStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOpenclawStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -38,33 +38,47 @@ artifacts-monorepo/
 
 ## Features
 
-1. **Dashboard** - Real-time overview with stats (total transactions, blocked, held, allowed, avg risk score, block rate, active alerts, integrations online)
+1. **Dashboard (Command Center)** - Real-time overview with stats (total transactions, blocked, held, allowed, avg risk score, active integrations). Includes:
+   - **AI Risk Assistant** - Floating chat widget with contextual responses about threats, risk trends, compliance, phishing, endpoints, and network security
+   - **Threat Correlation Engine** - Multi-source attack pattern correlations with confidence scores, linking events across Email Gateway, Network IDS, Endpoint EDR, Auth Monitor
+   - **Real-Time Threat Intel Feed** - Live scrolling feed of security events with severity indicators, timestamps, and source labels
+   - **7-Day Risk & Volume Topology** - Area chart showing risk scores and transaction volume over time
 2. **Transaction Ledger** - Lists all transactions with filtering by status (ALLOWED, HELD, BLOCKED, APPROVED, REJECTED). Includes "Scan Payload" button for submitting new transactions for ML risk analysis
 3. **Manual Override Queue (Approvals)** - Shows HELD transactions for manual review with Approve/Reject actions
-4. **Security Advisories (Alerts)** - Security alerts with severity levels (low, medium, high, critical) and dismiss functionality
-5. **External Linkages (Integrations)** - Shows status of connected services (Stripe, Plaid, Cloudflare, Gmail, Twilio, Google Workspace Protection) plus pending integrations (Google Workspace Admin, AVG, Incognito, DeleteMe, IdentityForce) with configuration UI. Each integration shows category badge, description, and status. Google Workspace Protection includes a live status panel showing connection state for Gmail, Drive, Calendar, Docs, and Sheets via OAuth
-6. **System Monitoring** - Four-tab monitoring page:
-   - **System Health** - Overall status, 6 metrics (req/min, avg response, error rate, connections, memory, CPU), service health matrix with 5 services
-   - **Activity Log** - Filterable audit trail by category and severity, with pagination
-   - **Threat Intel** - Geographic threat map, risk score distribution chart, threat category pie chart, recent high-risk transactions
-   - **Throughput** - Transaction volume summary cards and time-series area chart
-7. **Dark Web Monitor** - Two-tab page tracking compromised personal data:
-   - **Exposures** - Lists detected dark web exposures (SSN, email, credentials, financial accounts, phone numbers) with severity badges, status indicators, source marketplace, and expandable detail cards with recommended actions. Filterable by severity.
-   - **Recovery Center** - Interactive checklist of recovery actions grouped by category (Credit Protection, Account Security, Legal & Reporting) with progress tracking, priority badges, and completion toggle. Exposure events auto-generate alerts in the existing alerts system.
+4. **Security Advisories (Alerts)** - Security alerts with severity levels (low, medium, high, critical), dismiss functionality, and **auto-remediate buttons** that execute predefined remediation actions per alert type with animated status transitions
+5. **Email Security** - AI-powered email threat detection with phishing detection dashboard, suspicious email list, sender reputation scoring, attachment scanning results, quarantine/release actions, and email stats overview
+6. **Endpoint Security** - Device inventory with compliance status, vulnerability scanning, patch management, EDR alerts, and device risk scoring
+7. **Network Security** - Real-time network monitoring with firewall events, IDS/IPS alerts, traffic anomaly detection, port scanning detection, DDoS monitoring, and attack source country mapping
+8. **YubiKey MFA** - Hardware key management with key inventory, authentication event tracking, enrollment management, failed auth monitoring, and policy management
+9. **OpenClaw Monitor** - AI contract monitoring with clause risk analysis, compliance tracking, anomaly detection, document scanning, and regulatory alerts
+10. **External Linkages (Integrations)** - Shows status of connected services (Stripe, Plaid, Cloudflare, Gmail, Twilio, Google Workspace Protection) plus pending integrations with configuration UI
+11. **System Monitoring** - Five-tab monitoring page:
+    - **System Health** - Overall status, 6 metrics, service health matrix
+    - **Activity Log** - Filterable audit trail by category and severity
+    - **Threat Intel** - Geographic threat map, risk score distribution, threat categories
+    - **Throughput** - Transaction volume summary and time-series chart
+    - **Compliance Report** - Multi-framework compliance tracking (SOC 2 Type II, GDPR, PCI DSS v4.0, ISO 27001, HIPAA) with control counts, scores, audit dates, progress bars, and expandable findings
+12. **Dark Web Monitor** - Two-tab page tracking compromised personal data with exposures list and recovery center
 
 ## Database Schema
 
 - **transactions** - Stores all transactions with source, destination, amount, currency, risk_score, status, category, ip_address, country
 - **alerts** - Security alerts with title, message, severity, dismissed status
-- **activity_logs** - Audit trail of system activity with action, category, source, detail, severity, ip_address, response_time_ms
-- **dark_web_exposures** - Dark web exposure records with data_type, source_marketplace, severity, status, discovery_date, description, recommended_actions
-- **recovery_actions** - Recovery action checklists linked to exposures (FK to dark_web_exposures) with title, description, category, completed, priority
+- **activity_logs** - Audit trail of system activity
+- **dark_web_exposures** - Dark web exposure records
+- **recovery_actions** - Recovery action checklists linked to exposures
+- **email_threats** - Email threat detection records with sender, recipient, threat type, risk score, attachment scanning, quarantine status
+- **endpoints** - Endpoint device inventory with hostname, OS, compliance status, vulnerabilities, risk scores
+- **network_events** - Network security events with firewall, IDS/IPS, anomaly detection data
+- **yubikey_devices** - YubiKey hardware key inventory and status
+- **yubikey_auth_events** - YubiKey authentication event logs
+- **openclaw_contracts** - Contract monitoring with clause risk analysis and compliance tracking
 
 ## ML Risk Scoring
 
 The risk scoring engine evaluates transactions based on:
 - Transaction amount (>$10k = high risk, >$5k = elevated)
-- Country of origin (known high-risk regions)
+- Country of origin (known high-risk regions: NG, RU, CN, IR, KP)
 - Transaction category (crypto, gambling, wire_transfer = higher risk)
 - Status assignment: BLOCKED (>0.7), HELD (>0.4), ALLOWED (<=0.4)
 
@@ -83,16 +97,29 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/integrations` - List integration statuses
 - `GET /api/integrations/google-workspace/status` - Live Google Workspace service connection status
 - `GET /api/monitoring/system-health` - Infrastructure health status
-- `GET /api/monitoring/activity-log` - Activity audit trail (filterable by category, severity)
+- `GET /api/monitoring/activity-log` - Activity audit trail
 - `GET /api/monitoring/threat-map` - Geographic threat distribution
 - `GET /api/monitoring/throughput` - Transaction throughput over time
 - `GET /api/monitoring/risk-distribution` - Risk score distribution buckets
-- `GET /api/monitoring/top-threats` - Top threat categories, sources, and recent high-risk transactions
-- `GET /api/dark-web/exposures` - List dark web exposures (filterable by severity, status)
+- `GET /api/monitoring/top-threats` - Top threat categories and sources
+- `GET /api/dark-web/exposures` - List dark web exposures
 - `GET /api/dark-web/exposures/:id` - Get exposure detail
-- `GET /api/dark-web/recovery-actions` - List recovery actions (filterable by exposureId, category)
+- `GET /api/dark-web/recovery-actions` - List recovery actions
 - `POST /api/dark-web/recovery-actions/:id/toggle` - Toggle recovery action completion
 - `GET /api/dark-web/summary` - Dark web monitoring summary stats
+- `GET /api/email-security` - List email threats
+- `GET /api/email-security/stats` - Email security statistics
+- `POST /api/email-security/:id/quarantine` - Quarantine email
+- `POST /api/email-security/:id/release` - Release email
+- `GET /api/endpoints` - List endpoints
+- `GET /api/endpoints/stats` - Endpoint security statistics
+- `GET /api/network` - List network events
+- `GET /api/network/stats` - Network security statistics
+- `GET /api/yubikey/devices` - List YubiKey devices
+- `GET /api/yubikey/auth-events` - List YubiKey auth events
+- `GET /api/yubikey/stats` - YubiKey statistics
+- `GET /api/openclaw` - List OpenClaw contracts
+- `GET /api/openclaw/stats` - OpenClaw statistics
 
 ## Key Commands
 

@@ -77,7 +77,7 @@ const SERVICE_ICONS: Record<string, typeof Server> = {
   "Alert Pipeline": Bell,
 };
 
-type Tab = "overview" | "activity" | "threats" | "throughput";
+type Tab = "overview" | "activity" | "threats" | "throughput" | "compliance";
 
 export default function Monitoring() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -89,13 +89,14 @@ export default function Monitoring() {
     { id: "activity", label: "Activity Log", icon: Eye },
     { id: "threats", label: "Threat Intel", icon: Globe },
     { id: "throughput", label: "Throughput", icon: TrendingUp },
+    { id: "compliance", label: "Compliance Report", icon: Shield },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader
         title="System Monitoring"
-        description="Real-time infrastructure health, audit trail, threat intelligence, and performance metrics."
+        description="Real-time infrastructure health, audit trail, threat intelligence, performance metrics, and compliance."
       />
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -127,6 +128,7 @@ export default function Monitoring() {
       )}
       {activeTab === "threats" && <ThreatIntelPanel />}
       {activeTab === "throughput" && <ThroughputPanel />}
+      {activeTab === "compliance" && <ComplianceReportPanel />}
     </div>
   );
 }
@@ -613,6 +615,179 @@ function ThroughputPanel() {
           </ResponsiveContainer>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+const COMPLIANCE_FRAMEWORKS = [
+  {
+    name: "SOC 2 Type II",
+    status: "compliant",
+    score: 96,
+    controls: { total: 87, passing: 84, failing: 3 },
+    lastAudit: "2026-01-15",
+    nextAudit: "2026-07-15",
+    findings: ["Access review overdue for 2 service accounts", "Incident response plan needs quarterly update", "Change management approval gap in 1 deployment"],
+  },
+  {
+    name: "GDPR",
+    status: "compliant",
+    score: 92,
+    controls: { total: 52, passing: 48, failing: 4 },
+    lastAudit: "2025-12-01",
+    nextAudit: "2026-06-01",
+    findings: ["Data processing agreement needs renewal (EuroData GmbH)", "Cookie consent banner missing on 2 subdomains", "Data retention policy needs update for new services", "DPIA pending for AI risk scoring module"],
+  },
+  {
+    name: "PCI DSS v4.0",
+    status: "at_risk",
+    score: 78,
+    controls: { total: 64, passing: 50, failing: 14 },
+    lastAudit: "2025-11-20",
+    nextAudit: "2026-05-20",
+    findings: ["Encryption key rotation overdue", "Network segmentation needs validation", "Penetration test results pending remediation", "Web application firewall rules need update"],
+  },
+  {
+    name: "ISO 27001",
+    status: "compliant",
+    score: 94,
+    controls: { total: 114, passing: 107, failing: 7 },
+    lastAudit: "2026-02-01",
+    nextAudit: "2026-08-01",
+    findings: ["Risk assessment needs annual refresh", "Supplier security review incomplete for 3 vendors"],
+  },
+  {
+    name: "HIPAA",
+    status: "not_applicable",
+    score: 0,
+    controls: { total: 0, passing: 0, failing: 0 },
+    lastAudit: "N/A",
+    nextAudit: "N/A",
+    findings: [],
+  },
+];
+
+function ComplianceReportPanel() {
+  const [expandedFramework, setExpandedFramework] = useState<string | null>(null);
+
+  const applicable = COMPLIANCE_FRAMEWORKS.filter((f) => f.status !== "not_applicable");
+  const overallScore = Math.round(applicable.reduce((sum, f) => sum + f.score, 0) / applicable.length);
+  const totalControls = applicable.reduce((sum, f) => sum + f.controls.total, 0);
+  const passingControls = applicable.reduce((sum, f) => sum + f.controls.passing, 0);
+  const failingControls = applicable.reduce((sum, f) => sum + f.controls.failing, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { label: "Overall Score", value: `${overallScore}%`, color: overallScore > 90 ? "text-emerald-400" : overallScore > 75 ? "text-amber-400" : "text-rose-400", icon: Shield },
+          { label: "Total Controls", value: totalControls, color: "text-primary", icon: CheckCircle },
+          { label: "Passing", value: passingControls, color: "text-emerald-400", icon: CheckCircle },
+          { label: "Failing", value: failingControls, color: failingControls > 0 ? "text-rose-400" : "text-emerald-400", icon: XCircle },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="glass-panel p-5 rounded-xl relative overflow-hidden"
+          >
+            <div className={`absolute top-0 right-0 p-3 opacity-10 ${stat.color}`}>
+              <stat.icon className="w-12 h-12" />
+            </div>
+            <span className="font-display uppercase text-[10px] tracking-widest text-muted-foreground block mb-2">{stat.label}</span>
+            <span className={clsx("text-3xl font-mono font-bold", stat.color)}>{stat.value}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        {COMPLIANCE_FRAMEWORKS.map((framework, i) => {
+          const isExpanded = expandedFramework === framework.name;
+          const statusColor = framework.status === "compliant" ? "border-emerald-500" :
+            framework.status === "at_risk" ? "border-amber-400" :
+            "border-white/10";
+          const statusBadge = framework.status === "compliant" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+            framework.status === "at_risk" ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+            "bg-white/10 text-muted-foreground border-white/10";
+
+          return (
+            <motion.div
+              key={framework.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={clsx("glass-panel rounded-xl border-l-4 overflow-hidden", statusColor)}
+            >
+              <div
+                className="p-5 cursor-pointer flex items-center justify-between"
+                onClick={() => setExpandedFramework(isExpanded ? null : framework.name)}
+              >
+                <div className="flex items-center gap-4">
+                  <Shield className={clsx("w-6 h-6", framework.status === "compliant" ? "text-emerald-400" : framework.status === "at_risk" ? "text-amber-400" : "text-muted-foreground")} />
+                  <div>
+                    <h4 className="font-display text-sm text-white">{framework.name}</h4>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className={clsx("text-[10px] font-mono uppercase px-2 py-0.5 rounded border", statusBadge)}>
+                        {framework.status.replace("_", " ")}
+                      </span>
+                      {framework.status !== "not_applicable" && (
+                        <span className={clsx("text-sm font-mono font-bold",
+                          framework.score > 90 ? "text-emerald-400" : framework.score > 75 ? "text-amber-400" : "text-rose-400"
+                        )}>
+                          {framework.score}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {framework.status !== "not_applicable" && (
+                    <div className="text-right text-xs font-mono text-muted-foreground">
+                      <div>{framework.controls.passing}/{framework.controls.total} controls</div>
+                    </div>
+                  )}
+                  <ChevronDown className={clsx("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+                </div>
+              </div>
+
+              {isExpanded && framework.status !== "not_applicable" && (
+                <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-4">
+                  <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                    <div
+                      className={clsx("h-full rounded-full transition-all",
+                        framework.score > 90 ? "bg-emerald-500" : framework.score > 75 ? "bg-amber-400" : "bg-rose-500"
+                      )}
+                      style={{ width: `${framework.score}%` }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                    <div><span className="text-muted-foreground block">Last Audit</span><span className="text-white">{framework.lastAudit}</span></div>
+                    <div><span className="text-muted-foreground block">Next Audit</span><span className="text-white">{framework.nextAudit}</span></div>
+                    <div><span className="text-muted-foreground block">Passing</span><span className="text-emerald-400">{framework.controls.passing}</span></div>
+                    <div><span className="text-muted-foreground block">Failing</span><span className={framework.controls.failing > 0 ? "text-rose-400" : "text-emerald-400"}>{framework.controls.failing}</span></div>
+                  </div>
+
+                  {framework.findings.length > 0 && (
+                    <div>
+                      <h5 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-2">Open Findings</h5>
+                      <ul className="space-y-1.5">
+                        {framework.findings.map((finding, fi) => (
+                          <li key={fi} className="flex items-start gap-2 text-xs text-muted-foreground">
+                            <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                            {finding}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

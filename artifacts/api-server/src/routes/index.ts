@@ -7,6 +7,11 @@ import alertsRouter from "./alerts";
 import integrationsRouter from "./integrations";
 import monitoringRouter from "./monitoring";
 import darkWebRouter from "./dark-web";
+import emailSecurityRouter from "./email-security";
+import endpointsRouter from "./endpoints";
+import networkRouter from "./network";
+import yubikeyRouter from "./yubikey";
+import openclawRouter from "./openclaw";
 
 const router: IRouter = Router();
 
@@ -18,5 +23,10 @@ router.use(alertsRouter);
 router.use(integrationsRouter);
 router.use(monitoringRouter);
 router.use(darkWebRouter);
+router.use(emailSecurityRouter);
+router.use(endpointsRouter);
+router.use(networkRouter);
+router.use(yubikeyRouter);
+router.use(openclawRouter);
 
 export default router;

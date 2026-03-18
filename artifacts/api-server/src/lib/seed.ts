@@ -1,6 +1,11 @@
 import { db, transactionsTable, alertsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { seedDarkWebData } from "../routes/dark-web";
+import { seedEmailThreats } from "./seed-email-security";
+import { seedEndpoints } from "./seed-endpoints";
+import { seedNetworkEvents } from "./seed-network";
+import { seedYubikey } from "./seed-yubikey";
+import { seedOpenclawContracts } from "./seed-openclaw";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -47,4 +52,9 @@ export async function seedIfEmpty() {
 export async function seedAllModules() {
   await seedIfEmpty();
   await seedDarkWebData();
+  await seedEmailThreats();
+  await seedEndpoints();
+  await seedNetworkEvents();
+  await seedYubikey();
+  await seedOpenclawContracts();
 }

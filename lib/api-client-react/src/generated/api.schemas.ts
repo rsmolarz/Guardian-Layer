@@ -164,6 +164,313 @@ export interface GoogleWorkspaceStatus {
   totalCount: number;
 }
 
+export type EmailThreatThreatType =
+  (typeof EmailThreatThreatType)[keyof typeof EmailThreatThreatType];
+
+export const EmailThreatThreatType = {
+  phishing: "phishing",
+  malware: "malware",
+  spoofing: "spoofing",
+  bec: "bec",
+  spam: "spam",
+} as const;
+
+export type EmailThreatStatus =
+  (typeof EmailThreatStatus)[keyof typeof EmailThreatStatus];
+
+export const EmailThreatStatus = {
+  detected: "detected",
+  quarantined: "quarantined",
+  released: "released",
+  blocked: "blocked",
+} as const;
+
+export interface EmailThreat {
+  id: number;
+  subject: string;
+  sender: string;
+  recipient: string;
+  threatType: EmailThreatThreatType;
+  riskScore: number;
+  status: EmailThreatStatus;
+  senderReputation: number;
+  hasAttachment: boolean;
+  attachmentName?: string | null;
+  attachmentScanResult?: string | null;
+  country?: string | null;
+  ipAddress?: string | null;
+  details?: string | null;
+  quarantined: boolean;
+  createdAt: string;
+}
+
+export interface EmailThreatList {
+  threats: EmailThreat[];
+  total: number;
+}
+
+export interface EmailActionResult {
+  id: number;
+  status: string;
+  message: string;
+}
+
+export type EmailSecurityStatsTopSenderDomainsItem = {
+  domain: string;
+  count: number;
+  avgRisk: number;
+};
+
+export interface EmailSecurityStats {
+  totalScanned: number;
+  threatsDetected: number;
+  phishingBlocked: number;
+  malwareBlocked: number;
+  quarantined: number;
+  avgRiskScore: number;
+  topSenderDomains: EmailSecurityStatsTopSenderDomainsItem[];
+}
+
+export type EndpointDeviceStatus =
+  (typeof EndpointDeviceStatus)[keyof typeof EndpointDeviceStatus];
+
+export const EndpointDeviceStatus = {
+  online: "online",
+  offline: "offline",
+  degraded: "degraded",
+} as const;
+
+export type EndpointDeviceComplianceStatus =
+  (typeof EndpointDeviceComplianceStatus)[keyof typeof EndpointDeviceComplianceStatus];
+
+export const EndpointDeviceComplianceStatus = {
+  compliant: "compliant",
+  non_compliant: "non_compliant",
+  at_risk: "at_risk",
+} as const;
+
+export interface EndpointDevice {
+  id: number;
+  hostname: string;
+  deviceType: string;
+  os: string;
+  osVersion: string;
+  lastSeen: string;
+  status: EndpointDeviceStatus;
+  complianceStatus: EndpointDeviceComplianceStatus;
+  riskScore: number;
+  agentVersion?: string | null;
+  encryptionEnabled: boolean;
+  firewallEnabled: boolean;
+  antivirusEnabled: boolean;
+  patchesPending: number;
+  vulnerabilities: number;
+  assignedUser?: string | null;
+  ipAddress?: string | null;
+  location?: string | null;
+  createdAt: string;
+}
+
+export interface EndpointList {
+  endpoints: EndpointDevice[];
+  total: number;
+}
+
+export interface EndpointStats {
+  totalDevices: number;
+  onlineCount: number;
+  offlineCount: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  atRiskCount: number;
+  avgRiskScore: number;
+  totalVulnerabilities: number;
+  totalPatchesPending: number;
+}
+
+export type NetworkEventEventType =
+  (typeof NetworkEventEventType)[keyof typeof NetworkEventEventType];
+
+export const NetworkEventEventType = {
+  firewall: "firewall",
+  ids: "ids",
+  anomaly: "anomaly",
+  portscan: "portscan",
+  ddos: "ddos",
+} as const;
+
+export type NetworkEventSeverity =
+  (typeof NetworkEventSeverity)[keyof typeof NetworkEventSeverity];
+
+export const NetworkEventSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface NetworkEvent {
+  id: number;
+  eventType: NetworkEventEventType;
+  severity: NetworkEventSeverity;
+  sourceIp: string;
+  destinationIp: string;
+  sourcePort?: number | null;
+  destinationPort?: number | null;
+  protocol: string;
+  action: string;
+  riskScore: number;
+  country?: string | null;
+  details?: string | null;
+  ruleName?: string | null;
+  bytesTransferred?: number | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface NetworkEventList {
+  events: NetworkEvent[];
+  total: number;
+}
+
+export type NetworkStatsTopSourceCountriesItem = {
+  country: string;
+  count: number;
+};
+
+export interface NetworkStats {
+  totalEvents: number;
+  blockedCount: number;
+  alertedCount: number;
+  criticalCount: number;
+  highCount: number;
+  activeDdos: number;
+  topSourceCountries: NetworkStatsTopSourceCountriesItem[];
+}
+
+export type YubikeyDeviceStatus =
+  (typeof YubikeyDeviceStatus)[keyof typeof YubikeyDeviceStatus];
+
+export const YubikeyDeviceStatus = {
+  active: "active",
+  suspended: "suspended",
+  revoked: "revoked",
+  unassigned: "unassigned",
+} as const;
+
+export interface YubikeyDevice {
+  id: number;
+  serialNumber: string;
+  model: string;
+  firmwareVersion: string;
+  assignedUser?: string | null;
+  status: YubikeyDeviceStatus;
+  enrolledAt: string;
+  lastUsed?: string | null;
+  authSuccessCount: number;
+  authFailCount: number;
+  protocols: string;
+  department?: string | null;
+  createdAt: string;
+}
+
+export interface YubikeyDeviceList {
+  devices: YubikeyDevice[];
+  total: number;
+}
+
+export type YubikeyAuthEventEventType =
+  (typeof YubikeyAuthEventEventType)[keyof typeof YubikeyAuthEventEventType];
+
+export const YubikeyAuthEventEventType = {
+  auth_success: "auth_success",
+  auth_failure: "auth_failure",
+  key_enrolled: "key_enrolled",
+  key_revoked: "key_revoked",
+} as const;
+
+export interface YubikeyAuthEvent {
+  id: number;
+  deviceSerial: string;
+  user: string;
+  eventType: YubikeyAuthEventEventType;
+  protocol: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  location?: string | null;
+  createdAt: string;
+}
+
+export interface YubikeyEventList {
+  events: YubikeyAuthEvent[];
+  total: number;
+}
+
+export interface YubikeyStats {
+  totalDevices: number;
+  activeCount: number;
+  suspendedCount: number;
+  unassignedCount: number;
+  totalAuthSuccess: number;
+  totalAuthFail: number;
+  recentFailures: number;
+}
+
+export type OpenclawContractStatus =
+  (typeof OpenclawContractStatus)[keyof typeof OpenclawContractStatus];
+
+export const OpenclawContractStatus = {
+  active: "active",
+  expired: "expired",
+  expiring_soon: "expiring_soon",
+  draft: "draft",
+} as const;
+
+export type OpenclawContractRiskLevel =
+  (typeof OpenclawContractRiskLevel)[keyof typeof OpenclawContractRiskLevel];
+
+export const OpenclawContractRiskLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export interface OpenclawContract {
+  id: number;
+  title: string;
+  contractType: string;
+  status: OpenclawContractStatus;
+  riskLevel: OpenclawContractRiskLevel;
+  riskScore: number;
+  counterparty: string;
+  jurisdiction: string;
+  flaggedClauses: number;
+  totalClauses: number;
+  complianceStatus: string;
+  expiresAt?: string | null;
+  lastScanned: string;
+  details?: string | null;
+  createdAt: string;
+}
+
+export interface OpenclawContractList {
+  contracts: OpenclawContract[];
+  total: number;
+}
+
+export interface OpenclawStats {
+  totalContracts: number;
+  activeCount: number;
+  expiredCount: number;
+  expiringSoonCount: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  avgRiskScore: number;
+  totalFlaggedClauses: number;
+  criticalRiskCount: number;
+}
+
 export interface ConfigureIntegrationRequest {
   apiKey: string;
   webhookUrl?: string | null;
@@ -460,6 +767,146 @@ export const ListAlertsSeverity = {
   medium: "medium",
   high: "high",
   critical: "critical",
+} as const;
+
+export type ListEmailThreatsParams = {
+  threatType?: ListEmailThreatsThreatType;
+  status?: ListEmailThreatsStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListEmailThreatsThreatType =
+  (typeof ListEmailThreatsThreatType)[keyof typeof ListEmailThreatsThreatType];
+
+export const ListEmailThreatsThreatType = {
+  phishing: "phishing",
+  malware: "malware",
+  spoofing: "spoofing",
+  bec: "bec",
+  spam: "spam",
+} as const;
+
+export type ListEmailThreatsStatus =
+  (typeof ListEmailThreatsStatus)[keyof typeof ListEmailThreatsStatus];
+
+export const ListEmailThreatsStatus = {
+  detected: "detected",
+  quarantined: "quarantined",
+  released: "released",
+  blocked: "blocked",
+} as const;
+
+export type ListEndpointsParams = {
+  status?: ListEndpointsStatus;
+  complianceStatus?: ListEndpointsComplianceStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListEndpointsStatus =
+  (typeof ListEndpointsStatus)[keyof typeof ListEndpointsStatus];
+
+export const ListEndpointsStatus = {
+  online: "online",
+  offline: "offline",
+  degraded: "degraded",
+} as const;
+
+export type ListEndpointsComplianceStatus =
+  (typeof ListEndpointsComplianceStatus)[keyof typeof ListEndpointsComplianceStatus];
+
+export const ListEndpointsComplianceStatus = {
+  compliant: "compliant",
+  non_compliant: "non_compliant",
+  at_risk: "at_risk",
+} as const;
+
+export type ListNetworkEventsParams = {
+  eventType?: ListNetworkEventsEventType;
+  severity?: ListNetworkEventsSeverity;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListNetworkEventsEventType =
+  (typeof ListNetworkEventsEventType)[keyof typeof ListNetworkEventsEventType];
+
+export const ListNetworkEventsEventType = {
+  firewall: "firewall",
+  ids: "ids",
+  anomaly: "anomaly",
+  portscan: "portscan",
+  ddos: "ddos",
+} as const;
+
+export type ListNetworkEventsSeverity =
+  (typeof ListNetworkEventsSeverity)[keyof typeof ListNetworkEventsSeverity];
+
+export const ListNetworkEventsSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export type ListYubikeyDevicesParams = {
+  status?: ListYubikeyDevicesStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListYubikeyDevicesStatus =
+  (typeof ListYubikeyDevicesStatus)[keyof typeof ListYubikeyDevicesStatus];
+
+export const ListYubikeyDevicesStatus = {
+  active: "active",
+  suspended: "suspended",
+  revoked: "revoked",
+  unassigned: "unassigned",
+} as const;
+
+export type ListYubikeyEventsParams = {
+  eventType?: ListYubikeyEventsEventType;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListYubikeyEventsEventType =
+  (typeof ListYubikeyEventsEventType)[keyof typeof ListYubikeyEventsEventType];
+
+export const ListYubikeyEventsEventType = {
+  auth_success: "auth_success",
+  auth_failure: "auth_failure",
+  key_enrolled: "key_enrolled",
+  key_revoked: "key_revoked",
+} as const;
+
+export type ListOpenclawContractsParams = {
+  riskLevel?: ListOpenclawContractsRiskLevel;
+  status?: ListOpenclawContractsStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListOpenclawContractsRiskLevel =
+  (typeof ListOpenclawContractsRiskLevel)[keyof typeof ListOpenclawContractsRiskLevel];
+
+export const ListOpenclawContractsRiskLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type ListOpenclawContractsStatus =
+  (typeof ListOpenclawContractsStatus)[keyof typeof ListOpenclawContractsStatus];
+
+export const ListOpenclawContractsStatus = {
+  active: "active",
+  expired: "expired",
+  expiring_soon: "expiring_soon",
+  draft: "draft",
 } as const;
 
 export type GetActivityLogParams = {
