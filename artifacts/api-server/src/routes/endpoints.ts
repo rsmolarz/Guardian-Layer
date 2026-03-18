@@ -297,4 +297,109 @@ router.get("/endpoints/patch-compliance", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/endpoints/behavioral-analytics", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const devices = [
+      {
+        id: 1,
+        hostname: "WS-FIN-001",
+        user: "James Mitchell",
+        department: "Finance",
+        riskLevel: "critical",
+        baselineDeviation: 0.92,
+        normalHours: "08:00-18:00",
+        lastActivity: new Date(now - 1800000).toISOString(),
+        deviations: [
+          { type: "unusual_process", severity: "critical", timestamp: new Date(now - 3600000).toISOString(), detail: "mimikatz.exe executed — credential harvesting tool never seen on this device", baselineFrequency: 0, currentFrequency: 1, confidence: 0.99 },
+          { type: "privilege_escalation", severity: "critical", timestamp: new Date(now - 5400000).toISOString(), detail: "Local admin rights escalation via UAC bypass — user normally operates with standard permissions", baselineFrequency: 0, currentFrequency: 3, confidence: 0.97 },
+          { type: "lateral_movement", severity: "high", timestamp: new Date(now - 7200000).toISOString(), detail: "SMB connections to 14 internal hosts in 8 minutes — baseline is 2 hosts per day", baselineFrequency: 2, currentFrequency: 14, confidence: 0.95 },
+          { type: "data_staging", severity: "high", timestamp: new Date(now - 9000000).toISOString(), detail: "Large RAR archive created in temp directory containing 847 financial documents", baselineFrequency: 0, currentFrequency: 1, confidence: 0.93 },
+        ],
+      },
+      {
+        id: 2,
+        hostname: "LT-ENG-042",
+        user: "Sarah Chen",
+        department: "Engineering",
+        riskLevel: "medium",
+        baselineDeviation: 0.45,
+        normalHours: "09:00-21:00",
+        lastActivity: new Date(now - 3600000).toISOString(),
+        deviations: [
+          { type: "unusual_process", severity: "medium", timestamp: new Date(now - 14400000).toISOString(), detail: "nmap network scanner executed — not part of standard engineering toolkit", baselineFrequency: 0, currentFrequency: 1, confidence: 0.82 },
+          { type: "off_hours_activity", severity: "low", timestamp: new Date(now - 28800000).toISOString(), detail: "Active development session from 02:30 AM — outside baseline pattern but within extended engineering hours", baselineFrequency: 0.1, currentFrequency: 1, confidence: 0.65 },
+        ],
+      },
+      {
+        id: 3,
+        hostname: "SRV-DB-PRIMARY",
+        user: "svc-database",
+        department: "Infrastructure",
+        riskLevel: "low",
+        baselineDeviation: 0.08,
+        normalHours: "24/7",
+        lastActivity: new Date(now - 600000).toISOString(),
+        deviations: [],
+      },
+      {
+        id: 4,
+        hostname: "LT-SALES-019",
+        user: "Anita Kumar",
+        department: "Sales",
+        riskLevel: "high",
+        baselineDeviation: 0.78,
+        normalHours: "07:00-19:00",
+        lastActivity: new Date(now - 5400000).toISOString(),
+        deviations: [
+          { type: "unusual_process", severity: "high", timestamp: new Date(now - 18000000).toISOString(), detail: "PowerShell script with encoded command executed — obfuscation pattern matches known attack framework", baselineFrequency: 0, currentFrequency: 4, confidence: 0.91 },
+          { type: "lateral_movement", severity: "high", timestamp: new Date(now - 21600000).toISOString(), detail: "RDP sessions to 3 finance department servers — user has no legitimate access to these resources", baselineFrequency: 0, currentFrequency: 3, confidence: 0.94 },
+          { type: "data_exfiltration", severity: "critical", timestamp: new Date(now - 25200000).toISOString(), detail: "4.2 GB uploaded to cloud storage service not in approved application list", baselineFrequency: 0, currentFrequency: 1, confidence: 0.96 },
+        ],
+      },
+      {
+        id: 5,
+        hostname: "WS-HR-007",
+        user: "Maria Rodriguez",
+        department: "HR",
+        riskLevel: "low",
+        baselineDeviation: 0.15,
+        normalHours: "08:30-17:30",
+        lastActivity: new Date(now - 7200000).toISOString(),
+        deviations: [
+          { type: "off_hours_activity", severity: "low", timestamp: new Date(now - 43200000).toISOString(), detail: "Login at 10:45 PM — single occurrence, likely personal task", baselineFrequency: 0.05, currentFrequency: 1, confidence: 0.55 },
+        ],
+      },
+      {
+        id: 6,
+        hostname: "SRV-WEB-003",
+        user: "svc-webserver",
+        department: "Infrastructure",
+        riskLevel: "high",
+        baselineDeviation: 0.71,
+        normalHours: "24/7",
+        lastActivity: new Date(now - 900000).toISOString(),
+        deviations: [
+          { type: "unusual_process", severity: "critical", timestamp: new Date(now - 43200000).toISOString(), detail: "Reverse shell spawned from web application process — www-data executed /bin/bash -i", baselineFrequency: 0, currentFrequency: 1, confidence: 0.99 },
+          { type: "privilege_escalation", severity: "high", timestamp: new Date(now - 42000000).toISOString(), detail: "Kernel exploit attempt detected — CVE-2024-1086 privilege escalation tool executed", baselineFrequency: 0, currentFrequency: 1, confidence: 0.98 },
+          { type: "persistence", severity: "high", timestamp: new Date(now - 40000000).toISOString(), detail: "New crontab entry added for www-data user — executes encoded payload every 5 minutes", baselineFrequency: 0, currentFrequency: 1, confidence: 0.97 },
+        ],
+      },
+    ];
+
+    const totalDevices = devices.length;
+    const anomalousDevices = devices.filter((d) => d.deviations.length > 0).length;
+    const criticalDeviations = devices.reduce((s, d) => s + d.deviations.filter((v) => v.severity === "critical").length, 0);
+    const totalDeviations = devices.reduce((s, d) => s + d.deviations.length, 0);
+
+    res.json({
+      devices,
+      summary: { totalDevices, anomalousDevices, criticalDeviations, totalDeviations },
+    });
+  } catch (err: any) {
+    console.error("[endpoints] GET /behavioral-analytics failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve behavioral analytics data." });
+  }
+});
+
 export default router;

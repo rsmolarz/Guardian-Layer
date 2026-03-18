@@ -34,6 +34,10 @@ import {
   Clock,
   RefreshCw,
   Download,
+  Brain,
+  Gauge,
+  Users,
+  Network,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -61,7 +65,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
 
 type StatusFilter = "online" | "offline" | "degraded" | undefined;
 type ComplianceFilter = "compliant" | "non_compliant" | "at_risk" | undefined;
-type Tab = "fleet" | "malware" | "patches";
+type Tab = "fleet" | "malware" | "patches" | "behavioral";
 
 export default function EndpointSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("fleet");
@@ -70,6 +74,7 @@ export default function EndpointSecurity() {
     { id: "fleet", label: "Device Fleet", icon: Monitor },
     { id: "malware", label: "Malware Detection", icon: Bug },
     { id: "patches", label: "Patch Compliance", icon: ClipboardCheck },
+    { id: "behavioral", label: "Behavioral Analytics", icon: Brain },
   ];
 
   return (
@@ -100,6 +105,7 @@ export default function EndpointSecurity() {
       {activeTab === "fleet" && <DeviceFleetPanel />}
       {activeTab === "malware" && <MalwareDetectionPanel />}
       {activeTab === "patches" && <PatchCompliancePanel />}
+      {activeTab === "behavioral" && <BehavioralAnalyticsPanel />}
     </div>
   );
 }
@@ -714,6 +720,201 @@ function PatchCompliancePanel() {
             <p className="font-display text-sm uppercase tracking-wider">No devices match this filter</p>
           </div>
         )}
+      </div>
+    </>
+  );
+}
+
+interface BehaviorDeviation {
+  type: string;
+  severity: string;
+  timestamp: string;
+  detail: string;
+  baselineFrequency: number;
+  currentFrequency: number;
+  confidence: number;
+}
+
+interface BehaviorDevice {
+  id: number;
+  hostname: string;
+  user: string;
+  department: string;
+  riskLevel: string;
+  baselineDeviation: number;
+  normalHours: string;
+  lastActivity: string;
+  deviations: BehaviorDeviation[];
+}
+
+interface BehaviorData {
+  devices: BehaviorDevice[];
+  summary: { totalDevices: number; anomalousDevices: number; criticalDeviations: number; totalDeviations: number };
+}
+
+const DEVIATION_ICONS: Record<string, typeof Monitor> = {
+  unusual_process: Cpu,
+  privilege_escalation: ShieldAlert,
+  lateral_movement: Network,
+  data_staging: HardDrive,
+  data_exfiltration: Activity,
+  off_hours_activity: Clock,
+  persistence: Lock,
+};
+
+function BehavioralAnalyticsPanel() {
+  const [data, setData] = useState<BehaviorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/endpoints/behavioral-analytics")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="ANALYZING BEHAVIOR PATTERNS..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load behavioral analytics data.</div>;
+
+  const { devices, summary } = data;
+
+  const severityColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const summaryCards = [
+    { label: "Monitored Devices", value: summary.totalDevices, icon: Monitor, color: "text-primary" },
+    { label: "Anomalous Devices", value: summary.anomalousDevices, icon: Brain, color: "text-orange-400" },
+    { label: "Critical Deviations", value: summary.criticalDeviations, icon: AlertTriangle, color: "text-red-400" },
+    { label: "Total Deviations", value: summary.totalDeviations, icon: Activity, color: "text-yellow-400" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {devices.map((device) => {
+          const isExpanded = expandedId === device.id;
+          const DeviceIcon = DEVICE_ICONS[device.hostname.startsWith("SRV") ? "server" : device.hostname.startsWith("LT") ? "laptop" : "workstation"] || Monitor;
+          const hasDeviations = device.deviations.length > 0;
+
+          return (
+            <motion.div
+              key={device.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : device.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`relative p-2.5 rounded-xl ${
+                  device.riskLevel === "critical" ? "bg-red-500/15" :
+                  device.riskLevel === "high" ? "bg-orange-500/10" :
+                  device.riskLevel === "medium" ? "bg-yellow-500/10" : "bg-green-500/10"
+                }`}>
+                  <DeviceIcon className={`w-5 h-5 ${severityColor(device.riskLevel)}`} />
+                  {device.riskLevel === "critical" && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white">{device.hostname}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${severityColor(device.riskLevel)} border-current/30`}>
+                      {device.riskLevel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-primary/80">{device.user}</span>
+                    <span className="mx-2">|</span>
+                    {device.department}
+                    <span className="mx-2">|</span>
+                    {device.deviations.length} deviation{device.deviations.length !== 1 ? "s" : ""}
+                    <span className="mx-2">|</span>
+                    Hours: {device.normalHours}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Deviation</span>
+                    <span className={`text-lg font-mono font-bold ${device.baselineDeviation > 0.7 ? "text-red-400" : device.baselineDeviation > 0.3 ? "text-yellow-400" : "text-green-400"}`}>
+                      {(device.baselineDeviation * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>Last activity: <span className="text-white font-mono">{format(new Date(device.lastActivity), "MMM d, HH:mm")}</span></span>
+                    <span>Normal hours: <span className="text-white font-mono">{device.normalHours}</span></span>
+                  </div>
+
+                  {device.deviations.length > 0 ? (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                        <Brain className="w-3 h-3" /> Behavioral Deviations
+                      </h4>
+                      <div className="space-y-2">
+                        {device.deviations.map((dev, i) => {
+                          const DevIcon = DEVIATION_ICONS[dev.type] || AlertTriangle;
+                          return (
+                            <div key={i} className="p-3 rounded-lg bg-black/20 border border-white/5">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <DevIcon className={`w-4 h-4 ${severityColor(dev.severity)}`} />
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${severityColor(dev.severity)}`}>{dev.severity}</span>
+                                  <span className="text-[10px] text-muted-foreground font-display uppercase">{dev.type.replace(/_/g, " ")}</span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground font-mono">{format(new Date(dev.timestamp), "MMM d, HH:mm")}</span>
+                              </div>
+                              <p className="text-xs text-gray-300 mb-2">{dev.detail}</p>
+                              <div className="flex items-center gap-4 text-[10px]">
+                                <span className="text-muted-foreground">Baseline: <span className="font-mono text-green-400">{dev.baselineFrequency}</span></span>
+                                <span className="text-muted-foreground">Current: <span className={`font-mono ${dev.currentFrequency > dev.baselineFrequency ? "text-red-400" : "text-green-400"}`}>{dev.currentFrequency}</span></span>
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Gauge className="w-3 h-3" /> Confidence: <span className={`font-mono ${dev.confidence > 0.9 ? "text-red-400" : dev.confidence > 0.7 ? "text-orange-400" : "text-yellow-400"}`}>{(dev.confidence * 100).toFixed(0)}%</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">Behavior within normal baseline</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     </>
   );
