@@ -25,6 +25,10 @@ import {
   Ban,
   FileCode,
   Eye,
+  Search,
+  Tag,
+  Clock,
+  Hash,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -56,7 +60,7 @@ const ACTION_BADGE: Record<string, string> = {
 
 type EventTypeFilter = "firewall" | "ids" | "anomaly" | "portscan" | "ddos" | undefined;
 type SeverityFilter = "critical" | "high" | "medium" | "low" | undefined;
-type Tab = "events" | "ids";
+type Tab = "events" | "ids" | "dns";
 
 export default function NetworkSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("events");
@@ -64,6 +68,7 @@ export default function NetworkSecurity() {
   const tabs: { id: Tab; label: string; icon: typeof Network }[] = [
     { id: "events", label: "Events Monitor", icon: Radar },
     { id: "ids", label: "Intrusion Detection", icon: Fingerprint },
+    { id: "dns", label: "DNS Security", icon: Search },
   ];
 
   return (
@@ -93,6 +98,7 @@ export default function NetworkSecurity() {
 
       {activeTab === "events" && <EventsMonitorPanel />}
       {activeTab === "ids" && <IdsPanel />}
+      {activeTab === "dns" && <DnsSecurityPanel />}
     </div>
   );
 }
@@ -544,6 +550,260 @@ function IdsPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
             <p className="font-display text-sm uppercase tracking-wider">No intrusions match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface DnsQuery {
+  id: number;
+  timestamp: string;
+  queryDomain: string;
+  queryType: string;
+  sourceIp: string;
+  hostname: string;
+  user: string;
+  threatType: string;
+  severity: string;
+  action: string;
+  confidence: number;
+  detail: string;
+  resolvedIp: string;
+  ttl: number;
+  queryCount: number;
+  firstSeen: string;
+  threatIntelSource: string;
+  iocTags: string[];
+}
+
+interface DnsData {
+  queries: DnsQuery[];
+  summary: {
+    totalQueries: number;
+    blockedQueries: number;
+    alertedQueries: number;
+    criticalThreats: number;
+    threatTypes: Record<string, number>;
+  };
+}
+
+const THREAT_TYPE_CONFIG: Record<string, { label: string; color: string; icon: typeof Network }> = {
+  c2_beacon: { label: "C2 Beacon", color: "text-red-400", icon: Radar },
+  dns_tunneling: { label: "DNS Tunneling", color: "text-red-400", icon: Activity },
+  malicious_domain: { label: "Malicious Domain", color: "text-orange-400", icon: ShieldAlert },
+  fast_flux: { label: "Fast-Flux", color: "text-orange-400", icon: Zap },
+  dga_domain: { label: "DGA Domain", color: "text-yellow-400", icon: Hash },
+  suspicious_ns: { label: "Suspicious NS", color: "text-yellow-400", icon: Search },
+  clean: { label: "Clean", color: "text-green-400", icon: Shield },
+};
+
+function DnsSecurityPanel() {
+  const [data, setData] = useState<DnsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [threatFilter, setThreatFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/network/dns-security")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="ANALYZING DNS QUERIES..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load DNS security data.</div>;
+
+  const { queries, summary } = data;
+  const filtered = threatFilter ? queries.filter((q) => q.threatType === threatFilter) : queries;
+
+  const severityColor = (s: string) => {
+    switch (s) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const summaryCards = [
+    { label: "Total Queries", value: summary.totalQueries, icon: Search, color: "text-primary" },
+    { label: "Blocked", value: summary.blockedQueries, icon: Ban, color: "text-red-400" },
+    { label: "Alerted", value: summary.alertedQueries, icon: AlertTriangle, color: "text-yellow-400" },
+    { label: "Critical Threats", value: summary.criticalThreats, icon: ShieldAlert, color: "text-red-400" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-panel p-4 rounded-xl mb-6">
+        <h3 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3">Threat Types Detected</h3>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(summary.threatTypes).map(([type, count]) => {
+            const cfg = THREAT_TYPE_CONFIG[type] || { label: type, color: "text-muted-foreground", icon: Network };
+            return (
+              <div key={type} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/20 border border-white/5">
+                <cfg.icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                <span className="text-xs font-display uppercase text-white">{cfg.label}</span>
+                <span className="text-xs font-mono text-muted-foreground">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        <button
+          onClick={() => setThreatFilter(undefined)}
+          className={clsx(
+            "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+            !threatFilter ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+          )}
+        >
+          All
+        </button>
+        {Object.entries(THREAT_TYPE_CONFIG).filter(([k]) => k !== "clean").map(([key, cfg]) => (
+          <button
+            key={key}
+            onClick={() => setThreatFilter(key)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              threatFilter === key ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {cfg.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((query) => {
+          const isExpanded = expandedId === query.id;
+          const cfg = THREAT_TYPE_CONFIG[query.threatType] || { label: query.threatType, color: "text-muted-foreground", icon: Network };
+          const ThreatIcon = cfg.icon;
+
+          return (
+            <motion.div
+              key={query.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                query.severity === "critical" ? "border-red-500" :
+                query.severity === "high" ? "border-orange-400" :
+                query.severity === "medium" ? "border-yellow-400" : "border-green-400"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : query.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${
+                  query.severity === "critical" ? "bg-red-500/15" :
+                  query.severity === "high" ? "bg-orange-500/10" :
+                  query.severity === "medium" ? "bg-yellow-500/10" : "bg-green-500/10"
+                }`}>
+                  <ThreatIcon className={`w-5 h-5 ${cfg.color}`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-mono font-bold text-white truncate">{query.queryDomain}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase font-bold ${severityColor(query.severity)} border-current/30`}>
+                      {query.severity}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase ${
+                      query.action === "blocked" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                      query.action === "alerted" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                      "bg-green-500/20 text-green-400 border-green-500/30"
+                    }`}>
+                      {query.action}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border border-white/10 font-display uppercase ${cfg.color}`}>
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-primary/80 font-mono">{query.hostname}</span>
+                    <span className="mx-2">|</span>
+                    {query.user}
+                    <span className="mx-2">|</span>
+                    <span className="font-mono">{query.queryType}</span>
+                    <span className="mx-2">|</span>
+                    {query.queryCount.toLocaleString()} queries
+                    <span className="mx-2">|</span>
+                    {format(new Date(query.timestamp), "MMM d, HH:mm")}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Confidence</span>
+                    <span className={`text-lg font-mono font-bold ${query.confidence > 0.9 ? "text-red-400" : query.confidence > 0.7 ? "text-orange-400" : "text-yellow-400"}`}>
+                      {(query.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <p className="text-xs text-gray-300">{query.detail}</p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Resolved IP</span>
+                      <span className="text-xs font-mono text-primary">{query.resolvedIp}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Source IP</span>
+                      <span className="text-xs font-mono text-white">{query.sourceIp}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">TTL</span>
+                      <span className={`text-xs font-mono ${query.ttl < 120 ? "text-red-400" : "text-white"}`}>{query.ttl}s</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">First Seen</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(query.firstSeen), "MMM d, HH:mm")}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Threat Intel Source</span>
+                    <span className="text-xs font-mono text-white">{query.threatIntelSource}</span>
+                  </div>
+
+                  {query.iocTags.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                      {query.iocTags.map((tag) => (
+                        <span key={tag} className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No DNS queries match this filter</p>
           </div>
         )}
       </div>
