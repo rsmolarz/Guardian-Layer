@@ -52,11 +52,12 @@ artifacts-monorepo/
    - **Attachment Analyzer** - AI-powered analysis of email attachments with threat scoring, sandbox execution results (malware family detection, network connections, files dropped, registry changes), file hash display, and status filtering (blocked/quarantined/clean)
    - **Compromise Detector** - Email account compromise detection monitoring unusual login patterns (impossible travel, new devices, unusual hours), forwarding rule changes, mass deletion events, OAuth grants, bulk downloads, and delegate access changes with per-account risk scoring and event timelines
    - **Phishing Campaigns** - Active phishing campaign tracker with lookalike domain detection, spoofed sender address tracking, attack technique classification, sample subject lines, campaign status filtering (active/monitoring/neutralized), and click rate metrics
-6. **Endpoint Security** - Four-tab page:
+6. **Endpoint Security** - Five-tab page:
    - **Device Fleet** - Device inventory with compliance status, vulnerability scanning, patch management, EDR alerts, device risk scoring, encryption/firewall/antivirus flags
    - **Malware Detection** - Real-time AI scan results per device with quarantined files, detected malware signatures, behavior anomaly detection (process injection, crypto mining, data exfiltration, webshell activity, privilege escalation), file hashes, and risk scoring
    - **Patch Compliance** - Track missing OS and software patches per device with CVE IDs, CVSS scores, severity levels, days overdue, auto-update status, last reboot dates, and compliance filtering
    - **Behavioral Analytics** - AI behavioral baseline per device tracking deviations: unusual process execution, privilege escalation, lateral movement, data staging/exfiltration, off-hours activity, persistence; shows confidence scores, baseline vs current frequency, and per-device deviation percentages
+   - **USB Monitor** - Track all USB device insertions across fleet with vendor/product IDs, serial numbers, authorization status, data transfer tracking, files accessed counts, policy violation detection (NO_REMOVABLE_MEDIA, DATA_EXFILTRATION, BADUSB_ATTACK, SERVER_USB_PROHIBITED, UNAUTHORIZED_NETWORK), and status filtering (blocked/exfiltration/flagged/allowed)
 7. **Network Security** - Real-time network monitoring with firewall events, IDS/IPS alerts, traffic anomaly detection, port scanning detection, DDoS monitoring, and attack source country mapping
 8. **YubiKey MFA** - Hardware key management with key inventory, authentication event tracking, enrollment management, failed auth monitoring, and policy management
 9. **OpenClaw Monitor** - AI contract monitoring with clause risk analysis, compliance tracking, anomaly detection, document scanning, and regulatory alerts
@@ -129,6 +130,7 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/endpoints/malware-scans` - Malware detection scan results with quarantined files and anomalies
 - `GET /api/endpoints/patch-compliance` - Patch compliance tracking with CVE scores and missing patches
 - `GET /api/endpoints/behavioral-analytics` - AI behavioral analytics with deviation tracking per device
+- `GET /api/endpoints/usb-monitor` - USB/removable media monitoring with policy violations and exfiltration tracking
 - `GET /api/network` - List network events
 - `GET /api/network/stats` - Network security statistics
 - `GET /api/yubikey/devices` - List YubiKey devices

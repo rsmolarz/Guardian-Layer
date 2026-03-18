@@ -38,6 +38,10 @@ import {
   Gauge,
   Users,
   Network,
+  Usb,
+  FileWarning,
+  Ban,
+  Zap,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -65,7 +69,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
 
 type StatusFilter = "online" | "offline" | "degraded" | undefined;
 type ComplianceFilter = "compliant" | "non_compliant" | "at_risk" | undefined;
-type Tab = "fleet" | "malware" | "patches" | "behavioral";
+type Tab = "fleet" | "malware" | "patches" | "behavioral" | "usb";
 
 export default function EndpointSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("fleet");
@@ -75,6 +79,7 @@ export default function EndpointSecurity() {
     { id: "malware", label: "Malware Detection", icon: Bug },
     { id: "patches", label: "Patch Compliance", icon: ClipboardCheck },
     { id: "behavioral", label: "Behavioral Analytics", icon: Brain },
+    { id: "usb", label: "USB Monitor", icon: Usb },
   ];
 
   return (
@@ -106,6 +111,7 @@ export default function EndpointSecurity() {
       {activeTab === "malware" && <MalwareDetectionPanel />}
       {activeTab === "patches" && <PatchCompliancePanel />}
       {activeTab === "behavioral" && <BehavioralAnalyticsPanel />}
+      {activeTab === "usb" && <UsbMonitorPanel />}
     </div>
   );
 }
@@ -915,6 +921,226 @@ function BehavioralAnalyticsPanel() {
             </motion.div>
           );
         })}
+      </div>
+    </>
+  );
+}
+
+interface UsbEvent {
+  id: number;
+  hostname: string;
+  user: string;
+  department: string;
+  timestamp: string;
+  deviceName: string;
+  deviceType: string;
+  vendorId: string;
+  productId: string;
+  serialNumber: string;
+  status: string;
+  riskLevel: string;
+  reason: string;
+  dataTransferred: number | null;
+  filesAccessed: number;
+  policyViolation: string | null;
+  authorized: boolean;
+}
+
+interface UsbData {
+  events: UsbEvent[];
+  summary: { totalEvents: number; blockedEvents: number; exfiltrationAlerts: number; unauthorizedDevices: number; criticalEvents: number };
+}
+
+const USB_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  blocked: { label: "BLOCKED", color: "text-red-400", bg: "bg-red-500/15" },
+  exfiltration_alert: { label: "EXFILTRATION", color: "text-red-400", bg: "bg-red-500/15" },
+  flagged: { label: "FLAGGED", color: "text-orange-400", bg: "bg-orange-500/10" },
+  allowed: { label: "ALLOWED", color: "text-green-400", bg: "bg-green-500/10" },
+};
+
+const USB_TYPE_ICONS: Record<string, typeof Monitor> = {
+  mass_storage: HardDrive,
+  security_key: Lock,
+  serial_device: Cpu,
+  hid: Monitor,
+  network_adapter: Network,
+  hid_attack: Zap,
+};
+
+function UsbMonitorPanel() {
+  const [data, setData] = useState<UsbData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/endpoints/usb-monitor")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="SCANNING USB DEVICES..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load USB monitor data.</div>;
+
+  const { events, summary } = data;
+  const filtered = statusFilter ? events.filter((e) => e.status === statusFilter) : events;
+
+  const formatBytes = (bytes: number | null) => {
+    if (bytes === null) return "—";
+    if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+    if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+    if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
+    return `${bytes} B`;
+  };
+
+  const summaryCards = [
+    { label: "Total Events", value: summary.totalEvents, icon: Usb, color: "text-primary" },
+    { label: "Blocked", value: summary.blockedEvents, icon: Ban, color: "text-red-400" },
+    { label: "Exfiltration Alerts", value: summary.exfiltrationAlerts, icon: FileWarning, color: "text-red-400" },
+    { label: "Unauthorized", value: summary.unauthorizedDevices, icon: ShieldAlert, color: "text-orange-400" },
+    { label: "Critical Events", value: summary.criticalEvents, icon: AlertTriangle, color: "text-red-400" },
+  ];
+
+  const filterButtons: { label: string; value: string | undefined }[] = [
+    { label: "All", value: undefined },
+    { label: "Blocked", value: "blocked" },
+    { label: "Exfiltration", value: "exfiltration_alert" },
+    { label: "Flagged", value: "flagged" },
+    { label: "Allowed", value: "allowed" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.label}
+            onClick={() => setStatusFilter(btn.value)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              statusFilter === btn.value
+                ? "bg-primary/20 border-primary/50 text-primary"
+                : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((event) => {
+          const isExpanded = expandedId === event.id;
+          const statusCfg = USB_STATUS_CONFIG[event.status] || { label: event.status.toUpperCase(), color: "text-muted-foreground", bg: "bg-white/5" };
+          const DeviceTypeIcon = USB_TYPE_ICONS[event.deviceType] || Usb;
+
+          return (
+            <motion.div
+              key={event.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : event.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${statusCfg.bg}`}>
+                  <DeviceTypeIcon className={`w-5 h-5 ${statusCfg.color}`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white truncate">{event.deviceName}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase font-bold ${statusCfg.color} border-current/30`}>
+                      {statusCfg.label}
+                    </span>
+                    {!event.authorized && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-display uppercase">Unauthorized</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <span className="text-primary/80">{event.hostname}</span>
+                    <span className="mx-2">|</span>
+                    {event.user}
+                    <span className="mx-2">|</span>
+                    {event.department}
+                    <span className="mx-2">|</span>
+                    {format(new Date(event.timestamp), "MMM d, HH:mm")}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {event.dataTransferred !== null && event.dataTransferred > 0 && (
+                    <span className={`text-xs font-mono ${event.dataTransferred > 1e9 ? "text-red-400" : "text-yellow-400"}`}>
+                      {formatBytes(event.dataTransferred)}
+                    </span>
+                  )}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <p className="text-xs text-gray-300">{event.reason}</p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Device Type</span>
+                      <span className="text-xs font-mono text-white">{event.deviceType.replace(/_/g, " ")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Vendor:Product</span>
+                      <span className="text-xs font-mono text-primary">{event.vendorId}:{event.productId}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Serial Number</span>
+                      <span className="text-xs font-mono text-white truncate block">{event.serialNumber}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Files Accessed</span>
+                      <span className={`text-xs font-mono ${event.filesAccessed > 0 ? "text-red-400" : "text-green-400"}`}>{event.filesAccessed.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {event.dataTransferred !== null && event.dataTransferred > 0 && (
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Data Transferred</span>
+                      <span className={`text-sm font-mono font-bold ${event.dataTransferred > 1e9 ? "text-red-400" : "text-yellow-400"}`}>{formatBytes(event.dataTransferred)}</span>
+                    </div>
+                  )}
+
+                  {event.policyViolation && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <Ban className="w-4 h-4 text-red-400" />
+                      <span className="text-[10px] font-display uppercase tracking-widest text-red-400">Policy Violation:</span>
+                      <span className="text-xs font-mono text-red-300">{event.policyViolation}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <CheckCircle className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No USB events match this filter</p>
+          </div>
+        )}
       </div>
     </>
   );
