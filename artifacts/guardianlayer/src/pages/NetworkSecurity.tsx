@@ -35,6 +35,9 @@ import {
   UserCheck,
   ArrowUpDown,
   CheckCircle,
+  Settings,
+  XCircle,
+  Brain,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -66,7 +69,7 @@ const ACTION_BADGE: Record<string, string> = {
 
 type EventTypeFilter = "firewall" | "ids" | "anomaly" | "portscan" | "ddos" | undefined;
 type SeverityFilter = "critical" | "high" | "medium" | "low" | undefined;
-type Tab = "events" | "ids" | "dns" | "vpn";
+type Tab = "events" | "ids" | "dns" | "vpn" | "firewall";
 
 export default function NetworkSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("events");
@@ -76,6 +79,7 @@ export default function NetworkSecurity() {
     { id: "ids", label: "Intrusion Detection", icon: Fingerprint },
     { id: "dns", label: "DNS Security", icon: Search },
     { id: "vpn", label: "VPN & Zero-Trust", icon: Lock },
+    { id: "firewall", label: "Firewall Analyzer", icon: Flame },
   ];
 
   return (
@@ -107,6 +111,7 @@ export default function NetworkSecurity() {
       {activeTab === "ids" && <IdsPanel />}
       {activeTab === "dns" && <DnsSecurityPanel />}
       {activeTab === "vpn" && <VpnZeroTrustPanel />}
+      {activeTab === "firewall" && <FirewallRuleAnalyzerPanel />}
     </div>
   );
 }
@@ -1129,6 +1134,261 @@ function VpnZeroTrustPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
             <p className="font-display text-sm uppercase tracking-wider">No sessions match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface FirewallIssue {
+  type: string;
+  severity: string;
+  detail: string;
+}
+
+interface FirewallRule {
+  id: number;
+  ruleName: string;
+  ruleId: string;
+  chain: string;
+  action: string;
+  sourceIp: string;
+  destinationIp: string;
+  port: string;
+  protocol: string;
+  direction: string;
+  status: string;
+  createdAt: string;
+  lastHit: string;
+  hitCount: number;
+  riskLevel: string;
+  aiAnalysis: string;
+  issues: FirewallIssue[];
+  recommendation: string | null;
+  category: string;
+}
+
+interface FirewallData {
+  rules: FirewallRule[];
+  summary: { totalRules: number; criticalIssues: number; highIssues: number; cleanRules: number; shadowItDetected: number; totalIssues: number };
+}
+
+const FW_CATEGORY_LABELS: Record<string, string> = {
+  web_services: "Web Services",
+  misconfiguration: "Misconfiguration",
+  access_control: "Access Control",
+  shadow_it: "Shadow IT",
+  baseline: "Baseline",
+  malicious: "Malicious",
+  legacy: "Legacy",
+};
+
+function FirewallRuleAnalyzerPanel() {
+  const [data, setData] = useState<FirewallData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [riskFilter, setRiskFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/network/firewall-rules")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="ANALYZING FIREWALL RULES..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load firewall rule analysis.</div>;
+
+  const { rules, summary } = data;
+  const filtered = riskFilter ? rules.filter((r) => r.riskLevel === riskFilter) : rules;
+
+  const riskColor = (r: string) => {
+    switch (r) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const summaryCards = [
+    { label: "Total Rules", value: summary.totalRules, icon: Settings, color: "text-primary" },
+    { label: "Critical Issues", value: summary.criticalIssues, icon: XCircle, color: "text-red-400" },
+    { label: "High Issues", value: summary.highIssues, icon: AlertTriangle, color: "text-orange-400" },
+    { label: "Clean Rules", value: summary.cleanRules, icon: CheckCircle, color: "text-green-400" },
+    { label: "Shadow IT", value: summary.shadowItDetected, icon: Eye, color: "text-orange-400" },
+    { label: "Total Issues", value: summary.totalIssues, icon: ShieldAlert, color: "text-red-400" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "critical", "high", "medium", "low"].map((r) => (
+          <button
+            key={r ?? "all"}
+            onClick={() => setRiskFilter(r)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              riskFilter === r ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {r ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((rule) => {
+          const isExpanded = expandedId === rule.id;
+          const hasIssues = rule.issues.length > 0;
+
+          return (
+            <motion.div
+              key={rule.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                rule.riskLevel === "critical" ? "border-red-500" :
+                rule.riskLevel === "high" ? "border-orange-400" :
+                rule.riskLevel === "medium" ? "border-yellow-400" : "border-green-400"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : rule.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${
+                  rule.riskLevel === "critical" ? "bg-red-500/15" :
+                  rule.riskLevel === "high" ? "bg-orange-500/10" :
+                  rule.riskLevel === "medium" ? "bg-yellow-500/10" : "bg-green-500/10"
+                }`}>
+                  <Flame className={`w-5 h-5 ${riskColor(rule.riskLevel)}`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-mono font-bold text-white">{rule.ruleName}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase font-bold ${riskColor(rule.riskLevel)} border-current/30`}>
+                      {rule.riskLevel}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase ${
+                      rule.action === "ALLOW" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"
+                    }`}>
+                      {rule.action}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 font-display uppercase text-muted-foreground">
+                      {FW_CATEGORY_LABELS[rule.category] || rule.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {rule.sourceIp} → {rule.destinationIp}:{rule.port} ({rule.protocol})
+                    <span className="mx-2">|</span>
+                    <span className="text-white">{rule.chain}</span>
+                    <span className="mx-2">|</span>
+                    {rule.hitCount.toLocaleString()} hits
+                    {hasIssues && (
+                      <><span className="mx-2">|</span><span className="text-red-400">{rule.issues.length} issue{rule.issues.length > 1 ? "s" : ""}</span></>
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">{rule.ruleId}</span>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <div className="p-3 rounded-lg bg-black/30 border border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">AI Analysis</span>
+                    </div>
+                    <p className="text-xs text-gray-300">{rule.aiAnalysis}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Direction</span>
+                      <span className="text-xs font-mono text-white uppercase">{rule.direction}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Created</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(rule.createdAt), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Last Hit</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(rule.lastHit), "MMM d, HH:mm")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Hit Count</span>
+                      <span className="text-xs font-mono text-white">{rule.hitCount.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {rule.issues.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
+                        <AlertTriangle className="w-3 h-3" /> Detected Issues
+                      </h4>
+                      <div className="space-y-1.5">
+                        {rule.issues.map((issue, i) => (
+                          <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-black/20 border border-white/5">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold shrink-0 mt-0.5 ${
+                              issue.severity === "critical" ? "text-red-400 bg-red-500/10" :
+                              issue.severity === "high" ? "text-orange-400 bg-orange-500/10" :
+                              "text-yellow-400 bg-yellow-500/10"
+                            }`}>{issue.severity}</span>
+                            <div>
+                              <span className="text-xs text-white font-mono">{issue.type.replace(/_/g, " ")}</span>
+                              <p className="text-xs text-muted-foreground mt-0.5">{issue.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rule.recommendation && (
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[10px] font-display uppercase tracking-widest text-primary">Recommendation</span>
+                      </div>
+                      <p className="text-xs text-gray-300">{rule.recommendation}</p>
+                    </div>
+                  )}
+
+                  {rule.issues.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <CheckCircle className="w-5 h-5 mx-auto mb-1 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">No issues detected — rule is properly configured</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No rules match this filter</p>
           </div>
         )}
       </div>
