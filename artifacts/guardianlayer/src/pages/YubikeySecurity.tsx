@@ -104,7 +104,7 @@ export default function YubikeySecurity() {
 
       <div className="mb-6 flex items-center gap-2 glass-panel p-1.5 rounded-xl inline-flex flex-wrap">
         {([
-          { id: "devices" as Tab, label: "Key Inventory", icon: Key },
+          { id: "devices" as Tab, label: "Fleet Manager", icon: Key },
           { id: "events" as Tab, label: "Auth Events", icon: Fingerprint },
           { id: "enrollment" as Tab, label: "Enrollment", icon: Package },
           { id: "failed-auth" as Tab, label: "Failed Auth", icon: Ban },
@@ -122,90 +122,7 @@ export default function YubikeySecurity() {
         ))}
       </div>
 
-      {tab === "devices" && (
-        <>
-          <div className="mb-6 glass-panel p-1.5 rounded-xl inline-flex gap-1">
-            <span className="px-3 py-2 text-[10px] font-display uppercase tracking-widest text-muted-foreground border-r border-white/10">Status</span>
-            {[undefined, "active", "suspended", "revoked", "unassigned"].map((s) => (
-              <button
-                key={s ?? "all"}
-                onClick={() => setStatusFilter(s as StatusFilter)}
-                className={`px-3 py-2 rounded-lg text-xs font-mono transition-colors uppercase ${
-                  statusFilter === s ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
-                }`}
-              >
-                {s ?? "All"}
-              </button>
-            ))}
-          </div>
-
-          {isDevicesLoading ? (
-            <CyberLoading text="LOADING KEYS..." />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {(devicesData?.devices ?? []).map((device: YubikeyDevice, idx: number) => (
-                <motion.div
-                  key={device.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.04 }}
-                  className={`glass-panel rounded-xl p-5 border-l-4 ${
-                    device.status === "suspended" ? "border-rose-500" :
-                    device.status === "active" ? "border-emerald-500" :
-                    "border-white/20"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-lg bg-black/40 text-primary">
-                        <Key className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-mono text-sm text-white font-bold">{device.serialNumber}</h4>
-                        <p className="text-xs text-muted-foreground">{device.model} · FW {device.firmwareVersion}</p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${STATUS_BADGE[device.status] || ""}`}>
-                      {device.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="w-3 h-3" />
-                      <span>{device.assignedUser || "Unassigned"}</span>
-                    </div>
-                    {device.department && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Cpu className="w-3 h-3" />
-                        <span>{device.department}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-400">{device.authSuccessCount} success</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <XCircle className="w-3 h-3 text-rose-400" />
-                      <span className={device.authFailCount > 5 ? "text-rose-400" : "text-muted-foreground"}>{device.authFailCount} failures</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="font-mono">{device.protocols}</span>
-                    {device.lastUsed && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {format(new Date(device.lastUsed), "PP")}
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {tab === "devices" && <FleetManagerPanel />}
 
       {tab === "events" && (
         <>
@@ -768,6 +685,217 @@ function PoliciesPanel() {
             </motion.div>
           );
         })}
+      </div>
+    </>
+  );
+}
+
+function FleetManagerPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [fleetFilter, setFleetFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/yubikey/fleet")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="SCANNING YUBIKEY FLEET..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load fleet data.</div>;
+
+  const { fleet, summary } = data;
+  const filtered = fleetFilter ? fleet.filter((d: any) => d.status === fleetFilter) : fleet;
+
+  const attestColor = (s: string) => {
+    switch (s) {
+      case "verified": return "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+      case "expired": return "text-orange-400 bg-orange-500/10 border-orange-500/30";
+      case "failed": return "text-red-400 bg-red-500/10 border-red-500/30";
+      case "pending": return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
+      case "revoked": return "text-red-400 bg-red-500/10 border-red-500/30";
+      default: return "text-muted-foreground bg-white/5 border-white/10";
+    }
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: "Total Fleet", value: summary.totalDevices, icon: Key, color: "text-primary" },
+          { label: "Active", value: summary.activeDevices, icon: ShieldCheck, color: "text-emerald-400" },
+          { label: "FIPS Certified", value: summary.fipsCertified, icon: Shield, color: "text-blue-400" },
+          { label: "FW Outdated", value: summary.firmwareOutdated, icon: AlertTriangle, color: summary.firmwareOutdated > 0 ? "text-orange-400" : "text-emerald-400" },
+          { label: "Total Auths", value: summary.totalAuths.toLocaleString(), icon: Fingerprint, color: "text-primary" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "active", "suspended", "revoked", "unassigned"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setFleetFilter(s)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              fleetFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((device: any) => {
+          const isExpanded = expandedId === device.id;
+          const warrantyExpired = new Date(device.warrantyExpiry).getTime() < Date.now();
+
+          return (
+            <motion.div
+              key={device.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                device.status === "revoked" ? "border-red-500" :
+                device.status === "suspended" ? "border-orange-400" :
+                device.status === "active" ? "border-emerald-500" : "border-white/20"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : device.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${
+                  device.status === "active" ? "bg-emerald-500/10" :
+                  device.status === "suspended" ? "bg-orange-500/10" :
+                  device.status === "revoked" ? "bg-red-500/10" : "bg-white/5"
+                }`}>
+                  <Key className={`w-5 h-5 ${
+                    device.status === "active" ? "text-emerald-400" :
+                    device.status === "suspended" ? "text-orange-400" :
+                    device.status === "revoked" ? "text-red-400" : "text-muted-foreground"
+                  }`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-mono font-bold text-white">{device.serialNumber}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase ${STATUS_BADGE[device.status] || ""}`}>
+                      {device.status}
+                    </span>
+                    {device.fipsCertified && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30 font-display uppercase">FIPS</span>
+                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase ${attestColor(device.attestationStatus)}`}>
+                      {device.attestationStatus}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {device.model} · FW {device.firmwareVersion} · {device.formFactor}
+                    {device.assignedUser && <> · <span className="text-white">{device.assignedUser}</span></>}
+                    {device.department && <> ({device.department})</>}
+                  </p>
+                </div>
+
+                <div className="text-right shrink-0">
+                  {device.lastUsed && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
+                      <Clock className="w-3 h-3" />
+                      {format(new Date(device.lastUsed), "MMM d, HH:mm")}
+                    </p>
+                  )}
+                  <p className="text-[10px] font-mono text-muted-foreground">{device.totalAuths.toLocaleString()} auths</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Registered</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(device.registeredAt), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Warranty</span>
+                      <span className={`text-xs font-mono ${warrantyExpired ? "text-red-400" : "text-white"}`}>
+                        {format(new Date(device.warrantyExpiry), "MMM d, yyyy")}
+                        {warrantyExpired && " (EXPIRED)"}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Uptime</span>
+                      <span className="text-xs font-mono text-white">{device.uptime}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Attestation</span>
+                      <span className={`text-xs font-mono ${
+                        device.attestationStatus === "verified" ? "text-emerald-400" :
+                        device.attestationStatus === "expired" || device.attestationStatus === "failed" ? "text-red-400" : "text-yellow-400"
+                      }`}>
+                        {device.attestationDate ? format(new Date(device.attestationDate), "MMM d, yyyy") : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Last Used App</span>
+                      <span className="text-xs font-mono text-white">{device.lastUsedApp || "Never"}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Last Location</span>
+                      <span className="text-xs font-mono text-white">{device.lastUsedLocation || "N/A"}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Auth Stats</span>
+                      <span className="text-xs font-mono">
+                        <span className="text-emerald-400">{device.totalAuths.toLocaleString()} ok</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className={device.failedAuths > 10 ? "text-red-400" : "text-muted-foreground"}>{device.failedAuths} fail</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground py-1">Interfaces:</span>
+                    {device.interfaces.map((iface: string) => (
+                      <span key={iface} className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20 font-mono">{iface}</span>
+                    ))}
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground py-1 ml-2">Protocols:</span>
+                    {device.protocols.map((proto: string) => (
+                      <span key={proto} className="text-[10px] px-2 py-1 rounded bg-white/5 text-muted-foreground border border-white/10 font-mono">{proto}</span>
+                    ))}
+                  </div>
+
+                  {device.notes && (
+                    <div className="p-3 rounded-lg bg-black/30 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Notes</span>
+                      <p className="text-xs text-gray-300">{device.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Key className="w-8 h-8 mx-auto mb-3 text-primary" />
+            <p className="font-display text-sm uppercase tracking-wider">No devices match this filter</p>
+          </div>
+        )}
       </div>
     </>
   );
