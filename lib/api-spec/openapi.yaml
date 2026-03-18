@@ -48,7 +48,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [ALLOWED, HELD, BLOCKED, APPROVED]
+            enum: [ALLOWED, HELD, BLOCKED, APPROVED, REJECTED]
         - name: limit
           in: query
           schema:
@@ -505,8 +505,10 @@ components:
           type: string
         ipAddress:
           type: string
+          nullable: true
         country:
           type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time

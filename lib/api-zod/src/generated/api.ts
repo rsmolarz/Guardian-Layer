@@ -22,7 +22,9 @@ export const listTransactionsQueryLimitDefault = 50;
 export const listTransactionsQueryOffsetDefault = 0;
 
 export const ListTransactionsQueryParams = zod.object({
-  status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED"]).optional(),
+  status: zod
+    .enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"])
+    .optional(),
   limit: zod.coerce.number().default(listTransactionsQueryLimitDefault),
   offset: zod.coerce.number().default(listTransactionsQueryOffsetDefault),
 });
@@ -38,8 +40,8 @@ export const ListTransactionsResponse = zod.object({
       riskScore: zod.number(),
       status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"]),
       category: zod.string(),
-      ipAddress: zod.string().optional(),
-      country: zod.string().optional(),
+      ipAddress: zod.string().nullish(),
+      country: zod.string().nullish(),
       createdAt: zod.date(),
     }),
   ),
@@ -69,8 +71,8 @@ export const ScanTransactionResponse = zod.object({
     riskScore: zod.number(),
     status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"]),
     category: zod.string(),
-    ipAddress: zod.string().optional(),
-    country: zod.string().optional(),
+    ipAddress: zod.string().nullish(),
+    country: zod.string().nullish(),
     createdAt: zod.date(),
   }),
   riskFactors: zod.array(zod.string()),
@@ -92,8 +94,8 @@ export const GetTransactionResponse = zod.object({
   riskScore: zod.number(),
   status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"]),
   category: zod.string(),
-  ipAddress: zod.string().optional(),
-  country: zod.string().optional(),
+  ipAddress: zod.string().nullish(),
+  country: zod.string().nullish(),
   createdAt: zod.date(),
 });
 
@@ -402,8 +404,8 @@ export const GetTopThreatsResponse = zod.object({
       riskScore: zod.number(),
       status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"]),
       category: zod.string(),
-      ipAddress: zod.string().optional(),
-      country: zod.string().optional(),
+      ipAddress: zod.string().nullish(),
+      country: zod.string().nullish(),
       createdAt: zod.date(),
     }),
   ),

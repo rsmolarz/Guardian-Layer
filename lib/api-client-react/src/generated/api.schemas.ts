@@ -29,8 +29,8 @@ export interface Transaction {
   riskScore: number;
   status: TransactionStatus;
   category: string;
-  ipAddress?: string;
-  country?: string;
+  ipAddress?: string | null;
+  country?: string | null;
   createdAt: string;
 }
 
@@ -417,6 +417,7 @@ export const ListTransactionsStatus = {
   HELD: "HELD",
   BLOCKED: "BLOCKED",
   APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
 } as const;
 
 export type GetRiskTimelineParams = {

@@ -14,4 +14,5 @@ export const ListTransactionsStatus = {
   HELD: "HELD",
   BLOCKED: "BLOCKED",
   APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
 } as const;
