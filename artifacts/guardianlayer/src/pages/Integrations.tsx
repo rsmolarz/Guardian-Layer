@@ -1,4 +1,4 @@
-import { useListIntegrations } from "@workspace/api-client-react";
+import { useListIntegrations, useGetGoogleWorkspaceStatus } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -17,6 +17,11 @@ import {
   Eye,
   Clock,
   Settings,
+  HardDrive,
+  Calendar,
+  FileText,
+  Table2,
+  Lock,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -34,6 +39,16 @@ const PROVIDER_ICONS: Record<string, any> = {
   incognito: Eye,
   deleteme: UserX,
   identityforce: Fingerprint,
+  "google-workspace": Shield,
+  "google-workspace-admin": Lock,
+};
+
+const GOOGLE_SERVICE_ICONS: Record<string, any> = {
+  Gmail: Mail,
+  "Google Drive": HardDrive,
+  "Google Calendar": Calendar,
+  "Google Docs": FileText,
+  "Google Sheets": Table2,
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -71,6 +86,7 @@ export default function Integrations() {
 
   const active = data.integrations.filter((i) => i.status !== "pending");
   const pending = data.integrations.filter((i) => i.status === "pending");
+  const hasGoogleWorkspace = active.some((i) => i.id === "google-workspace");
 
   return (
     <div className="pb-12">
@@ -84,6 +100,8 @@ export default function Integrations() {
           <IntegrationCard key={int.id} integration={int} index={idx} />
         ))}
       </div>
+
+      {hasGoogleWorkspace && <GoogleWorkspacePanel />}
 
       {pending.length > 0 && (
         <>
@@ -103,6 +121,82 @@ export default function Integrations() {
         </>
       )}
     </div>
+  );
+}
+
+function GoogleWorkspacePanel() {
+  const { data, isLoading } = useGetGoogleWorkspaceStatus({
+    query: { refetchInterval: 30000 },
+  });
+
+  if (isLoading || !data) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-8 glass-panel p-6 rounded-2xl border border-primary/10"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Shield className="w-5 h-5 text-primary" />
+          <h3 className="font-display text-sm uppercase tracking-widest text-primary">
+            Google Workspace Protection — Live Status
+          </h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={clsx(
+            "font-mono text-sm font-bold",
+            data.connectedCount === data.totalCount ? "text-emerald-400" : "text-amber-400"
+          )}>
+            {data.connectedCount}/{data.totalCount}
+          </span>
+          <span className="font-display text-xs uppercase tracking-wider text-muted-foreground">Services Connected</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {data.services.map((svc, i) => {
+          const Icon = GOOGLE_SERVICE_ICONS[svc.service] || Shield;
+          return (
+            <motion.div
+              key={svc.service}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 + i * 0.05 }}
+              className={clsx(
+                "p-4 rounded-xl border transition-colors",
+                svc.connected
+                  ? "bg-emerald-500/5 border-emerald-500/15 hover:border-emerald-500/30"
+                  : "bg-rose-500/5 border-rose-500/15 hover:border-rose-500/30"
+              )}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <Icon className={clsx("w-5 h-5", svc.connected ? "text-emerald-400" : "text-rose-400")} />
+                <div className="font-display text-sm text-foreground font-bold">{svc.service}</div>
+              </div>
+              <div className="flex items-center gap-1.5 mb-2">
+                {svc.connected ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                )}
+                <span className={clsx(
+                  "font-mono text-xs uppercase tracking-wider",
+                  svc.connected ? "text-emerald-400" : "text-rose-400"
+                )}>
+                  {svc.connected ? "Connected" : "Disconnected"}
+                </span>
+              </div>
+              <div className="font-mono text-[10px] text-muted-foreground/60">
+                {svc.permissions.length} permission{svc.permissions.length !== 1 ? "s" : ""}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
   );
 }
 

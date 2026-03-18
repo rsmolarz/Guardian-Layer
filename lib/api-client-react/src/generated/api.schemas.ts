@@ -150,6 +150,20 @@ export interface IntegrationList {
   integrations: Integration[];
 }
 
+export interface GoogleWorkspaceServiceStatus {
+  service: string;
+  connected: boolean;
+  error?: string | null;
+  lastChecked: string;
+  permissions: string[];
+}
+
+export interface GoogleWorkspaceStatus {
+  services: GoogleWorkspaceServiceStatus[];
+  connectedCount: number;
+  totalCount: number;
+}
+
 export type SystemHealthOverall =
   (typeof SystemHealthOverall)[keyof typeof SystemHealthOverall];
 

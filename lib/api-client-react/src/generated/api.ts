@@ -25,6 +25,7 @@ import type {
   GetActivityLogParams,
   GetRiskTimelineParams,
   GetThroughputParams,
+  GoogleWorkspaceStatus,
   HealthStatus,
   IntegrationList,
   ListAlertsParams,
@@ -978,6 +979,82 @@ export function useListIntegrations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListIntegrationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get live status of connected Google Workspace services
+ */
+export const getGetGoogleWorkspaceStatusUrl = () => {
+  return `/api/integrations/google-workspace/status`;
+};
+
+export const getGoogleWorkspaceStatus = async (
+  options?: RequestInit,
+): Promise<GoogleWorkspaceStatus> => {
+  return customFetch<GoogleWorkspaceStatus>(getGetGoogleWorkspaceStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGoogleWorkspaceStatusQueryKey = () => {
+  return [`/api/integrations/google-workspace/status`] as const;
+};
+
+export const getGetGoogleWorkspaceStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetGoogleWorkspaceStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>
+  > = ({ signal }) => getGoogleWorkspaceStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGoogleWorkspaceStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>
+>;
+export type GetGoogleWorkspaceStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get live status of connected Google Workspace services
+ */
+
+export function useGetGoogleWorkspaceStatus<
+  TData = Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGoogleWorkspaceStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGoogleWorkspaceStatusQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

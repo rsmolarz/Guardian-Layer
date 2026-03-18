@@ -1,7 +1,59 @@
 import { Router, type IRouter } from "express";
-import { ListIntegrationsResponse } from "@workspace/api-zod";
+import { ListIntegrationsResponse, GetGoogleWorkspaceStatusResponse } from "@workspace/api-zod";
+import { checkGoogleConnection } from "../lib/google-clients";
 
 const router: IRouter = Router();
+
+const GOOGLE_SERVICES = [
+  {
+    connectorName: "google-mail",
+    service: "Gmail",
+    permissions: [
+      "gmail.send",
+      "gmail.labels",
+      "gmail.addons.current.message.readonly",
+      "gmail.addons.current.message.metadata",
+    ],
+  },
+  {
+    connectorName: "google-drive",
+    service: "Google Drive",
+    permissions: [
+      "drive.file",
+      "drive.apps",
+      "drive.apps.readonly",
+      "drive.photos.readonly",
+    ],
+  },
+  {
+    connectorName: "google-calendar",
+    service: "Google Calendar",
+    permissions: [
+      "calendar.events",
+      "calendar.events.readonly",
+      "calendar.calendarlist",
+      "calendar.freebusy",
+    ],
+  },
+  {
+    connectorName: "google-docs",
+    service: "Google Docs",
+    permissions: [
+      "documents",
+      "documents.readonly",
+      "docs",
+    ],
+  },
+  {
+    connectorName: "google-sheet",
+    service: "Google Sheets",
+    permissions: [
+      "spreadsheets",
+      "spreadsheets.readonly",
+      "drive.file",
+    ],
+  },
+];
 
 function getIntegrations() {
   return [
@@ -51,6 +103,24 @@ function getIntegrations() {
       lastChecked: new Date(),
     },
     {
+      id: "google-workspace",
+      name: "Google Workspace Protection",
+      provider: "Google",
+      status: "online" as const,
+      category: "security" as const,
+      description: "Monitoring Gmail, Drive, Calendar, Docs, and Sheets for suspicious activity, unauthorized access, and data exfiltration.",
+      lastChecked: new Date(),
+    },
+    {
+      id: "google-workspace-admin",
+      name: "Google Workspace Admin",
+      provider: "Google",
+      status: "pending" as const,
+      category: "security" as const,
+      description: "Enterprise admin controls: login auditing, device management, DLP policies, and security investigation tool.",
+      lastChecked: new Date(),
+    },
+    {
       id: "avg",
       name: "AVG Threat Intelligence",
       provider: "AVG (Avast)",
@@ -91,6 +161,31 @@ function getIntegrations() {
 
 router.get("/integrations", async (_req, res): Promise<void> => {
   res.json(ListIntegrationsResponse.parse({ integrations: getIntegrations() }));
+});
+
+router.get("/integrations/google-workspace/status", async (_req, res): Promise<void> => {
+  const results = await Promise.all(
+    GOOGLE_SERVICES.map(async (svc) => {
+      const check = await checkGoogleConnection(svc.connectorName);
+      return {
+        service: svc.service,
+        connected: check.connected,
+        error: check.error || null,
+        lastChecked: new Date(),
+        permissions: svc.permissions,
+      };
+    })
+  );
+
+  const connectedCount = results.filter((r) => r.connected).length;
+
+  res.json(
+    GetGoogleWorkspaceStatusResponse.parse({
+      services: results,
+      connectedCount,
+      totalCount: results.length,
+    })
+  );
 });
 
 export default router;

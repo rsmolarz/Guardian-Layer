@@ -20,6 +20,8 @@ export * from "./getActivityLogParams";
 export * from "./getActivityLogSeverity";
 export * from "./getRiskTimelineParams";
 export * from "./getThroughputParams";
+export * from "./googleWorkspaceServiceStatus";
+export * from "./googleWorkspaceStatus";
 export * from "./healthStatus";
 export * from "./integration";
 export * from "./integrationCategory";

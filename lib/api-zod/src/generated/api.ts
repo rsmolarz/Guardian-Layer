@@ -223,6 +223,23 @@ export const ListIntegrationsResponse = zod.object({
 });
 
 /**
+ * @summary Get live status of connected Google Workspace services
+ */
+export const GetGoogleWorkspaceStatusResponse = zod.object({
+  services: zod.array(
+    zod.object({
+      service: zod.string(),
+      connected: zod.boolean(),
+      error: zod.string().nullish(),
+      lastChecked: zod.date(),
+      permissions: zod.array(zod.string()),
+    }),
+  ),
+  connectedCount: zod.number(),
+  totalCount: zod.number(),
+});
+
+/**
  * @summary Get real-time system health status
  */
 export const GetSystemHealthResponse = zod.object({
