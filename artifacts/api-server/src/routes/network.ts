@@ -453,4 +453,176 @@ router.get("/network/dns-security", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/network/vpn-zerotrust", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const sessions = [
+      {
+        id: 1,
+        user: "James Mitchell",
+        email: "j.mitchell@guardlayer.io",
+        department: "Finance",
+        hostname: "WS-FIN-001",
+        vpnStatus: "connected",
+        vpnProtocol: "WireGuard",
+        vpnServer: "us-east-1.vpn.guardlayer.io",
+        assignedIp: "10.8.0.42",
+        publicIp: "73.162.88.214",
+        location: "New York, US",
+        connectedSince: new Date(now - 14400000).toISOString(),
+        bandwidthUp: 245000000,
+        bandwidthDown: 1890000000,
+        zeroTrustScore: 0.35,
+        zeroTrustStatus: "non_compliant",
+        policyViolations: [
+          { policy: "Device Posture", status: "fail", detail: "Antivirus definitions outdated by 14 days" },
+          { policy: "MFA Enrollment", status: "fail", detail: "Hardware key not registered — using SMS fallback" },
+          { policy: "OS Patch Level", status: "fail", detail: "3 critical patches missing (see Patch Compliance)" },
+        ],
+        geoAnomaly: null,
+        lastAuthentication: new Date(now - 3600000).toISOString(),
+        sessionRisk: "high",
+      },
+      {
+        id: 2,
+        user: "Sarah Chen",
+        email: "s.chen@guardlayer.io",
+        department: "Engineering",
+        hostname: "LT-ENG-042",
+        vpnStatus: "connected",
+        vpnProtocol: "WireGuard",
+        vpnServer: "us-west-2.vpn.guardlayer.io",
+        assignedIp: "10.8.0.18",
+        publicIp: "104.28.77.91",
+        location: "San Francisco, US",
+        connectedSince: new Date(now - 28800000).toISOString(),
+        bandwidthUp: 4200000000,
+        bandwidthDown: 12800000000,
+        zeroTrustScore: 0.92,
+        zeroTrustStatus: "compliant",
+        policyViolations: [],
+        geoAnomaly: null,
+        lastAuthentication: new Date(now - 1800000).toISOString(),
+        sessionRisk: "low",
+      },
+      {
+        id: 3,
+        user: "Anita Kumar",
+        email: "a.kumar@guardlayer.io",
+        department: "Sales",
+        hostname: "LT-SALES-019",
+        vpnStatus: "connected",
+        vpnProtocol: "OpenVPN",
+        vpnServer: "eu-west-1.vpn.guardlayer.io",
+        assignedIp: "10.8.0.55",
+        publicIp: "185.220.101.42",
+        location: "Moscow, RU",
+        connectedSince: new Date(now - 7200000).toISOString(),
+        bandwidthUp: 3800000000,
+        bandwidthDown: 890000000,
+        zeroTrustScore: 0.18,
+        zeroTrustStatus: "non_compliant",
+        policyViolations: [
+          { policy: "Geo-Location", status: "fail", detail: "Connection from restricted country (Russia) — user based in Mumbai, India" },
+          { policy: "Device Posture", status: "fail", detail: "Disk encryption disabled on device" },
+          { policy: "Data Loss Prevention", status: "fail", detail: "3.8 GB uploaded to external cloud storage during session" },
+        ],
+        geoAnomaly: {
+          type: "impossible_travel",
+          previousLocation: "Mumbai, IN",
+          currentLocation: "Moscow, RU",
+          timeBetween: "47 minutes",
+          distanceKm: 4933,
+          confidence: 0.98,
+        },
+        lastAuthentication: new Date(now - 7200000).toISOString(),
+        sessionRisk: "critical",
+      },
+      {
+        id: 4,
+        user: "Maria Rodriguez",
+        email: "m.rodriguez@guardlayer.io",
+        department: "HR",
+        hostname: "WS-HR-007",
+        vpnStatus: "disconnected",
+        vpnProtocol: "WireGuard",
+        vpnServer: "us-east-1.vpn.guardlayer.io",
+        assignedIp: null,
+        publicIp: "68.42.115.88",
+        location: "Chicago, US",
+        connectedSince: null,
+        bandwidthUp: 0,
+        bandwidthDown: 0,
+        zeroTrustScore: 0.85,
+        zeroTrustStatus: "compliant",
+        policyViolations: [],
+        geoAnomaly: null,
+        lastAuthentication: new Date(now - 86400000).toISOString(),
+        sessionRisk: "low",
+      },
+      {
+        id: 5,
+        user: "svc-database",
+        email: "svc-database@guardlayer.io",
+        department: "Infrastructure",
+        hostname: "SRV-DB-PRIMARY",
+        vpnStatus: "connected",
+        vpnProtocol: "IPSec",
+        vpnServer: "site-to-site.vpn.guardlayer.io",
+        assignedIp: "10.8.1.1",
+        publicIp: "52.14.88.201",
+        location: "AWS us-east-1",
+        connectedSince: new Date(now - 86400000 * 30).toISOString(),
+        bandwidthUp: 89000000000,
+        bandwidthDown: 245000000000,
+        zeroTrustScore: 0.95,
+        zeroTrustStatus: "compliant",
+        policyViolations: [],
+        geoAnomaly: null,
+        lastAuthentication: new Date(now - 300000).toISOString(),
+        sessionRisk: "low",
+      },
+      {
+        id: 6,
+        user: "Alex Thompson",
+        email: "a.thompson@guardlayer.io",
+        department: "IT Security",
+        hostname: "LT-SEC-003",
+        vpnStatus: "connected",
+        vpnProtocol: "WireGuard",
+        vpnServer: "ap-southeast-1.vpn.guardlayer.io",
+        assignedIp: "10.8.0.99",
+        publicIp: "203.0.113.42",
+        location: "Singapore, SG",
+        connectedSince: new Date(now - 43200000).toISOString(),
+        bandwidthUp: 1200000000,
+        bandwidthDown: 5600000000,
+        zeroTrustScore: 0.78,
+        zeroTrustStatus: "at_risk",
+        policyViolations: [
+          { policy: "Session Duration", status: "warn", detail: "VPN session active for 12+ hours without re-authentication" },
+        ],
+        geoAnomaly: null,
+        lastAuthentication: new Date(now - 43200000).toISOString(),
+        sessionRisk: "medium",
+      },
+    ];
+
+    const totalSessions = sessions.length;
+    const activeSessions = sessions.filter((s) => s.vpnStatus === "connected").length;
+    const compliantUsers = sessions.filter((s) => s.zeroTrustStatus === "compliant").length;
+    const nonCompliantUsers = sessions.filter((s) => s.zeroTrustStatus === "non_compliant").length;
+    const geoAnomalies = sessions.filter((s) => s.geoAnomaly !== null).length;
+    const criticalSessions = sessions.filter((s) => s.sessionRisk === "critical").length;
+
+    res.json({
+      sessions,
+      summary: { totalSessions, activeSessions, compliantUsers, nonCompliantUsers, geoAnomalies, criticalSessions },
+    });
+  } catch (err: any) {
+    console.error("[network] GET /vpn-zerotrust failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve VPN/Zero-Trust data." });
+  }
+});
+
 export default router;

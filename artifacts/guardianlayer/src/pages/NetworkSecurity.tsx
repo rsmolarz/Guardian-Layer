@@ -29,6 +29,12 @@ import {
   Tag,
   Clock,
   Hash,
+  Lock,
+  MapPin,
+  Wifi,
+  UserCheck,
+  ArrowUpDown,
+  CheckCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -60,7 +66,7 @@ const ACTION_BADGE: Record<string, string> = {
 
 type EventTypeFilter = "firewall" | "ids" | "anomaly" | "portscan" | "ddos" | undefined;
 type SeverityFilter = "critical" | "high" | "medium" | "low" | undefined;
-type Tab = "events" | "ids" | "dns";
+type Tab = "events" | "ids" | "dns" | "vpn";
 
 export default function NetworkSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("events");
@@ -69,6 +75,7 @@ export default function NetworkSecurity() {
     { id: "events", label: "Events Monitor", icon: Radar },
     { id: "ids", label: "Intrusion Detection", icon: Fingerprint },
     { id: "dns", label: "DNS Security", icon: Search },
+    { id: "vpn", label: "VPN & Zero-Trust", icon: Lock },
   ];
 
   return (
@@ -99,6 +106,7 @@ export default function NetworkSecurity() {
       {activeTab === "events" && <EventsMonitorPanel />}
       {activeTab === "ids" && <IdsPanel />}
       {activeTab === "dns" && <DnsSecurityPanel />}
+      {activeTab === "vpn" && <VpnZeroTrustPanel />}
     </div>
   );
 }
@@ -804,6 +812,323 @@ function DnsSecurityPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
             <p className="font-display text-sm uppercase tracking-wider">No DNS queries match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface PolicyViolation {
+  policy: string;
+  status: string;
+  detail: string;
+}
+
+interface GeoAnomaly {
+  type: string;
+  previousLocation: string;
+  currentLocation: string;
+  timeBetween: string;
+  distanceKm: number;
+  confidence: number;
+}
+
+interface VpnSession {
+  id: number;
+  user: string;
+  email: string;
+  department: string;
+  hostname: string;
+  vpnStatus: string;
+  vpnProtocol: string;
+  vpnServer: string;
+  assignedIp: string | null;
+  publicIp: string;
+  location: string;
+  connectedSince: string | null;
+  bandwidthUp: number;
+  bandwidthDown: number;
+  zeroTrustScore: number;
+  zeroTrustStatus: string;
+  policyViolations: PolicyViolation[];
+  geoAnomaly: GeoAnomaly | null;
+  lastAuthentication: string;
+  sessionRisk: string;
+}
+
+interface VpnData {
+  sessions: VpnSession[];
+  summary: {
+    totalSessions: number;
+    activeSessions: number;
+    compliantUsers: number;
+    nonCompliantUsers: number;
+    geoAnomalies: number;
+    criticalSessions: number;
+  };
+}
+
+function VpnZeroTrustPanel() {
+  const [data, setData] = useState<VpnData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/network/vpn-zerotrust")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="VERIFYING ZERO-TRUST POLICIES..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load VPN/Zero-Trust data.</div>;
+
+  const { sessions, summary } = data;
+  const filtered = statusFilter ? sessions.filter((s) => s.zeroTrustStatus === statusFilter) : sessions;
+
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+    if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+    return `${(bytes / 1e3).toFixed(0)} KB`;
+  };
+
+  const riskColor = (r: string) => {
+    switch (r) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const trustColor = (score: number) => score >= 0.8 ? "text-green-400" : score >= 0.5 ? "text-yellow-400" : "text-red-400";
+
+  const summaryCards = [
+    { label: "Total Users", value: summary.totalSessions, icon: UserCheck, color: "text-primary" },
+    { label: "Active VPN", value: summary.activeSessions, icon: Wifi, color: "text-green-400" },
+    { label: "Compliant", value: summary.compliantUsers, icon: CheckCircle, color: "text-green-400" },
+    { label: "Non-Compliant", value: summary.nonCompliantUsers, icon: ShieldAlert, color: "text-red-400" },
+    { label: "Geo Anomalies", value: summary.geoAnomalies, icon: MapPin, color: "text-orange-400" },
+    { label: "Critical Risk", value: summary.criticalSessions, icon: AlertTriangle, color: "text-red-400" },
+  ];
+
+  const filterButtons: { label: string; value: string | undefined }[] = [
+    { label: "All", value: undefined },
+    { label: "Compliant", value: "compliant" },
+    { label: "At Risk", value: "at_risk" },
+    { label: "Non-Compliant", value: "non_compliant" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.label}
+            onClick={() => setStatusFilter(btn.value)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              statusFilter === btn.value
+                ? "bg-primary/20 border-primary/50 text-primary"
+                : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((session) => {
+          const isExpanded = expandedId === session.id;
+          const isConnected = session.vpnStatus === "connected";
+
+          return (
+            <motion.div
+              key={session.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                session.sessionRisk === "critical" ? "border-red-500" :
+                session.sessionRisk === "high" ? "border-orange-400" :
+                session.sessionRisk === "medium" ? "border-yellow-400" : "border-green-400"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : session.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`relative p-2.5 rounded-xl ${isConnected ? "bg-green-500/10" : "bg-white/5"}`}>
+                  <Wifi className={`w-5 h-5 ${isConnected ? "text-green-400" : "text-muted-foreground"}`} />
+                  {session.geoAnomaly && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-sm font-mono font-bold text-white">{session.user}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase font-bold ${
+                      isConnected ? "text-green-400 border-green-400/30" : "text-muted-foreground border-white/20"
+                    }`}>
+                      {session.vpnStatus}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded border font-display uppercase ${
+                      session.zeroTrustStatus === "compliant" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                      session.zeroTrustStatus === "at_risk" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                      "bg-red-500/20 text-red-400 border-red-500/30"
+                    }`}>
+                      {session.zeroTrustStatus.replace(/_/g, " ")}
+                    </span>
+                    {session.geoAnomaly && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-display uppercase animate-pulse">Geo Anomaly</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-primary/80 font-mono">{session.hostname}</span>
+                    <span className="mx-2">|</span>
+                    {session.department}
+                    <span className="mx-2">|</span>
+                    <MapPin className="w-3 h-3 inline" /> {session.location}
+                    <span className="mx-2">|</span>
+                    {session.vpnProtocol}
+                    {session.policyViolations.length > 0 && (
+                      <><span className="mx-2">|</span><span className="text-red-400">{session.policyViolations.length} violation{session.policyViolations.length > 1 ? "s" : ""}</span></>
+                    )}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Trust Score</span>
+                    <span className={`text-lg font-mono font-bold ${trustColor(session.zeroTrustScore)}`}>
+                      {(session.zeroTrustScore * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">VPN Server</span>
+                      <span className="text-xs font-mono text-white">{session.vpnServer}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Public IP</span>
+                      <span className="text-xs font-mono text-primary">{session.publicIp}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Assigned IP</span>
+                      <span className="text-xs font-mono text-white">{session.assignedIp || "—"}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Session Risk</span>
+                      <span className={`text-xs font-mono font-bold uppercase ${riskColor(session.sessionRisk)}`}>{session.sessionRisk}</span>
+                    </div>
+                  </div>
+
+                  {isConnected && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Connected Since</span>
+                        <span className="text-xs font-mono text-white">{session.connectedSince ? format(new Date(session.connectedSince), "MMM d, HH:mm") : "—"}</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> Upload</span>
+                        <span className="text-xs font-mono text-white">{formatBytes(session.bandwidthUp)}</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block flex items-center gap-1"><ArrowUpDown className="w-3 h-3" /> Download</span>
+                        <span className="text-xs font-mono text-white">{formatBytes(session.bandwidthDown)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Last Authentication</span>
+                    <span className="text-xs font-mono text-white">{format(new Date(session.lastAuthentication), "MMM d, HH:mm")}</span>
+                  </div>
+
+                  {session.geoAnomaly && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-red-400" />
+                        <span className="text-[10px] font-display uppercase tracking-widest text-red-400 font-bold">Geo Anomaly — {session.geoAnomaly.type.replace(/_/g, " ")}</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground block">Previous</span>
+                          <span className="font-mono text-white">{session.geoAnomaly.previousLocation}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Current</span>
+                          <span className="font-mono text-red-400">{session.geoAnomaly.currentLocation}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Time Between</span>
+                          <span className="font-mono text-red-400">{session.geoAnomaly.timeBetween}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Distance</span>
+                          <span className="font-mono text-red-400">{session.geoAnomaly.distanceKm.toLocaleString()} km</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-red-400/80 mt-2">Confidence: {(session.geoAnomaly.confidence * 100).toFixed(0)}%</p>
+                    </div>
+                  )}
+
+                  {session.policyViolations.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
+                        <ShieldAlert className="w-3 h-3" /> Policy Violations
+                      </h4>
+                      <div className="space-y-1.5">
+                        {session.policyViolations.map((v, i) => (
+                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-black/20 border border-white/5">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${
+                              v.status === "fail" ? "text-red-400 bg-red-500/10" : "text-yellow-400 bg-yellow-500/10"
+                            }`}>{v.status}</span>
+                            <span className="text-xs text-white font-mono">{v.policy}</span>
+                            <span className="text-xs text-muted-foreground flex-1">{v.detail}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {session.policyViolations.length === 0 && !session.geoAnomaly && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <CheckCircle className="w-5 h-5 mx-auto mb-1 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">All zero-trust policies satisfied</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No sessions match this filter</p>
           </div>
         )}
       </div>
