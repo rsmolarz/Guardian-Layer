@@ -105,7 +105,7 @@ export default function YubikeySecurity() {
       <div className="mb-6 flex items-center gap-2 glass-panel p-1.5 rounded-xl inline-flex flex-wrap">
         {([
           { id: "devices" as Tab, label: "Fleet Manager", icon: Key },
-          { id: "events" as Tab, label: "Auth Events", icon: Fingerprint },
+          { id: "events" as Tab, label: "Audit Log", icon: Fingerprint },
           { id: "enrollment" as Tab, label: "Enrollment", icon: Package },
           { id: "failed-auth" as Tab, label: "Failed Auth", icon: Ban },
           { id: "policies" as Tab, label: "Policies", icon: BookOpen },
@@ -124,67 +124,7 @@ export default function YubikeySecurity() {
 
       {tab === "devices" && <FleetManagerPanel />}
 
-      {tab === "events" && (
-        <>
-          <div className="mb-6 glass-panel p-1.5 rounded-xl inline-flex gap-1">
-            <span className="px-3 py-2 text-[10px] font-display uppercase tracking-widest text-muted-foreground border-r border-white/10">Event</span>
-            {[undefined, "auth_success", "auth_failure", "key_enrolled", "key_revoked"].map((e) => (
-              <button
-                key={e ?? "all"}
-                onClick={() => setEventFilter(e as EventFilter)}
-                className={`px-3 py-2 rounded-lg text-xs font-mono transition-colors ${
-                  eventFilter === e ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
-                }`}
-              >
-                {e?.replace("_", " ") ?? "All"}
-              </button>
-            ))}
-          </div>
-
-          {isEventsLoading ? (
-            <CyberLoading text="LOADING AUTH EVENTS..." />
-          ) : (
-            <div className="space-y-2">
-              {(eventsData?.events ?? []).map((event: YubikeyAuthEvent, idx: number) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className={`glass-panel rounded-xl p-4 flex items-center gap-4 border-l-4 ${
-                    event.eventType === "auth_failure" ? "border-rose-500" :
-                    event.eventType === "auth_success" ? "border-emerald-500" :
-                    "border-primary"
-                  }`}
-                >
-                  <div className={`p-2 rounded-lg bg-black/40 ${event.eventType === "auth_failure" ? "text-rose-400" : event.eventType === "auth_success" ? "text-emerald-400" : "text-primary"}`}>
-                    {event.eventType === "auth_success" ? <CheckCircle2 className="w-5 h-5" /> :
-                     event.eventType === "auth_failure" ? <XCircle className="w-5 h-5" /> :
-                     <Key className="w-5 h-5" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${EVENT_BADGE[event.eventType] || ""}`}>
-                        {event.eventType.replace("_", " ")}
-                      </span>
-                      <span className="text-[10px] font-mono text-muted-foreground">{event.protocol}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="font-mono text-white">{event.user}</span>
-                      <span className="text-muted-foreground text-xs">Key: {event.deviceSerial}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 text-xs text-muted-foreground">
-                    {event.location && <p>{event.location}</p>}
-                    {event.ipAddress && <p className="font-mono">{event.ipAddress}</p>}
-                    <p>{format(new Date(event.createdAt), "PPp")}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {tab === "events" && <AuditLogPanel />}
 
       {tab === "enrollment" && <EnrollmentPanel />}
       {tab === "failed-auth" && <FailedAuthPanel />}
@@ -894,6 +834,194 @@ function FleetManagerPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Key className="w-8 h-8 mx-auto mb-3 text-primary" />
             <p className="font-display text-sm uppercase tracking-wider">No devices match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function AuditLogPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [eventFilter, setEventFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/yubikey/audit-log")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="LOADING AUDIT LOG..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load audit log.</div>;
+
+  const { events, summary } = data;
+  const filtered = eventFilter ? events.filter((e: any) => e.eventType === eventFilter) : events;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: "Total Events", value: summary.totalEvents, icon: Fingerprint, color: "text-primary" },
+          { label: "Successful", value: summary.successCount, icon: CheckCircle, color: "text-emerald-400" },
+          { label: "Failed", value: summary.failureCount, icon: XCircle, color: "text-red-400" },
+          { label: "Unique Users", value: summary.uniqueUsers, icon: User, color: "text-blue-400" },
+          { label: "Avg Response", value: `${summary.avgResponseTime}ms`, icon: Clock, color: "text-primary" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "auth_success", "auth_failure", "key_enrolled", "key_revoked"].map((e) => (
+          <button
+            key={e ?? "all"}
+            onClick={() => setEventFilter(e)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              eventFilter === e ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {e?.replace(/_/g, " ") ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {filtered.map((event: any) => {
+          const isExpanded = expandedId === event.id;
+          const isFail = event.eventType === "auth_failure";
+          const isSuccess = event.eventType === "auth_success";
+          const isEnroll = event.eventType === "key_enrolled";
+
+          return (
+            <motion.div
+              key={event.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                isFail ? "border-red-500" :
+                isSuccess ? "border-emerald-500" :
+                isEnroll ? "border-primary" : "border-orange-400"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : event.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2 rounded-lg bg-black/40 ${
+                  isFail ? "text-red-400" : isSuccess ? "text-emerald-400" : isEnroll ? "text-primary" : "text-orange-400"
+                }`}>
+                  {isSuccess ? <CheckCircle2 className="w-5 h-5" /> :
+                   isFail ? <XCircle className="w-5 h-5" /> :
+                   isEnroll ? <Package className="w-5 h-5" /> :
+                   <Ban className="w-5 h-5" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${EVENT_BADGE[event.eventType] || "bg-white/5 text-muted-foreground border-white/10"}`}>
+                      {event.eventType.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{event.protocol}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-muted-foreground font-mono">{event.application}</span>
+                    {event.riskFlag && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase ${
+                        event.riskFlag === "brute_force" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
+                        "bg-orange-500/10 text-orange-400 border border-orange-500/30"
+                      }`}>
+                        {event.riskFlag.replace(/_/g, " ")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-mono text-white">{event.user}</span>
+                    <span className="text-muted-foreground text-xs">Key: {event.deviceSerial}</span>
+                    <span className="text-muted-foreground text-xs">{event.deviceModel}</span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs text-muted-foreground">
+                  <p>{event.location}</p>
+                  <p className="font-mono">{event.ipAddress}</p>
+                  <p>{format(new Date(event.timestamp), "HH:mm:ss")}</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Timestamp</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(event.timestamp), "MMM d, HH:mm:ss")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Auth Method</span>
+                      <span className="text-xs font-mono text-white">{event.authMethod.replace(/_/g, " ")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Response Time</span>
+                      <span className={`text-xs font-mono ${event.responseTime > 500 ? "text-yellow-400" : event.responseTime === 0 ? "text-red-400" : "text-emerald-400"}`}>
+                        {event.responseTime > 0 ? `${event.responseTime}ms` : "N/A (failed)"}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Session ID</span>
+                      <span className="text-xs font-mono text-white">{event.sessionId}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Challenge</span>
+                      <span className="text-xs font-mono text-white">{event.challenge}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Relay Party</span>
+                      <span className="text-xs font-mono text-white">{event.relayParty}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">User Agent</span>
+                      <span className="text-xs font-mono text-white text-[10px]">{event.userAgent}</span>
+                    </div>
+                  </div>
+
+                  {event.email && (
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Email</span>
+                      <span className="text-xs font-mono text-white">{event.email}</span>
+                      {event.department && <span className="text-xs text-muted-foreground ml-2">({event.department})</span>}
+                    </div>
+                  )}
+
+                  {event.failureReason && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <div className="flex items-center gap-2 mb-1">
+                        <XCircle className="w-3.5 h-3.5 text-red-400" />
+                        <span className="text-[10px] font-display uppercase tracking-widest text-red-400">Failure Reason</span>
+                      </div>
+                      <p className="text-xs text-gray-300">{event.failureReason}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Fingerprint className="w-8 h-8 mx-auto mb-3 text-primary" />
+            <p className="font-display text-sm uppercase tracking-wider">No events match this filter</p>
           </div>
         )}
       </div>
