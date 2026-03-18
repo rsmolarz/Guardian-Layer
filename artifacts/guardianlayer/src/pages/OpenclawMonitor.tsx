@@ -37,6 +37,9 @@ import {
   Unlock,
   FileCode,
   ExternalLink,
+  Users,
+  Monitor,
+  Download,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -62,7 +65,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health" | "api-security";
+type Tab = "contracts" | "health" | "api-security" | "sessions";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -81,6 +84,7 @@ export default function OpenclawMonitor() {
           { id: "contracts" as Tab, label: "Contracts", icon: Scale },
           { id: "health" as Tab, label: "UI Health Monitor", icon: Activity },
           { id: "api-security" as Tab, label: "API Security Scanner", icon: ShieldAlert },
+          { id: "sessions" as Tab, label: "User Sessions", icon: Users },
         ]).map((t) => (
           <button
             key={t.id}
@@ -99,6 +103,7 @@ export default function OpenclawMonitor() {
       {tab === "contracts" && <ContractsPanel />}
       {tab === "health" && <HealthMonitorPanel />}
       {tab === "api-security" && <ApiSecurityPanel />}
+      {tab === "sessions" && <UserSessionPanel />}
     </div>
   );
 }
@@ -780,6 +785,256 @@ function ApiSecurityPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-emerald-400" />
             <p className="font-display text-sm uppercase tracking-wider">No endpoints match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+const SESSION_STATUS_BADGE: Record<string, string> = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  flagged: "bg-red-500/20 text-red-400 border-red-500/30",
+  terminated: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+  expired: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+};
+
+const SESSION_ROLE_BADGE: Record<string, string> = {
+  admin: "bg-violet-500/20 text-violet-400 border-violet-500/30",
+  editor: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  viewer: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  service: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+};
+
+const FLAG_SEVERITY_COLOR: Record<string, string> = {
+  critical: "bg-red-500/10 border-red-500/20 text-red-400",
+  high: "bg-orange-500/10 border-orange-500/20 text-orange-400",
+  medium: "bg-yellow-500/10 border-yellow-500/20 text-yellow-400",
+  low: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+};
+
+const FLAG_TYPE_ICON: Record<string, string> = {
+  concurrent_login: "Concurrent Login",
+  session_hijack: "Session Hijack",
+  suspicious_ua: "Suspicious Agent",
+  unusual_hours: "Unusual Hours",
+  data_exfil: "Data Exfiltration",
+  geo_anomaly: "Geo Anomaly",
+  privilege_escalation: "Privilege Escalation",
+  weak_mfa: "Weak MFA",
+};
+
+function UserSessionPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/openclaw/sessions")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="MONITORING USER SESSIONS..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load session data.</div>;
+
+  const { sessions, summary } = data;
+  const filtered = statusFilter
+    ? sessions.filter((s: any) => s.status === statusFilter)
+    : sessions;
+
+  return (
+    <>
+      {summary.flaggedSessions > 0 && (
+        <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
+            <span className="text-xs font-display uppercase tracking-widest text-red-400">Active Threats Detected</span>
+          </div>
+          <p className="text-sm text-gray-300">
+            <span className="text-red-400 font-mono">{summary.flaggedSessions} flagged session{summary.flaggedSessions !== 1 ? "s" : ""}</span> with{" "}
+            <span className="text-red-400 font-mono">{summary.totalFlags} security flags</span> detected.{" "}
+            <span className="text-orange-400 font-mono">{summary.hijackAttempts} session hijack attempt{summary.hijackAttempts !== 1 ? "s" : ""}</span> and{" "}
+            <span className="text-orange-400 font-mono">{summary.concurrentLogins} concurrent login anomal{summary.concurrentLogins !== 1 ? "ies" : "y"}</span> require investigation.
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: "Total Sessions", value: summary.totalSessions, icon: Monitor, color: "text-primary" },
+          { label: "Active", value: summary.activeSessions, icon: Wifi, color: "text-emerald-400" },
+          { label: "Flagged", value: summary.flaggedSessions, icon: AlertTriangle, color: "text-red-400" },
+          { label: "Hijack Attempts", value: summary.hijackAttempts, icon: ShieldAlert, color: "text-red-400" },
+          { label: "Unique Users", value: summary.uniqueUsers, icon: Users, color: "text-cyan-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "active", "flagged", "terminated", "expired"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setStatusFilter(s)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              statusFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((session: any) => {
+          const isExpanded = expandedId === session.id;
+          const flagCount = session.flags.length;
+          const hasCritical = session.flags.some((f: any) => f.severity === "critical");
+
+          return (
+            <motion.div
+              key={session.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                session.status === "flagged" ? (hasCritical ? "border-red-500" : "border-orange-500") :
+                session.status === "terminated" ? "border-rose-500" :
+                session.status === "expired" ? "border-gray-500" : "border-emerald-500"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : session.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2 rounded-lg bg-black/40 ${
+                  session.status === "flagged" ? "text-red-400" :
+                  session.status === "terminated" ? "text-rose-400" :
+                  session.status === "expired" ? "text-gray-400" : "text-emerald-400"
+                }`}>
+                  {session.status === "flagged" ? <ShieldAlert className="w-5 h-5" /> :
+                   session.status === "terminated" ? <XCircle className="w-5 h-5" /> :
+                   session.status === "expired" ? <Clock className="w-5 h-5" /> :
+                   <Users className="w-5 h-5" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-sm font-display text-white">{session.user}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${SESSION_ROLE_BADGE[session.role] || "border-white/10 text-white/50"}`}>
+                      {session.role}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${SESSION_STATUS_BADGE[session.status] || ""}`}>
+                      {session.status}
+                    </span>
+                    {flagCount > 0 && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                        {flagCount} flag{flagCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {session.ipAddress}</span>
+                    <span>{session.location}</span>
+                    <span className="flex items-center gap-1"><Monitor className="w-3 h-3" /> {session.device}</span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs text-muted-foreground">
+                  <p>{session.id}</p>
+                  <p className="text-[10px]">Active: {format(new Date(session.lastActivity), "HH:mm:ss")}</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: "Session Started", value: format(new Date(session.startedAt), "MMM d, HH:mm:ss") },
+                      { label: "Last Activity", value: format(new Date(session.lastActivity), "HH:mm:ss") },
+                      { label: "Expires", value: format(new Date(session.expiresAt), "MMM d, HH:mm") },
+                      { label: "MFA Method", value: session.mfaMethod },
+                    ].map((info) => (
+                      <div key={info.label} className="p-2 rounded-lg bg-black/20 border border-white/5">
+                        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">{info.label}</span>
+                        <span className="text-xs font-mono text-white">{info.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Pages Visited", value: session.pagesVisited, icon: FileText, color: "text-blue-400" },
+                      { label: "API Calls", value: session.apiCalls.toLocaleString(), icon: Activity, color: "text-cyan-400" },
+                      { label: "Data Downloaded", value: session.dataDownloaded, icon: Download, color: session.dataDownloaded.includes("GB") || parseFloat(session.dataDownloaded) > 100 ? "text-red-400" : "text-emerald-400" },
+                    ].map((metric) => (
+                      <div key={metric.label} className="p-3 rounded-lg bg-black/20 border border-white/5 flex items-center gap-3">
+                        <metric.icon className={`w-4 h-4 ${metric.color}`} />
+                        <div>
+                          <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">{metric.label}</span>
+                          <span className={`text-sm font-mono font-bold ${metric.color}`}>{metric.value}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Session Token</span>
+                    <span className="text-xs font-mono text-gray-400">{session.sessionToken}</span>
+                  </div>
+
+                  {session.flags.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                        <span className="text-xs font-display uppercase tracking-widest text-red-400">Security Flags ({session.flags.length})</span>
+                      </div>
+                      {session.flags.map((flag: any, i: number) => (
+                        <div key={i} className={`p-3 rounded-lg border ${FLAG_SEVERITY_COLOR[flag.severity] || ""}`}>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                              flag.severity === "critical" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                              flag.severity === "high" ? "bg-orange-500/20 text-orange-400 border-orange-500/30" :
+                              "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                            }`}>
+                              {flag.severity}
+                            </span>
+                            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                              {FLAG_TYPE_ICON[flag.type] || flag.type.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-300 mt-1">{flag.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {session.flags.length === 0 && (
+                    <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-center">
+                      <CheckCircle className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                      <p className="text-sm text-emerald-400 font-display uppercase">Clean Session — No Anomalies Detected</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Users className="w-8 h-8 mx-auto mb-3 text-cyan-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No sessions match this filter</p>
           </div>
         )}
       </div>
