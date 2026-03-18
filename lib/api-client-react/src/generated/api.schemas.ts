@@ -933,6 +933,95 @@ export interface IsolationActionResult {
   executedAt: string;
 }
 
+export type BackupItemStatus =
+  (typeof BackupItemStatus)[keyof typeof BackupItemStatus];
+
+export const BackupItemStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  completed: "completed",
+  partial: "partial",
+  failed: "failed",
+} as const;
+
+export type BackupItemType =
+  (typeof BackupItemType)[keyof typeof BackupItemType];
+
+export const BackupItemType = {
+  manual: "manual",
+  scheduled: "scheduled",
+} as const;
+
+export interface BackupItem {
+  id: number;
+  name: string;
+  status: BackupItemStatus;
+  type: BackupItemType;
+  sizeBytes?: number | null;
+  checksum?: string | null;
+  checksumVerified: boolean;
+  storedLocally: boolean;
+  driveFileId?: string | null;
+  driveFolderId?: string | null;
+  includesDatabase: boolean;
+  includesSourceCode: boolean;
+  includesPackages: boolean;
+  errorMessage?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackupList {
+  backups: BackupItem[];
+  total: number;
+}
+
+export interface BackupTriggerResult {
+  success: boolean;
+  backupId: number;
+  message: string;
+}
+
+export interface BackupSummary {
+  totalBackups: number;
+  successfulBackups: number;
+  failedBackups: number;
+  totalSizeBytes: number;
+  lastBackupAt?: string | null;
+  driveConnected: boolean;
+  localStorageUsedBytes: number;
+  driveStorageUsedBytes: number;
+}
+
+export interface BackupSettingsResponse {
+  intervalHours: number;
+  retentionDays: number;
+  maxBackups: number;
+  autoBackupEnabled: boolean;
+  lastAutoBackupAt?: string | null;
+}
+
+export interface UpdateBackupSettingsRequest {
+  intervalHours?: number;
+  retentionDays?: number;
+  maxBackups?: number;
+  autoBackupEnabled?: boolean;
+}
+
+export interface BackupVerifyResult {
+  verified: boolean;
+  checksum: string;
+  message: string;
+}
+
+export interface BackupRestoreResult {
+  success: boolean;
+  message: string;
+  restoredComponents: string[];
+  restorePath: string;
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;
@@ -1207,6 +1296,11 @@ export const UpdateRecoveryStepStatusBodyStatus = {
 export type UpdateRecoveryStepStatusBody = {
   status: UpdateRecoveryStepStatusBodyStatus;
   notes?: string;
+};
+
+export type ListBackupsParams = {
+  limit?: number;
+  offset?: number;
 };
 
 export type ListThreatsParams = {

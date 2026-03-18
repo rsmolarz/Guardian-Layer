@@ -29,6 +29,7 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **Dark Web Monitor:** Tracks compromised data (SSN, email, credentials, financial accounts, phone numbers) and offers recovery actions (Credit Protection, Account Security, Legal & Reporting).
 *   **Recovery Center:** Full asset & data recovery system for compromised assets (passport, email, credit card, SSN). Features recovery dashboard with stats/progress bar, expandable case cards with step-by-step workflows, step status tracking with notes, verification checks, and chronological timeline view.
 *   **Threat Neutralization:** Active threat containment system with summary stats (active/contained/neutralized/avg containment time), threats grouped by severity, expandable threat cards with isolation actions (freeze credit, lock cards, secure email, invalidate credentials, flag passport), multi-step neutralization workflows with progress tracking, and threat timeline view.
+*   **Backup Center:** Automated iDrive-style backup system with dual-redundancy storage (Google Drive + local VPS). Features manual and scheduled backups of database (pg_dump), source code archives, and package manifests. SHA-256 checksum verification, backup history with size/status/integrity indicators, storage usage tracking, configurable intervals/retention/max backups, download capability, and Google Drive organized folder structure (GuardianLayer-Backups/YYYY-MM-DD/).
 
 ## External Dependencies
 
@@ -54,6 +55,8 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **recovery_steps** - Individual recovery steps per case with step_order, title, description, category, status (not_started/in_progress/completed/verified), notes, timestamps (started_at, completed_at, verified_at). FK to recovery_cases
 *   **threats** - Active threats with type, severity, status (detected/isolating/contained/neutralized), affected_assets, detection_source, description, detected_at, contained_at, neutralized_at
 *   **neutralization_steps** - Multi-step neutralization workflows per threat with threat_id, step_order, title, description, category, status (pending/in_progress/completed), started_at, completed_at
+*   **backups** - Backup records with name, status (pending/in_progress/completed/failed), type (manual/scheduled), size_bytes, checksum (SHA-256), checksum_verified, local_path, drive_file_id, drive_folder_id, includes_database, includes_source_code, includes_packages, error_message, completed_at
+*   **backup_settings** - Backup configuration with interval_hours, retention_days, max_backups, auto_backup_enabled, last_auto_backup_at
 
 ## ML Risk Scoring
 
@@ -101,6 +104,15 @@ The risk scoring engine evaluates transactions based on:
 - `POST /api/threats/:id/status` - Update threat status
 - `POST /api/threats/:id/isolate` - Execute isolation action (freeze_credit, lock_cards, secure_email, invalidate_credentials, flag_passport)
 - `POST /api/threats/:threatId/steps/:stepId/complete` - Complete a neutralization step
+- `GET /api/backups` - List backups (filterable by limit, offset)
+- `POST /api/backups/trigger` - Trigger manual backup (auth required: Bearer BACKUP_ADMIN_KEY)
+- `GET /api/backups/summary` - Backup summary and storage usage
+- `GET /api/backups/settings` - Get backup configuration
+- `PATCH /api/backups/settings` - Update backup configuration (auth required)
+- `POST /api/backups/:id/verify` - Verify backup integrity via SHA-256 (auth required)
+- `POST /api/backups/:id/restore` - Restore from backup (auth + X-Confirm-Restore header required)
+- `GET /api/backups/:id/download` - Download backup archive (auth required)
+- Auth: Set BACKUP_ADMIN_KEY env var for persistent key; ephemeral key generated if unset
 
 ## Key Commands
 

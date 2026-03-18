@@ -1024,6 +1024,134 @@ export const GetRecoveryTimelineResponse = zod.object({
 });
 
 /**
+ * @summary List all backups
+ */
+export const listBackupsQueryLimitDefault = 50;
+export const listBackupsQueryOffsetDefault = 0;
+
+export const ListBackupsQueryParams = zod.object({
+  limit: zod.coerce.number().default(listBackupsQueryLimitDefault),
+  offset: zod.coerce.number().default(listBackupsQueryOffsetDefault),
+});
+
+export const ListBackupsResponse = zod.object({
+  backups: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      status: zod.enum([
+        "pending",
+        "in_progress",
+        "completed",
+        "partial",
+        "failed",
+      ]),
+      type: zod.enum(["manual", "scheduled"]),
+      sizeBytes: zod.number().nullish(),
+      checksum: zod.string().nullish(),
+      checksumVerified: zod.boolean(),
+      storedLocally: zod.boolean(),
+      driveFileId: zod.string().nullish(),
+      driveFolderId: zod.string().nullish(),
+      includesDatabase: zod.boolean(),
+      includesSourceCode: zod.boolean(),
+      includesPackages: zod.boolean(),
+      errorMessage: zod.string().nullish(),
+      completedAt: zod.date().nullish(),
+      createdAt: zod.date(),
+      updatedAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Trigger a manual backup
+ */
+export const TriggerBackupResponse = zod.object({
+  success: zod.boolean(),
+  backupId: zod.number(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Get backup summary and storage usage
+ */
+export const GetBackupSummaryResponse = zod.object({
+  totalBackups: zod.number(),
+  successfulBackups: zod.number(),
+  failedBackups: zod.number(),
+  totalSizeBytes: zod.number(),
+  lastBackupAt: zod.date().nullish(),
+  driveConnected: zod.boolean(),
+  localStorageUsedBytes: zod.number(),
+  driveStorageUsedBytes: zod.number(),
+});
+
+/**
+ * @summary Get backup settings
+ */
+export const GetBackupSettingsResponse = zod.object({
+  intervalHours: zod.number(),
+  retentionDays: zod.number(),
+  maxBackups: zod.number(),
+  autoBackupEnabled: zod.boolean(),
+  lastAutoBackupAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Update backup settings
+ */
+export const UpdateBackupSettingsBody = zod.object({
+  intervalHours: zod.number().optional(),
+  retentionDays: zod.number().optional(),
+  maxBackups: zod.number().optional(),
+  autoBackupEnabled: zod.boolean().optional(),
+});
+
+export const UpdateBackupSettingsResponse = zod.object({
+  intervalHours: zod.number(),
+  retentionDays: zod.number(),
+  maxBackups: zod.number(),
+  autoBackupEnabled: zod.boolean(),
+  lastAutoBackupAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Verify backup integrity
+ */
+export const VerifyBackupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const VerifyBackupResponse = zod.object({
+  verified: zod.boolean(),
+  checksum: zod.string(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Initiate restore from a backup
+ */
+export const RestoreBackupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RestoreBackupResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+  restoredComponents: zod.array(zod.string()),
+  restorePath: zod.string(),
+});
+
+/**
+ * @summary Download a backup file
+ */
+export const DownloadBackupParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all active threats
  */
 export const ListThreatsQueryParams = zod.object({

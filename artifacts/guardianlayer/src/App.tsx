@@ -19,6 +19,7 @@ import DarkWebMonitor from "@/pages/DarkWebMonitor";
 import Recovery from "@/pages/Recovery";
 import ThreatNeutralization from "@/pages/ThreatNeutralization";
 import Glossary from "@/pages/Glossary";
+import Backups from "@/pages/Backups";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { useLocation } from "wouter";
@@ -56,6 +57,7 @@ function Router() {
         <Route path="/recovery" component={Recovery} />
         <Route path="/threat-neutralization" component={ThreatNeutralization} />
         <Route path="/glossary" component={Glossary} />
+        <Route path="/backups" component={Backups} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />

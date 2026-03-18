@@ -27,6 +27,8 @@ tags:
     description: Asset & data recovery operations
   - name: threats
     description: Threat neutralization operations
+  - name: backups
+    description: Automated backup operations
 paths:
   /healthz:
     get:
@@ -939,6 +941,144 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecoveryTimeline"
+
+  /backups:
+    get:
+      operationId: listBackups
+      tags: [backups]
+      summary: List all backups
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Backup list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupList"
+
+  /backups/trigger:
+    post:
+      operationId: triggerBackup
+      tags: [backups]
+      summary: Trigger a manual backup
+      responses:
+        "200":
+          description: Backup started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupTriggerResult"
+
+  /backups/summary:
+    get:
+      operationId: getBackupSummary
+      tags: [backups]
+      summary: Get backup summary and storage usage
+      responses:
+        "200":
+          description: Backup summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSummary"
+
+  /backups/settings:
+    get:
+      operationId: getBackupSettings
+      tags: [backups]
+      summary: Get backup settings
+      responses:
+        "200":
+          description: Backup settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSettingsResponse"
+    patch:
+      operationId: updateBackupSettings
+      tags: [backups]
+      summary: Update backup settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBackupSettingsRequest"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSettingsResponse"
+
+  /backups/{id}/verify:
+    post:
+      operationId: verifyBackup
+      tags: [backups]
+      summary: Verify backup integrity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupVerifyResult"
+
+  /backups/{id}/restore:
+    post:
+      operationId: restoreBackup
+      tags: [backups]
+      summary: Initiate restore from a backup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Restore result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupRestoreResult"
+
+  /backups/{id}/download:
+    get:
+      operationId: downloadBackup
+      tags: [backups]
+      summary: Download a backup file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Backup file download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
 
   /threats:
     get:
@@ -2697,3 +2837,187 @@ components:
         - action
         - message
         - executedAt
+
+    BackupItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, partial, failed]
+        type:
+          type: string
+          enum: [manual, scheduled]
+        sizeBytes:
+          type: integer
+          nullable: true
+        checksum:
+          type: string
+          nullable: true
+        checksumVerified:
+          type: boolean
+        storedLocally:
+          type: boolean
+        driveFileId:
+          type: string
+          nullable: true
+        driveFolderId:
+          type: string
+          nullable: true
+        includesDatabase:
+          type: boolean
+        includesSourceCode:
+          type: boolean
+        includesPackages:
+          type: boolean
+        errorMessage:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - type
+        - checksumVerified
+        - storedLocally
+        - includesDatabase
+        - includesSourceCode
+        - includesPackages
+        - createdAt
+        - updatedAt
+
+    BackupList:
+      type: object
+      properties:
+        backups:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackupItem"
+        total:
+          type: integer
+      required:
+        - backups
+        - total
+
+    BackupTriggerResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        backupId:
+          type: integer
+        message:
+          type: string
+      required:
+        - success
+        - backupId
+        - message
+
+    BackupSummary:
+      type: object
+      properties:
+        totalBackups:
+          type: integer
+        successfulBackups:
+          type: integer
+        failedBackups:
+          type: integer
+        totalSizeBytes:
+          type: integer
+        lastBackupAt:
+          type: string
+          format: date-time
+          nullable: true
+        driveConnected:
+          type: boolean
+        localStorageUsedBytes:
+          type: integer
+        driveStorageUsedBytes:
+          type: integer
+      required:
+        - totalBackups
+        - successfulBackups
+        - failedBackups
+        - totalSizeBytes
+        - driveConnected
+        - localStorageUsedBytes
+        - driveStorageUsedBytes
+
+    BackupSettingsResponse:
+      type: object
+      properties:
+        intervalHours:
+          type: integer
+        retentionDays:
+          type: integer
+        maxBackups:
+          type: integer
+        autoBackupEnabled:
+          type: boolean
+        lastAutoBackupAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - intervalHours
+        - retentionDays
+        - maxBackups
+        - autoBackupEnabled
+
+    UpdateBackupSettingsRequest:
+      type: object
+      properties:
+        intervalHours:
+          type: integer
+        retentionDays:
+          type: integer
+        maxBackups:
+          type: integer
+        autoBackupEnabled:
+          type: boolean
+
+    BackupVerifyResult:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        checksum:
+          type: string
+        message:
+          type: string
+      required:
+        - verified
+        - checksum
+        - message
+
+    BackupRestoreResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        restoredComponents:
+          type: array
+          items:
+            type: string
+        restorePath:
+          type: string
+      required:
+        - success
+        - message
+        - restoredComponents
+        - restorePath

@@ -14,6 +14,7 @@ import yubikeyRouter from "./yubikey";
 import openclawRouter from "./openclaw";
 import recoveryRouter from "./recovery";
 import threatsRouter from "./threats";
+import backupsRouter from "./backups";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(yubikeyRouter);
 router.use(openclawRouter);
 router.use(recoveryRouter);
 router.use(threatsRouter);
+router.use(backupsRouter);
 
 export default router;

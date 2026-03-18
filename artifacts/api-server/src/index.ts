@@ -1,5 +1,6 @@
 import app from "./app";
 import { seedAllModules } from "./lib/seed";
+import { startBackupScheduler } from "./routes/backups";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,5 @@ app.listen(port, async () => {
   } catch (err) {
     console.error("Seed error:", err);
   }
+  startBackupScheduler();
 });
