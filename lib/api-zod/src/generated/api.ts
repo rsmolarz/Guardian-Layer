@@ -211,3 +211,153 @@ export const ListIntegrationsResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Get real-time system health status
+ */
+export const GetSystemHealthResponse = zod.object({
+  overall: zod.enum(["healthy", "degraded", "critical"]),
+  uptime: zod.number(),
+  services: zod.array(
+    zod.object({
+      name: zod.string(),
+      status: zod.enum(["healthy", "degraded", "down"]),
+      latencyMs: zod.number(),
+      lastCheck: zod.date(),
+      details: zod.string().optional(),
+    }),
+  ),
+  metrics: zod.object({
+    requestsPerMinute: zod.number(),
+    avgResponseMs: zod.number(),
+    errorRate: zod.number(),
+    activeConnections: zod.number(),
+    memoryUsageMb: zod.number(),
+    cpuPercent: zod.number(),
+  }),
+});
+
+/**
+ * @summary Get system activity log
+ */
+export const getActivityLogQueryLimitDefault = 50;
+export const getActivityLogQueryOffsetDefault = 0;
+
+export const GetActivityLogQueryParams = zod.object({
+  category: zod
+    .enum(["transaction", "approval", "alert", "integration", "system", "auth"])
+    .optional(),
+  severity: zod.enum(["info", "warning", "error", "critical"]).optional(),
+  limit: zod.coerce.number().default(getActivityLogQueryLimitDefault),
+  offset: zod.coerce.number().default(getActivityLogQueryOffsetDefault),
+});
+
+export const GetActivityLogResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      action: zod.string(),
+      category: zod.string(),
+      source: zod.string(),
+      detail: zod.string(),
+      severity: zod.enum(["info", "warning", "error", "critical"]),
+      ipAddress: zod.string().optional(),
+      responseTimeMs: zod.number().optional(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get geographic threat distribution
+ */
+export const GetThreatMapResponse = zod.object({
+  regions: zod.array(
+    zod.object({
+      country: zod.string(),
+      countryName: zod.string(),
+      totalTransactions: zod.number(),
+      blockedTransactions: zod.number(),
+      heldTransactions: zod.number(),
+      avgRiskScore: zod.number(),
+      threatLevel: zod.enum(["low", "medium", "high", "critical"]),
+    }),
+  ),
+});
+
+/**
+ * @summary Get transaction throughput metrics
+ */
+export const getThroughputQueryHoursDefault = 24;
+
+export const GetThroughputQueryParams = zod.object({
+  hours: zod.coerce.number().default(getThroughputQueryHoursDefault),
+});
+
+export const GetThroughputResponse = zod.object({
+  dataPoints: zod.array(
+    zod.object({
+      timestamp: zod.string(),
+      transactionsProcessed: zod.number(),
+      blockedCount: zod.number(),
+      avgResponseMs: zod.number(),
+    }),
+  ),
+  summary: zod.object({
+    totalProcessed: zod.number(),
+    peakPerHour: zod.number(),
+    avgPerHour: zod.number(),
+  }),
+});
+
+/**
+ * @summary Get risk score distribution
+ */
+export const GetRiskDistributionResponse = zod.object({
+  buckets: zod.array(
+    zod.object({
+      range: zod.string(),
+      count: zod.number(),
+      percentage: zod.number(),
+    }),
+  ),
+  totalAnalyzed: zod.number(),
+});
+
+/**
+ * @summary Get top threat categories and sources
+ */
+export const GetTopThreatsResponse = zod.object({
+  byCategory: zod.array(
+    zod.object({
+      category: zod.string(),
+      count: zod.number(),
+      avgRisk: zod.number(),
+      blockedCount: zod.number(),
+    }),
+  ),
+  bySource: zod.array(
+    zod.object({
+      source: zod.string(),
+      count: zod.number(),
+      avgRisk: zod.number(),
+      lastSeen: zod.date(),
+    }),
+  ),
+  recentHighRisk: zod.array(
+    zod.object({
+      id: zod.number(),
+      source: zod.string(),
+      destination: zod.string(),
+      amount: zod.number(),
+      currency: zod.string(),
+      riskScore: zod.number(),
+      status: zod.enum(["ALLOWED", "HELD", "BLOCKED", "APPROVED", "REJECTED"]),
+      category: zod.string(),
+      ipAddress: zod.string().optional(),
+      country: zod.string().optional(),
+      createdAt: zod.date(),
+    }),
+  ),
+});

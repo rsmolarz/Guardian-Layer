@@ -17,16 +17,24 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActivityLogList,
   Alert,
   AlertList,
   ApprovalResult,
   DashboardStats,
+  GetActivityLogParams,
   GetRiskTimelineParams,
+  GetThroughputParams,
   HealthStatus,
   IntegrationList,
   ListAlertsParams,
   ListTransactionsParams,
+  RiskDistribution,
   RiskTimeline,
+  SystemHealth,
+  ThreatMapData,
+  ThroughputData,
+  TopThreats,
   Transaction,
   TransactionList,
   TransactionScanRequest,
@@ -970,6 +978,494 @@ export function useListIntegrations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListIntegrationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get real-time system health status
+ */
+export const getGetSystemHealthUrl = () => {
+  return `/api/monitoring/system-health`;
+};
+
+export const getSystemHealth = async (
+  options?: RequestInit,
+): Promise<SystemHealth> => {
+  return customFetch<SystemHealth>(getGetSystemHealthUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSystemHealthQueryKey = () => {
+  return [`/api/monitoring/system-health`] as const;
+};
+
+export const getGetSystemHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSystemHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSystemHealthQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemHealth>>> = ({
+    signal,
+  }) => getSystemHealth({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSystemHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSystemHealth>>
+>;
+export type GetSystemHealthQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get real-time system health status
+ */
+
+export function useGetSystemHealth<
+  TData = Awaited<ReturnType<typeof getSystemHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSystemHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get system activity log
+ */
+export const getGetActivityLogUrl = (params?: GetActivityLogParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/monitoring/activity-log?${stringifiedParams}`
+    : `/api/monitoring/activity-log`;
+};
+
+export const getActivityLog = async (
+  params?: GetActivityLogParams,
+  options?: RequestInit,
+): Promise<ActivityLogList> => {
+  return customFetch<ActivityLogList>(getGetActivityLogUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetActivityLogQueryKey = (params?: GetActivityLogParams) => {
+  return [`/api/monitoring/activity-log`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetActivityLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActivityLog>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetActivityLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getActivityLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetActivityLogQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActivityLog>>> = ({
+    signal,
+  }) => getActivityLog(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getActivityLog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetActivityLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActivityLog>>
+>;
+export type GetActivityLogQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get system activity log
+ */
+
+export function useGetActivityLog<
+  TData = Awaited<ReturnType<typeof getActivityLog>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetActivityLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getActivityLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetActivityLogQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get geographic threat distribution
+ */
+export const getGetThreatMapUrl = () => {
+  return `/api/monitoring/threat-map`;
+};
+
+export const getThreatMap = async (
+  options?: RequestInit,
+): Promise<ThreatMapData> => {
+  return customFetch<ThreatMapData>(getGetThreatMapUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThreatMapQueryKey = () => {
+  return [`/api/monitoring/threat-map`] as const;
+};
+
+export const getGetThreatMapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThreatMap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatMap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThreatMapQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThreatMap>>> = ({
+    signal,
+  }) => getThreatMap({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatMap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThreatMapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThreatMap>>
+>;
+export type GetThreatMapQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get geographic threat distribution
+ */
+
+export function useGetThreatMap<
+  TData = Awaited<ReturnType<typeof getThreatMap>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatMap>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThreatMapQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get transaction throughput metrics
+ */
+export const getGetThroughputUrl = (params?: GetThroughputParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/monitoring/throughput?${stringifiedParams}`
+    : `/api/monitoring/throughput`;
+};
+
+export const getThroughput = async (
+  params?: GetThroughputParams,
+  options?: RequestInit,
+): Promise<ThroughputData> => {
+  return customFetch<ThroughputData>(getGetThroughputUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThroughputQueryKey = (params?: GetThroughputParams) => {
+  return [`/api/monitoring/throughput`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetThroughputQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThroughput>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetThroughputParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThroughput>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThroughputQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThroughput>>> = ({
+    signal,
+  }) => getThroughput(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThroughput>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThroughputQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThroughput>>
+>;
+export type GetThroughputQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get transaction throughput metrics
+ */
+
+export function useGetThroughput<
+  TData = Awaited<ReturnType<typeof getThroughput>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetThroughputParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThroughput>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThroughputQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get risk score distribution
+ */
+export const getGetRiskDistributionUrl = () => {
+  return `/api/monitoring/risk-distribution`;
+};
+
+export const getRiskDistribution = async (
+  options?: RequestInit,
+): Promise<RiskDistribution> => {
+  return customFetch<RiskDistribution>(getGetRiskDistributionUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRiskDistributionQueryKey = () => {
+  return [`/api/monitoring/risk-distribution`] as const;
+};
+
+export const getGetRiskDistributionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRiskDistribution>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRiskDistribution>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRiskDistributionQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRiskDistribution>>
+  > = ({ signal }) => getRiskDistribution({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRiskDistribution>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRiskDistributionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRiskDistribution>>
+>;
+export type GetRiskDistributionQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get risk score distribution
+ */
+
+export function useGetRiskDistribution<
+  TData = Awaited<ReturnType<typeof getRiskDistribution>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRiskDistribution>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRiskDistributionQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get top threat categories and sources
+ */
+export const getGetTopThreatsUrl = () => {
+  return `/api/monitoring/top-threats`;
+};
+
+export const getTopThreats = async (
+  options?: RequestInit,
+): Promise<TopThreats> => {
+  return customFetch<TopThreats>(getGetTopThreatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTopThreatsQueryKey = () => {
+  return [`/api/monitoring/top-threats`] as const;
+};
+
+export const getGetTopThreatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTopThreats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTopThreats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTopThreatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTopThreats>>> = ({
+    signal,
+  }) => getTopThreats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTopThreats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTopThreatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTopThreats>>
+>;
+export type GetTopThreatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get top threat categories and sources
+ */
+
+export function useGetTopThreats<
+  TData = Awaited<ReturnType<typeof getTopThreats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTopThreats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTopThreatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

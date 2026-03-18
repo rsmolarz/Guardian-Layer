@@ -134,6 +134,148 @@ export interface IntegrationList {
   integrations: Integration[];
 }
 
+export type SystemHealthOverall =
+  (typeof SystemHealthOverall)[keyof typeof SystemHealthOverall];
+
+export const SystemHealthOverall = {
+  healthy: "healthy",
+  degraded: "degraded",
+  critical: "critical",
+} as const;
+
+export type SystemHealthServicesItemStatus =
+  (typeof SystemHealthServicesItemStatus)[keyof typeof SystemHealthServicesItemStatus];
+
+export const SystemHealthServicesItemStatus = {
+  healthy: "healthy",
+  degraded: "degraded",
+  down: "down",
+} as const;
+
+export type SystemHealthServicesItem = {
+  name: string;
+  status: SystemHealthServicesItemStatus;
+  latencyMs: number;
+  lastCheck: string;
+  details?: string;
+};
+
+export type SystemHealthMetrics = {
+  requestsPerMinute: number;
+  avgResponseMs: number;
+  errorRate: number;
+  activeConnections: number;
+  memoryUsageMb: number;
+  cpuPercent: number;
+};
+
+export interface SystemHealth {
+  overall: SystemHealthOverall;
+  uptime: number;
+  services: SystemHealthServicesItem[];
+  metrics: SystemHealthMetrics;
+}
+
+export type ActivityLogEntrySeverity =
+  (typeof ActivityLogEntrySeverity)[keyof typeof ActivityLogEntrySeverity];
+
+export const ActivityLogEntrySeverity = {
+  info: "info",
+  warning: "warning",
+  error: "error",
+  critical: "critical",
+} as const;
+
+export interface ActivityLogEntry {
+  id: number;
+  action: string;
+  category: string;
+  source: string;
+  detail: string;
+  severity: ActivityLogEntrySeverity;
+  ipAddress?: string;
+  responseTimeMs?: number;
+  createdAt: string;
+}
+
+export interface ActivityLogList {
+  entries: ActivityLogEntry[];
+  total: number;
+}
+
+export type ThreatMapDataRegionsItemThreatLevel =
+  (typeof ThreatMapDataRegionsItemThreatLevel)[keyof typeof ThreatMapDataRegionsItemThreatLevel];
+
+export const ThreatMapDataRegionsItemThreatLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type ThreatMapDataRegionsItem = {
+  country: string;
+  countryName: string;
+  totalTransactions: number;
+  blockedTransactions: number;
+  heldTransactions: number;
+  avgRiskScore: number;
+  threatLevel: ThreatMapDataRegionsItemThreatLevel;
+};
+
+export interface ThreatMapData {
+  regions: ThreatMapDataRegionsItem[];
+}
+
+export type ThroughputDataDataPointsItem = {
+  timestamp: string;
+  transactionsProcessed: number;
+  blockedCount: number;
+  avgResponseMs: number;
+};
+
+export type ThroughputDataSummary = {
+  totalProcessed: number;
+  peakPerHour: number;
+  avgPerHour: number;
+};
+
+export interface ThroughputData {
+  dataPoints: ThroughputDataDataPointsItem[];
+  summary: ThroughputDataSummary;
+}
+
+export type RiskDistributionBucketsItem = {
+  range: string;
+  count: number;
+  percentage: number;
+};
+
+export interface RiskDistribution {
+  buckets: RiskDistributionBucketsItem[];
+  totalAnalyzed: number;
+}
+
+export type TopThreatsByCategoryItem = {
+  category: string;
+  count: number;
+  avgRisk: number;
+  blockedCount: number;
+};
+
+export type TopThreatsBySourceItem = {
+  source: string;
+  count: number;
+  avgRisk: number;
+  lastSeen: string;
+};
+
+export interface TopThreats {
+  byCategory: TopThreatsByCategoryItem[];
+  bySource: TopThreatsBySourceItem[];
+  recentHighRisk: Transaction[];
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;
@@ -168,3 +310,36 @@ export const ListAlertsSeverity = {
   high: "high",
   critical: "critical",
 } as const;
+
+export type GetActivityLogParams = {
+  category?: GetActivityLogCategory;
+  severity?: GetActivityLogSeverity;
+  limit?: number;
+  offset?: number;
+};
+
+export type GetActivityLogCategory =
+  (typeof GetActivityLogCategory)[keyof typeof GetActivityLogCategory];
+
+export const GetActivityLogCategory = {
+  transaction: "transaction",
+  approval: "approval",
+  alert: "alert",
+  integration: "integration",
+  system: "system",
+  auth: "auth",
+} as const;
+
+export type GetActivityLogSeverity =
+  (typeof GetActivityLogSeverity)[keyof typeof GetActivityLogSeverity];
+
+export const GetActivityLogSeverity = {
+  info: "info",
+  warning: "warning",
+  error: "error",
+  critical: "critical",
+} as const;
+
+export type GetThroughputParams = {
+  hours?: number;
+};

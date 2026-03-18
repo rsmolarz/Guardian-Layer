@@ -19,6 +19,8 @@ tags:
     description: Integration status operations
   - name: alerts
     description: Security alert operations
+  - name: monitoring
+    description: System monitoring operations
 paths:
   /healthz:
     get:
@@ -226,6 +228,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IntegrationList"
+
+  /monitoring/system-health:
+    get:
+      operationId: getSystemHealth
+      tags: [monitoring]
+      summary: Get real-time system health status
+      responses:
+        "200":
+          description: System health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealth"
+
+  /monitoring/activity-log:
+    get:
+      operationId: getActivityLog
+      tags: [monitoring]
+      summary: Get system activity log
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [transaction, approval, alert, integration, system, auth]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, warning, error, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Activity log entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityLogList"
+
+  /monitoring/threat-map:
+    get:
+      operationId: getThreatMap
+      tags: [monitoring]
+      summary: Get geographic threat distribution
+      responses:
+        "200":
+          description: Threat map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreatMapData"
+
+  /monitoring/throughput:
+    get:
+      operationId: getThroughput
+      tags: [monitoring]
+      summary: Get transaction throughput metrics
+      parameters:
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+      responses:
+        "200":
+          description: Throughput metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThroughputData"
+
+  /monitoring/risk-distribution:
+    get:
+      operationId: getRiskDistribution
+      tags: [monitoring]
+      summary: Get risk score distribution
+      responses:
+        "200":
+          description: Risk distribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskDistribution"
+
+  /monitoring/top-threats:
+    get:
+      operationId: getTopThreats
+      tags: [monitoring]
+      summary: Get top threat categories and sources
+      responses:
+        "200":
+          description: Top threats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopThreats"
 
 components:
   schemas:
@@ -462,3 +569,251 @@ components:
             $ref: "#/components/schemas/Integration"
       required:
         - integrations
+
+    SystemHealth:
+      type: object
+      properties:
+        overall:
+          type: string
+          enum: [healthy, degraded, critical]
+        uptime:
+          type: integer
+        services:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [healthy, degraded, down]
+              latencyMs:
+                type: number
+              lastCheck:
+                type: string
+                format: date-time
+              details:
+                type: string
+            required:
+              - name
+              - status
+              - latencyMs
+              - lastCheck
+        metrics:
+          type: object
+          properties:
+            requestsPerMinute:
+              type: number
+            avgResponseMs:
+              type: number
+            errorRate:
+              type: number
+            activeConnections:
+              type: integer
+            memoryUsageMb:
+              type: number
+            cpuPercent:
+              type: number
+          required:
+            - requestsPerMinute
+            - avgResponseMs
+            - errorRate
+            - activeConnections
+            - memoryUsageMb
+            - cpuPercent
+      required:
+        - overall
+        - uptime
+        - services
+        - metrics
+
+    ActivityLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        category:
+          type: string
+        source:
+          type: string
+        detail:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, error, critical]
+        ipAddress:
+          type: string
+        responseTimeMs:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - action
+        - category
+        - source
+        - detail
+        - severity
+        - createdAt
+
+    ActivityLogList:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLogEntry"
+        total:
+          type: integer
+      required:
+        - entries
+        - total
+
+    ThreatMapData:
+      type: object
+      properties:
+        regions:
+          type: array
+          items:
+            type: object
+            properties:
+              country:
+                type: string
+              countryName:
+                type: string
+              totalTransactions:
+                type: integer
+              blockedTransactions:
+                type: integer
+              heldTransactions:
+                type: integer
+              avgRiskScore:
+                type: number
+              threatLevel:
+                type: string
+                enum: [low, medium, high, critical]
+            required:
+              - country
+              - countryName
+              - totalTransactions
+              - blockedTransactions
+              - heldTransactions
+              - avgRiskScore
+              - threatLevel
+      required:
+        - regions
+
+    ThroughputData:
+      type: object
+      properties:
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+              transactionsProcessed:
+                type: integer
+              blockedCount:
+                type: integer
+              avgResponseMs:
+                type: number
+            required:
+              - timestamp
+              - transactionsProcessed
+              - blockedCount
+              - avgResponseMs
+        summary:
+          type: object
+          properties:
+            totalProcessed:
+              type: integer
+            peakPerHour:
+              type: integer
+            avgPerHour:
+              type: number
+          required:
+            - totalProcessed
+            - peakPerHour
+            - avgPerHour
+      required:
+        - dataPoints
+        - summary
+
+    RiskDistribution:
+      type: object
+      properties:
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              range:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required:
+              - range
+              - count
+              - percentage
+        totalAnalyzed:
+          type: integer
+      required:
+        - buckets
+        - totalAnalyzed
+
+    TopThreats:
+      type: object
+      properties:
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+              avgRisk:
+                type: number
+              blockedCount:
+                type: integer
+            required:
+              - category
+              - count
+              - avgRisk
+              - blockedCount
+        bySource:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: string
+              count:
+                type: integer
+              avgRisk:
+                type: number
+              lastSeen:
+                type: string
+                format: date-time
+            required:
+              - source
+              - count
+              - avgRisk
+              - lastSeen
+        recentHighRisk:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+      required:
+        - byCategory
+        - bySource
+        - recentHighRisk

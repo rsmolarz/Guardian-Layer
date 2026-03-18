@@ -5,6 +5,7 @@ import approvalsRouter from "./approvals";
 import dashboardRouter from "./dashboard";
 import alertsRouter from "./alerts";
 import integrationsRouter from "./integrations";
+import monitoringRouter from "./monitoring";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(approvalsRouter);
 router.use(dashboardRouter);
 router.use(alertsRouter);
 router.use(integrationsRouter);
+router.use(monitoringRouter);
 
 export default router;

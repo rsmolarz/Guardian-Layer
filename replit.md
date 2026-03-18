@@ -43,11 +43,17 @@ artifacts-monorepo/
 3. **Manual Override Queue (Approvals)** - Shows HELD transactions for manual review with Approve/Reject actions
 4. **Security Advisories (Alerts)** - Security alerts with severity levels (low, medium, high, critical) and dismiss functionality
 5. **External Linkages (Integrations)** - Shows status of connected services: Stripe, Plaid, Cloudflare, Gmail, Twilio
+6. **System Monitoring** - Four-tab monitoring page:
+   - **System Health** - Overall status, 6 metrics (req/min, avg response, error rate, connections, memory, CPU), service health matrix with 5 services
+   - **Activity Log** - Filterable audit trail by category and severity, with pagination
+   - **Threat Intel** - Geographic threat map, risk score distribution chart, threat category pie chart, recent high-risk transactions
+   - **Throughput** - Transaction volume summary cards and time-series area chart
 
 ## Database Schema
 
 - **transactions** - Stores all transactions with source, destination, amount, currency, risk_score, status, category, ip_address, country
 - **alerts** - Security alerts with title, message, severity, dismissed status
+- **activity_logs** - Audit trail of system activity with action, category, source, detail, severity, ip_address, response_time_ms
 
 ## ML Risk Scoring
 
@@ -70,6 +76,12 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/alerts` - List alerts (filterable by severity)
 - `POST /api/alerts/:id/dismiss` - Dismiss an alert
 - `GET /api/integrations` - List integration statuses
+- `GET /api/monitoring/system-health` - Infrastructure health status
+- `GET /api/monitoring/activity-log` - Activity audit trail (filterable by category, severity)
+- `GET /api/monitoring/threat-map` - Geographic threat distribution
+- `GET /api/monitoring/throughput` - Transaction throughput over time
+- `GET /api/monitoring/risk-distribution` - Risk score distribution buckets
+- `GET /api/monitoring/top-threats` - Top threat categories, sources, and recent high-risk transactions
 
 ## Key Commands
 

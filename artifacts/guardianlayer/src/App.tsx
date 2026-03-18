@@ -9,6 +9,7 @@ import Transactions from "@/pages/Transactions";
 import Approvals from "@/pages/Approvals";
 import Alerts from "@/pages/Alerts";
 import Integrations from "@/pages/Integrations";
+import Monitoring from "@/pages/Monitoring";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/approvals" component={Approvals} />
         <Route path="/alerts" component={Alerts} />
         <Route path="/integrations" component={Integrations} />
+        <Route path="/monitoring" component={Monitoring} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

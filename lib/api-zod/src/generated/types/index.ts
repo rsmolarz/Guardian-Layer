@@ -6,13 +6,20 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./activityLogEntry";
+export * from "./activityLogEntrySeverity";
+export * from "./activityLogList";
 export * from "./alert";
 export * from "./alertList";
 export * from "./alertSeverity";
 export * from "./approvalResult";
 export * from "./approvalResultStatus";
 export * from "./dashboardStats";
+export * from "./getActivityLogCategory";
+export * from "./getActivityLogParams";
+export * from "./getActivityLogSeverity";
 export * from "./getRiskTimelineParams";
+export * from "./getThroughputParams";
 export * from "./healthStatus";
 export * from "./integration";
 export * from "./integrationList";
@@ -21,8 +28,24 @@ export * from "./listAlertsParams";
 export * from "./listAlertsSeverity";
 export * from "./listTransactionsParams";
 export * from "./listTransactionsStatus";
+export * from "./riskDistribution";
+export * from "./riskDistributionBucketsItem";
 export * from "./riskTimeline";
 export * from "./riskTimelineDataPointsItem";
+export * from "./systemHealth";
+export * from "./systemHealthMetrics";
+export * from "./systemHealthOverall";
+export * from "./systemHealthServicesItem";
+export * from "./systemHealthServicesItemStatus";
+export * from "./threatMapData";
+export * from "./threatMapDataRegionsItem";
+export * from "./threatMapDataRegionsItemThreatLevel";
+export * from "./throughputData";
+export * from "./throughputDataDataPointsItem";
+export * from "./throughputDataSummary";
+export * from "./topThreats";
+export * from "./topThreatsByCategoryItem";
+export * from "./topThreatsBySourceItem";
 export * from "./transaction";
 export * from "./transactionList";
 export * from "./transactionScanRequest";

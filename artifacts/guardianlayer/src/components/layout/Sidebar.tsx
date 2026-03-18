@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2 } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor } from "lucide-react";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/alerts", label: "Security Alerts", icon: Bell },
   { href: "/integrations", label: "Integrations", icon: Plug2 },
+  { href: "/monitoring", label: "Monitoring", icon: Monitor },
 ];
 
 export function Sidebar() {
