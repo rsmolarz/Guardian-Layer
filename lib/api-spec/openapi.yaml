@@ -25,6 +25,8 @@ tags:
     description: Dark web monitoring and recovery operations
   - name: recovery
     description: Asset & data recovery operations
+  - name: disaster-recovery
+    description: Enterprise disaster recovery planning and management
   - name: threats
     description: Threat neutralization operations
   - name: backups
@@ -1081,6 +1083,166 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /disaster-recovery/dashboard:
+    get:
+      operationId: getDrDashboard
+      tags: [disaster-recovery]
+      summary: Get disaster recovery dashboard with readiness score and status
+      responses:
+        "200":
+          description: DR dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrDashboard"
+
+  /disaster-recovery/procedures:
+    get:
+      operationId: listDrProcedures
+      tags: [disaster-recovery]
+      summary: List all disaster recovery procedures
+      responses:
+        "200":
+          description: DR procedure list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrProcedureList"
+
+  /disaster-recovery/procedures/{id}:
+    get:
+      operationId: getDrProcedure
+      tags: [disaster-recovery]
+      summary: Get a DR procedure with its steps
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: DR procedure detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrProcedureDetail"
+
+  /disaster-recovery/test-results:
+    get:
+      operationId: listDrTestResults
+      tags: [disaster-recovery]
+      summary: List all DR test results
+      responses:
+        "200":
+          description: DR test result list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrTestResultList"
+    post:
+      operationId: createDrTestResult
+      tags: [disaster-recovery]
+      summary: Record a new DR test result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDrTestResultRequest"
+      responses:
+        "201":
+          description: Created DR test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrTestResult"
+
+  /disaster-recovery/business-impact:
+    get:
+      operationId: listDrBusinessImpact
+      tags: [disaster-recovery]
+      summary: List business impact analysis records
+      responses:
+        "200":
+          description: Business impact list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrBusinessImpactList"
+
+  /disaster-recovery/failover:
+    get:
+      operationId: listDrFailover
+      tags: [disaster-recovery]
+      summary: List failover configurations and status
+      responses:
+        "200":
+          description: Failover config list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrFailoverList"
+
+  /disaster-recovery/communication-plan:
+    get:
+      operationId: listDrCommunicationPlan
+      tags: [disaster-recovery]
+      summary: List communication plan entries
+      responses:
+        "200":
+          description: Communication plan entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrCommunicationPlanList"
+
+  /disaster-recovery/compliance:
+    get:
+      operationId: listDrCompliance
+      tags: [disaster-recovery]
+      summary: List compliance checklist items grouped by framework
+      responses:
+        "200":
+          description: Compliance checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrComplianceList"
+
+  /disaster-recovery/compliance/{id}/status:
+    patch:
+      operationId: updateDrComplianceStatus
+      tags: [disaster-recovery]
+      summary: Update compliance checklist item status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [not_started, in_progress, compliant, non_compliant]
+                evidence:
+                  type: string
+              required:
+                - status
+      responses:
+        "200":
+          description: Updated compliance item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrComplianceItem"
 
   /threats:
     get:

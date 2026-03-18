@@ -2,7 +2,7 @@
 
 ## Overview
 
-GuardianLayer Enterprise is a security platform providing real-time transaction risk scoring, fraud detection, and comprehensive security management for applications. It offers a unified dashboard for monitoring various security aspects including email, endpoint, network, and hardware security, alongside AI-powered threat intelligence and compliance reporting. The platform aims to enhance application security, streamline threat response, and ensure regulatory adherence for enterprises.
+GuardianLayer Enterprise is a comprehensive security platform designed to provide real-time transaction risk scoring, fraud detection, and robust security management for enterprise applications. It offers a unified dashboard for monitoring various security domains including email, endpoint, network, and hardware security, augmented by AI-powered threat intelligence and compliance reporting. The platform's core purpose is to enhance application security postures, streamline threat response mechanisms, and ensure continuous adherence to regulatory standards, ultimately protecting business operations and data integrity.
 
 ## User Preferences
 
@@ -10,14 +10,15 @@ I prefer detailed explanations and iterative development. Ask before making majo
 
 ## System Architecture
 
-The project is structured as a pnpm monorepo using TypeScript. The frontend is built with React, Vite, Tailwind CSS, and Recharts, providing a modern and responsive user interface. The backend API is developed using Express 5, connecting to a PostgreSQL database via Drizzle ORM. Zod is used for schema validation, and Orval generates API client code from an OpenAPI specification, ensuring type safety and consistency between frontend and backend.
+The project is built as a pnpm monorepo utilizing TypeScript, ensuring a scalable and maintainable codebase. The frontend, designed for a modern and responsive user experience, is developed with React, Vite, Tailwind CSS for styling, and Recharts for data visualization. The backend API is constructed using Express 5 and interfaces with a PostgreSQL database via Drizzle ORM. Zod is employed for robust schema validation, and Orval automates the generation of type-safe API client code from an OpenAPI specification, maintaining consistency across the stack.
 
-**Core Features & Design Patterns:**
+**Core Architectural Decisions and Features:**
 
-*   **Plain English Overhaul:** All UI text has been rewritten for non-technical executives. Technical jargon replaced with everyday language across all 14 pages. 18 clarity components in `/components/clarity/` provide structured explanations (PlainEnglishThreatCard, ThreatExplainer, WhyThisMatters, WhatIfScenario, etc.). Severity labels use "Act Now / Needs Attention / Monitor / All Clear". ExecutiveSummary panels on major pages. Searchable Glossary at `/glossary` with 45+ terms. QuickHelp button provides page-specific guidance on all routes. JargonTooltip wraps technical acronyms (SPF, DKIM, DMARC) with hover definitions.
-*   **Dashboard (Command Center):** Centralized overview with SecurityHealthScore, ProtectionStatus, WhatHappenedToday, RecommendedActions, ThreatComparison, and ExecutiveSummary components. Plain English descriptions throughout.
-*   **Transaction Management:** Features a Transaction Ledger with filtering, a "Scan Payload" function for ML risk analysis, and a Manual Override Queue for approving/rejecting held transactions. ML risk scoring considers transaction amount, country of origin, and category.
-*   **Security Advisories:** Provides alerts with severity levels, dismiss functionality, and auto-remediate buttons that trigger predefined actions.
+*   **User Interface & Experience (UI/UX):** A primary focus is on simplifying complex security concepts for non-technical executives. This involves a "Plain English Overhaul" across all UI text, replacing jargon with accessible language. Key UI components include severity labels like "Act Now" and "Monitor," Executive Summary panels, a searchable Glossary, QuickHelp buttons for contextual guidance, and JargonTooltips for technical terms.
+*   **Centralized Monitoring & Management:**
+    *   **Dashboard (Command Center):** Provides a high-level overview of security posture, including a Security Health Score, Protection Status, and actionable recommendations.
+    *   **Transaction Management:** Features a Transaction Ledger with filtering, an ML-driven "Scan Payload" for risk analysis considering amount, country, and category, and a Manual Override Queue for held transactions.
+    *   **Security Advisories:** Delivers actionable alerts with severity levels, dismissal options, and auto-remediation capabilities.
 *   **Domain-Specific Security Modules:**
     *   **Email Security:** AI-powered threat detection (phishing, attachments), Auth Monitor (SPF/DKIM/DMARC), Compromise Detector (unusual login patterns), and Phishing Campaign tracking.
     *   **Endpoint Security:** Device Fleet management, AI-driven Malware Detection, Patch Compliance tracking, Behavioral Analytics for anomaly detection, and USB Monitor for device activity.
@@ -29,6 +30,7 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **Dark Web Monitor:** Tracks compromised data (SSN, email, credentials, financial accounts, phone numbers) and offers recovery actions (Credit Protection, Account Security, Legal & Reporting).
 *   **Recovery Center:** Full asset & data recovery system for compromised assets (passport, email, credit card, SSN). Features recovery dashboard with stats/progress bar, expandable case cards with step-by-step workflows, step status tracking with notes, verification checks, and chronological timeline view.
 *   **Threat Neutralization:** Active threat containment system with summary stats (active/contained/neutralized/avg containment time), threats grouped by severity, expandable threat cards with isolation actions (freeze credit, lock cards, secure email, invalidate credentials, flag passport), multi-step neutralization workflows with progress tracking, and threat timeline view.
+*   **Disaster Recovery:** Enterprise-grade DR planning with 6 sub-sections: Overview dashboard (readiness score gauge, RTO/RPO tracking, quick stats, failover status grid), Recovery Procedures (7 scenario runbooks — database failure, app server failure, network outage, security breach, data corruption, ransomware attack, infrastructure loss — each with step-by-step checklists, personnel, dependencies), Business Impact Analysis (sortable table of 8 systems by criticality/financial impact/max downtime), DR Testing & Drills (test result history with gap tracking and remediation status), Compliance & Audit (SOC 2, ISO 27001, NIST CSF controls with interactive status updates and gap analysis), and Communication & Escalation (tiered escalation contacts and notification templates per scenario).
 *   **Backup Center:** Automated iDrive-style backup system with dual-redundancy storage (Google Drive + local VPS). Features manual and scheduled backups of database (pg_dump), source code archives, and package manifests. SHA-256 checksum verification, backup history with size/status/integrity indicators, storage usage tracking, configurable intervals/retention/max backups, download capability, and Google Drive organized folder structure (GuardianLayer-Backups/YYYY-MM-DD/).
 *   **Emergency Lockdown:** Global "big red button" for coordinated containment across all security domains. Activates all containment actions simultaneously (freeze credit, lock cards, secure email, invalidate credentials, isolate endpoints). Features lockdown dashboard with status/duration/action counts, containment action checklist with individual lift/reactivate controls, lift-lockdown flow with summary report, activity log, global lockdown banner on all pages, and sidebar status indicator change from "SYSTEM SECURE" to "LOCKDOWN ACTIVE".
 
@@ -36,12 +38,12 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 
 *   **Monorepo Tool:** pnpm workspaces
 *   **Frontend Framework:** React
-*   **UI Library:** Tailwind CSS, Recharts
-*   **API Framework:** Express 5
+*   **UI Libraries:** Tailwind CSS, Recharts
+*   **Backend Framework:** Express 5
 *   **Database:** PostgreSQL
 *   **ORM:** Drizzle ORM
 *   **Validation:** Zod, drizzle-zod
-*   **API Codegen:** Orval (from OpenAPI spec)
+*   **API Code Generation:** Orval (from OpenAPI specification)
 *   **Build Tool:** esbuild
 *   **Third-Party Integrations:** Stripe, Plaid, Cloudflare, Gmail, Twilio, Google Workspace Protection (via API linkages).
 
@@ -60,6 +62,13 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **backup_settings** - Backup configuration with interval_hours, retention_days, max_backups, auto_backup_enabled, last_auto_backup_at
 *   **lockdown_sessions** - Emergency lockdown sessions with status (active/lifted), reason, activated_at, deactivated_at, summary_report
 *   **lockdown_actions** - Individual containment actions per lockdown session with session_id (FK), action_type, label, description, status (active/lifted/pending), activated_at, lifted_at
+*   **dr_procedures** - DR recovery procedures with scenario, title, description, priority, rto_minutes, rpo_minutes, estimated_recovery_minutes, required_personnel, dependencies, last_tested_at, last_test_result, status
+*   **dr_procedure_steps** - Step-by-step runbook entries per procedure with procedure_id (FK), step_order, title, description, estimated_minutes, responsible
+*   **dr_test_results** - DR test results with procedure_id (FK), test_date, outcome (pass/partial/fail), actual_recovery_minutes, notes, gaps_found, remediation_status, conducted_by
+*   **dr_business_impact** - Business impact analysis with system_name, description, criticality, max_downtime_minutes, financial_impact_per_hour, dependencies, current_status
+*   **dr_failover_config** - Failover configurations with component, primary_status, secondary_status, failover_mode, last_failover_at, last_health_check_at, rto_seconds, is_active
+*   **dr_communication_plan** - Communication plan entries with scenario, escalation_level, contact_name, contact_role, contact_email, contact_phone, notification_template, response_time_minutes
+*   **dr_compliance_checklist** - Compliance checklist items with framework (SOC 2/ISO 27001/NIST CSF), control_id, control_title, description, status, evidence, last_reviewed_at, assigned_to
 
 ## ML Risk Scoring
 
@@ -107,6 +116,16 @@ The risk scoring engine evaluates transactions based on:
 - `POST /api/threats/:id/status` - Update threat status
 - `POST /api/threats/:id/isolate` - Execute isolation action (freeze_credit, lock_cards, secure_email, invalidate_credentials, flag_passport)
 - `POST /api/threats/:threatId/steps/:stepId/complete` - Complete a neutralization step
+- `GET /api/disaster-recovery/dashboard` - DR readiness dashboard (score, RTO/RPO, component health, stats)
+- `GET /api/disaster-recovery/procedures` - List DR procedures
+- `GET /api/disaster-recovery/procedures/:id` - Procedure detail with step-by-step runbook
+- `GET /api/disaster-recovery/test-results` - List DR test results
+- `POST /api/disaster-recovery/test-results` - Record new DR test result
+- `GET /api/disaster-recovery/business-impact` - Business impact analysis
+- `GET /api/disaster-recovery/failover` - Failover configuration status
+- `GET /api/disaster-recovery/communication-plan` - Communication plan entries
+- `GET /api/disaster-recovery/compliance` - Compliance checklist by framework
+- `PATCH /api/disaster-recovery/compliance/:id/status` - Update compliance item status
 - `GET /api/backups` - List backups (filterable by limit, offset)
 - `POST /api/backups/trigger` - Trigger manual backup (auth required: Bearer BACKUP_ADMIN_KEY)
 - `GET /api/backups/summary` - Backup summary and storage usage

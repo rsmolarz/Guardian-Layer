@@ -17,6 +17,7 @@ import Integrations from "@/pages/Integrations";
 import Monitoring from "@/pages/Monitoring";
 import DarkWebMonitor from "@/pages/DarkWebMonitor";
 import Recovery from "@/pages/Recovery";
+import DisasterRecovery from "@/pages/DisasterRecovery";
 import ThreatNeutralization from "@/pages/ThreatNeutralization";
 import Glossary from "@/pages/Glossary";
 import Backups from "@/pages/Backups";
@@ -56,6 +57,7 @@ function Router() {
         <Route path="/monitoring" component={Monitoring} />
         <Route path="/dark-web" component={DarkWebMonitor} />
         <Route path="/recovery" component={Recovery} />
+        <Route path="/disaster-recovery" component={DisasterRecovery} />
         <Route path="/threat-neutralization" component={ThreatNeutralization} />
         <Route path="/glossary" component={Glossary} />
         <Route path="/backups" component={Backups} />

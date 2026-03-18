@@ -30,10 +30,21 @@ import type {
   BackupVerifyResult,
   ConfigureIntegrationRequest,
   ConfigureIntegrationResult,
+  CreateDrTestResultRequest,
   DarkWebExposure,
   DarkWebExposureList,
   DarkWebSummary,
   DashboardStats,
+  DrBusinessImpactList,
+  DrCommunicationPlanList,
+  DrComplianceItem,
+  DrComplianceList,
+  DrDashboard,
+  DrFailoverList,
+  DrProcedureDetail,
+  DrProcedureList,
+  DrTestResult,
+  DrTestResultList,
   EmailActionResult,
   EmailSecurityStats,
   EmailThreatList,
@@ -94,6 +105,7 @@ import type {
   TransactionScanRequest,
   TransactionScanResult,
   UpdateBackupSettingsRequest,
+  UpdateDrComplianceStatusBody,
   UpdateRecoveryCaseStatusBody,
   UpdateRecoveryStepStatusBody,
   UpdateThreatStatusRequest,
@@ -4673,6 +4685,794 @@ export function useDownloadBackup<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get disaster recovery dashboard with readiness score and status
+ */
+export const getGetDrDashboardUrl = () => {
+  return `/api/disaster-recovery/dashboard`;
+};
+
+export const getDrDashboard = async (
+  options?: RequestInit,
+): Promise<DrDashboard> => {
+  return customFetch<DrDashboard>(getGetDrDashboardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDrDashboardQueryKey = () => {
+  return [`/api/disaster-recovery/dashboard`] as const;
+};
+
+export const getGetDrDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDrDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDrDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDrDashboardQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDrDashboard>>> = ({
+    signal,
+  }) => getDrDashboard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDrDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDrDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDrDashboard>>
+>;
+export type GetDrDashboardQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get disaster recovery dashboard with readiness score and status
+ */
+
+export function useGetDrDashboard<
+  TData = Awaited<ReturnType<typeof getDrDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDrDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDrDashboardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all disaster recovery procedures
+ */
+export const getListDrProceduresUrl = () => {
+  return `/api/disaster-recovery/procedures`;
+};
+
+export const listDrProcedures = async (
+  options?: RequestInit,
+): Promise<DrProcedureList> => {
+  return customFetch<DrProcedureList>(getListDrProceduresUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrProceduresQueryKey = () => {
+  return [`/api/disaster-recovery/procedures`] as const;
+};
+
+export const getListDrProceduresQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrProcedures>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrProcedures>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDrProceduresQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDrProcedures>>
+  > = ({ signal }) => listDrProcedures({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrProcedures>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrProceduresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrProcedures>>
+>;
+export type ListDrProceduresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all disaster recovery procedures
+ */
+
+export function useListDrProcedures<
+  TData = Awaited<ReturnType<typeof listDrProcedures>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrProcedures>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrProceduresQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a DR procedure with its steps
+ */
+export const getGetDrProcedureUrl = (id: number) => {
+  return `/api/disaster-recovery/procedures/${id}`;
+};
+
+export const getDrProcedure = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DrProcedureDetail> => {
+  return customFetch<DrProcedureDetail>(getGetDrProcedureUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDrProcedureQueryKey = (id: number) => {
+  return [`/api/disaster-recovery/procedures/${id}`] as const;
+};
+
+export const getGetDrProcedureQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDrProcedure>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDrProcedure>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDrProcedureQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDrProcedure>>> = ({
+    signal,
+  }) => getDrProcedure(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDrProcedure>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDrProcedureQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDrProcedure>>
+>;
+export type GetDrProcedureQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a DR procedure with its steps
+ */
+
+export function useGetDrProcedure<
+  TData = Awaited<ReturnType<typeof getDrProcedure>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDrProcedure>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDrProcedureQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all DR test results
+ */
+export const getListDrTestResultsUrl = () => {
+  return `/api/disaster-recovery/test-results`;
+};
+
+export const listDrTestResults = async (
+  options?: RequestInit,
+): Promise<DrTestResultList> => {
+  return customFetch<DrTestResultList>(getListDrTestResultsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrTestResultsQueryKey = () => {
+  return [`/api/disaster-recovery/test-results`] as const;
+};
+
+export const getListDrTestResultsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrTestResults>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrTestResults>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDrTestResultsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDrTestResults>>
+  > = ({ signal }) => listDrTestResults({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrTestResults>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrTestResultsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrTestResults>>
+>;
+export type ListDrTestResultsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all DR test results
+ */
+
+export function useListDrTestResults<
+  TData = Awaited<ReturnType<typeof listDrTestResults>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrTestResults>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrTestResultsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Record a new DR test result
+ */
+export const getCreateDrTestResultUrl = () => {
+  return `/api/disaster-recovery/test-results`;
+};
+
+export const createDrTestResult = async (
+  createDrTestResultRequest: CreateDrTestResultRequest,
+  options?: RequestInit,
+): Promise<DrTestResult> => {
+  return customFetch<DrTestResult>(getCreateDrTestResultUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createDrTestResultRequest),
+  });
+};
+
+export const getCreateDrTestResultMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDrTestResult>>,
+    TError,
+    { data: BodyType<CreateDrTestResultRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createDrTestResult>>,
+  TError,
+  { data: BodyType<CreateDrTestResultRequest> },
+  TContext
+> => {
+  const mutationKey = ["createDrTestResult"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createDrTestResult>>,
+    { data: BodyType<CreateDrTestResultRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createDrTestResult(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateDrTestResultMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createDrTestResult>>
+>;
+export type CreateDrTestResultMutationBody =
+  BodyType<CreateDrTestResultRequest>;
+export type CreateDrTestResultMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a new DR test result
+ */
+export const useCreateDrTestResult = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createDrTestResult>>,
+    TError,
+    { data: BodyType<CreateDrTestResultRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createDrTestResult>>,
+  TError,
+  { data: BodyType<CreateDrTestResultRequest> },
+  TContext
+> => {
+  return useMutation(getCreateDrTestResultMutationOptions(options));
+};
+
+/**
+ * @summary List business impact analysis records
+ */
+export const getListDrBusinessImpactUrl = () => {
+  return `/api/disaster-recovery/business-impact`;
+};
+
+export const listDrBusinessImpact = async (
+  options?: RequestInit,
+): Promise<DrBusinessImpactList> => {
+  return customFetch<DrBusinessImpactList>(getListDrBusinessImpactUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrBusinessImpactQueryKey = () => {
+  return [`/api/disaster-recovery/business-impact`] as const;
+};
+
+export const getListDrBusinessImpactQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrBusinessImpact>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrBusinessImpact>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDrBusinessImpactQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDrBusinessImpact>>
+  > = ({ signal }) => listDrBusinessImpact({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrBusinessImpact>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrBusinessImpactQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrBusinessImpact>>
+>;
+export type ListDrBusinessImpactQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List business impact analysis records
+ */
+
+export function useListDrBusinessImpact<
+  TData = Awaited<ReturnType<typeof listDrBusinessImpact>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrBusinessImpact>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrBusinessImpactQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List failover configurations and status
+ */
+export const getListDrFailoverUrl = () => {
+  return `/api/disaster-recovery/failover`;
+};
+
+export const listDrFailover = async (
+  options?: RequestInit,
+): Promise<DrFailoverList> => {
+  return customFetch<DrFailoverList>(getListDrFailoverUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrFailoverQueryKey = () => {
+  return [`/api/disaster-recovery/failover`] as const;
+};
+
+export const getListDrFailoverQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrFailover>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrFailover>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDrFailoverQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDrFailover>>> = ({
+    signal,
+  }) => listDrFailover({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrFailover>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrFailoverQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrFailover>>
+>;
+export type ListDrFailoverQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List failover configurations and status
+ */
+
+export function useListDrFailover<
+  TData = Awaited<ReturnType<typeof listDrFailover>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrFailover>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrFailoverQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List communication plan entries
+ */
+export const getListDrCommunicationPlanUrl = () => {
+  return `/api/disaster-recovery/communication-plan`;
+};
+
+export const listDrCommunicationPlan = async (
+  options?: RequestInit,
+): Promise<DrCommunicationPlanList> => {
+  return customFetch<DrCommunicationPlanList>(getListDrCommunicationPlanUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrCommunicationPlanQueryKey = () => {
+  return [`/api/disaster-recovery/communication-plan`] as const;
+};
+
+export const getListDrCommunicationPlanQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrCommunicationPlan>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCommunicationPlan>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDrCommunicationPlanQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDrCommunicationPlan>>
+  > = ({ signal }) => listDrCommunicationPlan({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCommunicationPlan>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrCommunicationPlanQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrCommunicationPlan>>
+>;
+export type ListDrCommunicationPlanQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List communication plan entries
+ */
+
+export function useListDrCommunicationPlan<
+  TData = Awaited<ReturnType<typeof listDrCommunicationPlan>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCommunicationPlan>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrCommunicationPlanQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List compliance checklist items grouped by framework
+ */
+export const getListDrComplianceUrl = () => {
+  return `/api/disaster-recovery/compliance`;
+};
+
+export const listDrCompliance = async (
+  options?: RequestInit,
+): Promise<DrComplianceList> => {
+  return customFetch<DrComplianceList>(getListDrComplianceUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDrComplianceQueryKey = () => {
+  return [`/api/disaster-recovery/compliance`] as const;
+};
+
+export const getListDrComplianceQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrCompliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCompliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDrComplianceQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDrCompliance>>
+  > = ({ signal }) => listDrCompliance({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCompliance>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDrComplianceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrCompliance>>
+>;
+export type ListDrComplianceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List compliance checklist items grouped by framework
+ */
+
+export function useListDrCompliance<
+  TData = Awaited<ReturnType<typeof listDrCompliance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrCompliance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDrComplianceQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update compliance checklist item status
+ */
+export const getUpdateDrComplianceStatusUrl = (id: number) => {
+  return `/api/disaster-recovery/compliance/${id}/status`;
+};
+
+export const updateDrComplianceStatus = async (
+  id: number,
+  updateDrComplianceStatusBody: UpdateDrComplianceStatusBody,
+  options?: RequestInit,
+): Promise<DrComplianceItem> => {
+  return customFetch<DrComplianceItem>(getUpdateDrComplianceStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateDrComplianceStatusBody),
+  });
+};
+
+export const getUpdateDrComplianceStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDrComplianceStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateDrComplianceStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateDrComplianceStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateDrComplianceStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updateDrComplianceStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateDrComplianceStatus>>,
+    { id: number; data: BodyType<UpdateDrComplianceStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateDrComplianceStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateDrComplianceStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateDrComplianceStatus>>
+>;
+export type UpdateDrComplianceStatusMutationBody =
+  BodyType<UpdateDrComplianceStatusBody>;
+export type UpdateDrComplianceStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update compliance checklist item status
+ */
+export const useUpdateDrComplianceStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDrComplianceStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateDrComplianceStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateDrComplianceStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateDrComplianceStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdateDrComplianceStatusMutationOptions(options));
+};
 
 /**
  * @summary List all active threats

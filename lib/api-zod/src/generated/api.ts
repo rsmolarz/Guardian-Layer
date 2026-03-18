@@ -1152,6 +1152,266 @@ export const DownloadBackupParams = zod.object({
 });
 
 /**
+ * @summary Get disaster recovery dashboard with readiness score and status
+ */
+export const GetDrDashboardResponse = zod.object({
+  readinessScore: zod.number(),
+  rtoStatus: zod.object({
+    targetMinutes: zod.number(),
+    currentMinutes: zod.number(),
+    onTarget: zod.boolean(),
+  }),
+  rpoStatus: zod.object({
+    targetMinutes: zod.number(),
+    currentMinutes: zod.number(),
+    onTarget: zod.boolean(),
+  }),
+  componentHealth: zod.array(
+    zod.object({
+      component: zod.string(),
+      status: zod.string(),
+      lastChecked: zod.date(),
+    }),
+  ),
+  lastDrTest: zod
+    .object({
+      procedureTitle: zod.string(),
+      testDate: zod.date(),
+      outcome: zod.string(),
+    })
+    .nullish(),
+  totalProcedures: zod.number(),
+  totalTestsRun: zod.number(),
+  compliancePercentage: zod.number(),
+  criticalGaps: zod.number(),
+});
+
+/**
+ * @summary List all disaster recovery procedures
+ */
+export const ListDrProceduresResponse = zod.object({
+  procedures: zod.array(
+    zod.object({
+      id: zod.number(),
+      scenario: zod.string(),
+      title: zod.string(),
+      description: zod.string(),
+      priority: zod.enum(["critical", "high", "medium", "low"]),
+      rtoMinutes: zod.number(),
+      rpoMinutes: zod.number(),
+      estimatedRecoveryMinutes: zod.number(),
+      requiredPersonnel: zod.string(),
+      dependencies: zod.string(),
+      lastTestedAt: zod.date().nullish(),
+      lastTestResult: zod.string().nullish(),
+      status: zod.string(),
+      createdAt: zod.date(),
+      updatedAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get a DR procedure with its steps
+ */
+export const GetDrProcedureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDrProcedureResponse = zod.object({
+  procedure: zod.object({
+    id: zod.number(),
+    scenario: zod.string(),
+    title: zod.string(),
+    description: zod.string(),
+    priority: zod.enum(["critical", "high", "medium", "low"]),
+    rtoMinutes: zod.number(),
+    rpoMinutes: zod.number(),
+    estimatedRecoveryMinutes: zod.number(),
+    requiredPersonnel: zod.string(),
+    dependencies: zod.string(),
+    lastTestedAt: zod.date().nullish(),
+    lastTestResult: zod.string().nullish(),
+    status: zod.string(),
+    createdAt: zod.date(),
+    updatedAt: zod.date(),
+  }),
+  steps: zod.array(
+    zod.object({
+      id: zod.number(),
+      procedureId: zod.number(),
+      stepOrder: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      estimatedMinutes: zod.number(),
+      responsible: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary List all DR test results
+ */
+export const ListDrTestResultsResponse = zod.object({
+  results: zod.array(
+    zod.object({
+      id: zod.number(),
+      procedureId: zod.number(),
+      testDate: zod.date(),
+      outcome: zod.enum(["pass", "partial", "fail"]),
+      actualRecoveryMinutes: zod.number().nullish(),
+      notes: zod.string().nullish(),
+      gapsFound: zod.string().nullish(),
+      remediationStatus: zod.enum(["pending", "in_progress", "resolved"]),
+      conductedBy: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Record a new DR test result
+ */
+export const CreateDrTestResultBody = zod.object({
+  procedureId: zod.number(),
+  testDate: zod.date(),
+  outcome: zod.enum(["pass", "partial", "fail"]),
+  actualRecoveryMinutes: zod.number().optional(),
+  notes: zod.string().optional(),
+  gapsFound: zod.string().optional(),
+  conductedBy: zod.string(),
+});
+
+/**
+ * @summary List business impact analysis records
+ */
+export const ListDrBusinessImpactResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      systemName: zod.string(),
+      description: zod.string(),
+      criticality: zod.enum(["critical", "high", "medium", "low"]),
+      maxDowntimeMinutes: zod.number(),
+      financialImpactPerHour: zod.number(),
+      dependencies: zod.string(),
+      currentStatus: zod.enum(["operational", "degraded", "down"]),
+      lastAssessedAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary List failover configurations and status
+ */
+export const ListDrFailoverResponse = zod.object({
+  configs: zod.array(
+    zod.object({
+      id: zod.number(),
+      component: zod.string(),
+      primaryStatus: zod.enum(["healthy", "degraded", "down"]),
+      secondaryStatus: zod.enum(["standby", "syncing", "active", "down"]),
+      failoverMode: zod.enum(["automatic", "manual", "hybrid"]),
+      lastFailoverAt: zod.date().nullish(),
+      lastHealthCheckAt: zod.date(),
+      rtoSeconds: zod.number(),
+      isActive: zod.boolean(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary List communication plan entries
+ */
+export const ListDrCommunicationPlanResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      scenario: zod.string(),
+      escalationLevel: zod.number(),
+      contactName: zod.string(),
+      contactRole: zod.string(),
+      contactEmail: zod.string(),
+      contactPhone: zod.string(),
+      notificationTemplate: zod.string(),
+      responseTimeMinutes: zod.number(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary List compliance checklist items grouped by framework
+ */
+export const ListDrComplianceResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      framework: zod.string(),
+      controlId: zod.string(),
+      controlTitle: zod.string(),
+      description: zod.string(),
+      status: zod.enum([
+        "not_started",
+        "in_progress",
+        "compliant",
+        "non_compliant",
+      ]),
+      evidence: zod.string().nullish(),
+      lastReviewedAt: zod.date().nullish(),
+      assignedTo: zod.string().nullish(),
+    }),
+  ),
+  total: zod.number(),
+  byFramework: zod.array(
+    zod.object({
+      framework: zod.string(),
+      total: zod.number(),
+      compliant: zod.number(),
+      percentage: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update compliance checklist item status
+ */
+export const UpdateDrComplianceStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDrComplianceStatusBody = zod.object({
+  status: zod.enum([
+    "not_started",
+    "in_progress",
+    "compliant",
+    "non_compliant",
+  ]),
+  evidence: zod.string().optional(),
+});
+
+export const UpdateDrComplianceStatusResponse = zod.object({
+  id: zod.number(),
+  framework: zod.string(),
+  controlId: zod.string(),
+  controlTitle: zod.string(),
+  description: zod.string(),
+  status: zod.enum([
+    "not_started",
+    "in_progress",
+    "compliant",
+    "non_compliant",
+  ]),
+  evidence: zod.string().nullish(),
+  lastReviewedAt: zod.date().nullish(),
+  assignedTo: zod.string().nullish(),
+});
+
+/**
  * @summary List all active threats
  */
 export const ListThreatsQueryParams = zod.object({

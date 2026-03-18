@@ -11,3 +11,4 @@ export * from "./recovery";
 export * from "./threats";
 export * from "./backups";
 export * from "./lockdown";
+export * from "./disaster-recovery";

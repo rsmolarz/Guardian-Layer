@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive, ShieldOff } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive, ShieldOff, ShieldAlert } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
 
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/monitoring", label: "System Health", icon: Monitor },
   { href: "/dark-web", label: "Data Exposure", icon: Eye },
   { href: "/recovery", label: "Recovery Center", icon: RefreshCw },
+  { href: "/disaster-recovery", label: "Disaster Recovery", icon: ShieldAlert },
   { href: "/threat-neutralization", label: "Threat Response", icon: Crosshair },
   { href: "/glossary", label: "Glossary", icon: BookOpen },
   { href: "/backups", label: "Backups", icon: HardDrive },

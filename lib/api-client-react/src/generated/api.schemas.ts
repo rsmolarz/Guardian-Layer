@@ -1369,6 +1369,21 @@ export type ListBackupsParams = {
   offset?: number;
 };
 
+export type UpdateDrComplianceStatusBodyStatus =
+  (typeof UpdateDrComplianceStatusBodyStatus)[keyof typeof UpdateDrComplianceStatusBodyStatus];
+
+export const UpdateDrComplianceStatusBodyStatus = {
+  not_started: "not_started",
+  in_progress: "in_progress",
+  compliant: "compliant",
+  non_compliant: "non_compliant",
+} as const;
+
+export type UpdateDrComplianceStatusBody = {
+  status: UpdateDrComplianceStatusBodyStatus;
+  evidence?: string;
+};
+
 export type ListThreatsParams = {
   status?: ListThreatsStatus;
   severity?: ListThreatsSeverity;
