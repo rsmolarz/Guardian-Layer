@@ -72,6 +72,150 @@ router.get("/yubikey/stats", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/yubikey/lost-stolen", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const incidents = [
+      {
+        id: "LSK-001",
+        reportedAt: new Date(now - 86400000 * 7).toISOString(),
+        reportedBy: "Lisa Wang",
+        email: "l.wang@guardianlayer.io",
+        department: "Finance",
+        deviceSerial: "YK5-REVOKED-0042",
+        deviceModel: "YubiKey 5 NFC",
+        incidentType: "stolen",
+        status: "revoked",
+        description: "Key stolen during business trip to London. Last seen at Heathrow Airport terminal 5. Discovered missing upon arrival at hotel.",
+        location: "London Heathrow Airport, UK",
+        discoveredAt: new Date(now - 86400000 * 7 - 3600000).toISOString(),
+        revokedAt: new Date(now - 86400000 * 7 + 300000).toISOString(),
+        revokedBy: "Sarah Chen (CISO)",
+        timeline: [
+          { time: new Date(now - 86400000 * 7 - 3600000).toISOString(), event: "Key last used successfully — Heathrow WiFi portal auth", actor: "Lisa Wang" },
+          { time: new Date(now - 86400000 * 7).toISOString(), event: "Incident reported via security hotline", actor: "Lisa Wang" },
+          { time: new Date(now - 86400000 * 7 + 300000).toISOString(), event: "Key revoked — all active sessions terminated", actor: "Sarah Chen (CISO)" },
+          { time: new Date(now - 86400000 * 7 + 600000).toISOString(), event: "Security team alerted — SOC ticket #SOC-2026-0891 created", actor: "System" },
+          { time: new Date(now - 86400000 * 7 + 900000).toISOString(), event: "Re-enrollment workflow initiated — replacement key ENR-002 approved", actor: "Sarah Chen (CISO)" },
+          { time: new Date(now - 86400000 * 6).toISOString(), event: "47 brute force attempts detected from Moscow IP (185.220.101.34)", actor: "IDS Alert" },
+          { time: new Date(now - 86400000 * 6 + 1800000).toISOString(), event: "Source IP blocked at firewall — rule FW-BLOCK-0042 created", actor: "System" },
+        ],
+        securityAlerts: [
+          { type: "soc_ticket", id: "SOC-2026-0891", status: "resolved" },
+          { type: "email_alert", recipients: ["ciso@guardianlayer.io", "soc@guardianlayer.io", "it-security@guardianlayer.io"], sentAt: new Date(now - 86400000 * 7 + 600000).toISOString() },
+          { type: "slack_alert", channel: "#security-incidents", sentAt: new Date(now - 86400000 * 7 + 600000).toISOString() },
+        ],
+        reEnrollment: { status: "completed", newKeySerial: "YK5-NEW-0098", enrollmentId: "ENR-002", approvedBy: "Sarah Chen (CISO)", shippedAt: new Date(now - 86400000 * 5).toISOString(), activatedAt: new Date(now - 86400000 * 2).toISOString() },
+        postIncidentActions: ["All sessions using revoked key terminated", "Password reset enforced for associated accounts", "Increased monitoring on Lisa Wang's accounts for 30 days", "Firewall rule created to block attacker IP range"],
+        severity: "critical",
+      },
+      {
+        id: "LSK-002",
+        reportedAt: new Date(now - 86400000 * 45).toISOString(),
+        reportedBy: "Tom Richards",
+        email: "t.richards@guardianlayer.io",
+        department: "HR",
+        deviceSerial: "YK5-51928374",
+        deviceModel: "YubiKey 5 NFC",
+        incidentType: "lost",
+        status: "suspended",
+        description: "Key possibly lost — last known location was desk drawer in HR office. Key may be in office but cannot be located after desk reorganization.",
+        location: "HQ — HR Department, Floor 4",
+        discoveredAt: new Date(now - 86400000 * 45).toISOString(),
+        revokedAt: new Date(now - 86400000 * 45 + 1800000).toISOString(),
+        revokedBy: "IT Security (auto-policy)",
+        timeline: [
+          { time: new Date(now - 86400000 * 45).toISOString(), event: "Key reported as possibly lost via IT helpdesk ticket #HD-4521", actor: "Tom Richards" },
+          { time: new Date(now - 86400000 * 45 + 1800000).toISOString(), event: "Key suspended per lost-key policy (not fully revoked — recovery possible)", actor: "IT Security" },
+          { time: new Date(now - 86400000 * 45 + 3600000).toISOString(), event: "Security team notified — low severity (internal loss, no external exposure)", actor: "System" },
+          { time: new Date(now - 86400000 * 30).toISOString(), event: "15-day recovery window expired — escalated to full investigation", actor: "System" },
+        ],
+        securityAlerts: [
+          { type: "soc_ticket", id: "SOC-2026-0847", status: "open" },
+          { type: "email_alert", recipients: ["it-security@guardianlayer.io"], sentAt: new Date(now - 86400000 * 45 + 3600000).toISOString() },
+        ],
+        reEnrollment: { status: "pending", newKeySerial: null, enrollmentId: "ENR-007", approvedBy: null, shippedAt: null, activatedAt: null },
+        postIncidentActions: ["Key suspended (not revoked — physical search ongoing)", "Temporary TOTP fallback enabled for Tom Richards", "Physical search of HR department scheduled"],
+        severity: "medium",
+      },
+      {
+        id: "LSK-003",
+        reportedAt: new Date(now - 86400000 * 120).toISOString(),
+        reportedBy: "David Kim",
+        email: "d.kim@guardianlayer.io",
+        department: "Engineering",
+        deviceSerial: "YK5-DECOM-0019",
+        deviceModel: "YubiKey 5C",
+        incidentType: "damaged",
+        status: "revoked",
+        description: "Key physically damaged — USB-C connector bent after being stepped on. Key no longer recognized by any device.",
+        location: "Home Office — Remote",
+        discoveredAt: new Date(now - 86400000 * 120).toISOString(),
+        revokedAt: new Date(now - 86400000 * 120 + 7200000).toISOString(),
+        revokedBy: "IT Security",
+        timeline: [
+          { time: new Date(now - 86400000 * 120).toISOString(), event: "Damage reported via IT helpdesk — photo evidence attached", actor: "David Kim" },
+          { time: new Date(now - 86400000 * 120 + 7200000).toISOString(), event: "Key revoked and marked for physical destruction", actor: "IT Security" },
+          { time: new Date(now - 86400000 * 118).toISOString(), event: "Replacement key shipped — standard priority", actor: "System" },
+          { time: new Date(now - 86400000 * 115).toISOString(), event: "Replacement key activated — incident closed", actor: "David Kim" },
+        ],
+        securityAlerts: [
+          { type: "soc_ticket", id: "SOC-2026-0712", status: "resolved" },
+        ],
+        reEnrollment: { status: "completed", newKeySerial: "YK5C-NEW-0077", enrollmentId: "ENR-REPL-019", approvedBy: "James Mitchell (VP Eng)", shippedAt: new Date(now - 86400000 * 118).toISOString(), activatedAt: new Date(now - 86400000 * 115).toISOString() },
+        postIncidentActions: ["Damaged key collected for secure physical destruction", "Replacement key provisioned and activated", "No security exposure — key was physically inoperable"],
+        severity: "low",
+      },
+      {
+        id: "LSK-004",
+        reportedAt: new Date(now - 3600000 * 2).toISOString(),
+        reportedBy: "Anita Kumar",
+        email: "a.kumar@guardianlayer.io",
+        department: "Engineering",
+        deviceSerial: "YK5-47283900",
+        deviceModel: "YubiKey 5 NFC",
+        incidentType: "stolen",
+        status: "investigating",
+        description: "Key stolen from laptop bag during transit on Mumbai local train. Bag was briefly unattended. Multiple personal items also stolen.",
+        location: "Mumbai, IN — Public Transit",
+        discoveredAt: new Date(now - 3600000 * 3).toISOString(),
+        revokedAt: new Date(now - 3600000 * 2 + 180000).toISOString(),
+        revokedBy: "System (auto-revoke on theft report)",
+        timeline: [
+          { time: new Date(now - 3600000 * 3).toISOString(), event: "Theft discovered — laptop bag stolen on Mumbai local train", actor: "Anita Kumar" },
+          { time: new Date(now - 3600000 * 2).toISOString(), event: "Incident reported via emergency security hotline", actor: "Anita Kumar" },
+          { time: new Date(now - 3600000 * 2 + 180000).toISOString(), event: "Key auto-revoked — theft classification triggers immediate revocation", actor: "System" },
+          { time: new Date(now - 3600000 * 2 + 300000).toISOString(), event: "All active sessions terminated — VPN disconnected, SSO tokens invalidated", actor: "System" },
+          { time: new Date(now - 3600000 * 2 + 600000).toISOString(), event: "SOC team investigating — correlating with geo-anomaly from VPN logs", actor: "SOC Team" },
+        ],
+        securityAlerts: [
+          { type: "soc_ticket", id: "SOC-2026-0923", status: "investigating" },
+          { type: "email_alert", recipients: ["ciso@guardianlayer.io", "soc@guardianlayer.io", "it-security@guardianlayer.io", "legal@guardianlayer.io"], sentAt: new Date(now - 3600000 * 2 + 300000).toISOString() },
+          { type: "slack_alert", channel: "#security-incidents", sentAt: new Date(now - 3600000 * 2 + 300000).toISOString() },
+          { type: "pagerduty", incidentId: "PD-9821", sentAt: new Date(now - 3600000 * 2 + 300000).toISOString() },
+        ],
+        reEnrollment: { status: "initiated", newKeySerial: null, enrollmentId: "ENR-EMRG-004", approvedBy: "Sarah Chen (CISO)", shippedAt: null, activatedAt: null },
+        postIncidentActions: ["Key immediately revoked", "All sessions terminated", "Password reset enforced", "Geo-anomaly correlation in progress", "Police report filed — case #MUM-2026-44891"],
+        severity: "critical",
+      },
+    ];
+
+    const incidentSummary = {
+      totalIncidents: incidents.length,
+      activeInvestigations: incidents.filter((i) => i.status === "investigating").length,
+      revokedKeys: incidents.filter((i) => i.status === "revoked").length,
+      suspendedKeys: incidents.filter((i) => i.status === "suspended").length,
+      reEnrollmentsPending: incidents.filter((i) => i.reEnrollment.status === "pending" || i.reEnrollment.status === "initiated").length,
+      criticalIncidents: incidents.filter((i) => i.severity === "critical").length,
+    };
+
+    res.json({ incidents, summary: incidentSummary });
+  } catch (err: any) {
+    console.error("[yubikey] GET /lost-stolen failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve lost/stolen key data." });
+  }
+});
+
 router.get("/yubikey/audit-log", async (_req, res): Promise<void> => {
   try {
     const now = Date.now();

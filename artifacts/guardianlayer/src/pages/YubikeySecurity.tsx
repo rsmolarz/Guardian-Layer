@@ -35,6 +35,11 @@ import {
   FileText,
   Shield,
   CheckCircle,
+  ExternalLink,
+  Siren,
+  RotateCcw,
+  Mail,
+  Hash,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -54,7 +59,7 @@ const EVENT_BADGE: Record<string, string> = {
   key_revoked: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies";
+type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen";
 type StatusFilter = "active" | "suspended" | "revoked" | "unassigned" | undefined;
 type EventFilter = "auth_success" | "auth_failure" | "key_enrolled" | "key_revoked" | undefined;
 
@@ -109,6 +114,7 @@ export default function YubikeySecurity() {
           { id: "enrollment" as Tab, label: "Enrollment", icon: Package },
           { id: "failed-auth" as Tab, label: "Failed Auth", icon: Ban },
           { id: "policies" as Tab, label: "Policies", icon: BookOpen },
+          { id: "lost-stolen" as Tab, label: "Lost/Stolen", icon: ShieldAlert },
         ]).map((t) => (
           <button
             key={t.id}
@@ -129,6 +135,7 @@ export default function YubikeySecurity() {
       {tab === "enrollment" && <EnrollmentPanel />}
       {tab === "failed-auth" && <FailedAuthPanel />}
       {tab === "policies" && <PoliciesPanel />}
+      {tab === "lost-stolen" && <LostStolenPanel />}
     </div>
   );
 }
@@ -1022,6 +1029,280 @@ function AuditLogPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Fingerprint className="w-8 h-8 mx-auto mb-3 text-primary" />
             <p className="font-display text-sm uppercase tracking-wider">No events match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+const SEVERITY_BADGE: Record<string, string> = {
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+  medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  low: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+};
+
+const INCIDENT_STATUS_BADGE: Record<string, string> = {
+  revoked: "bg-red-500/20 text-red-400 border-red-500/30",
+  suspended: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  investigating: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+};
+
+const INCIDENT_TYPE_ICON: Record<string, React.ReactNode> = {
+  stolen: <Siren className="w-5 h-5" />,
+  lost: <ShieldAlert className="w-5 h-5" />,
+  damaged: <ShieldX className="w-5 h-5" />,
+};
+
+function LostStolenPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/yubikey/lost-stolen")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="LOADING INCIDENT DATA..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load incident data.</div>;
+
+  const { incidents, summary } = data;
+  const filtered = statusFilter ? incidents.filter((i: any) => i.status === statusFilter) : incidents;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {[
+          { label: "Total Incidents", value: summary.totalIncidents, icon: ShieldAlert, color: "text-primary" },
+          { label: "Investigating", value: summary.activeInvestigations, icon: Brain, color: "text-yellow-400" },
+          { label: "Revoked", value: summary.revokedKeys, icon: Ban, color: "text-red-400" },
+          { label: "Suspended", value: summary.suspendedKeys, icon: Lock, color: "text-orange-400" },
+          { label: "Re-enrollment Pending", value: summary.reEnrollmentsPending, icon: RotateCcw, color: "text-blue-400" },
+          { label: "Critical", value: summary.criticalIncidents, icon: Siren, color: "text-red-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "investigating", "revoked", "suspended"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setStatusFilter(s)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              statusFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((incident: any) => {
+          const isExpanded = expandedId === incident.id;
+
+          return (
+            <motion.div
+              key={incident.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                incident.severity === "critical" ? "border-red-500" :
+                incident.severity === "medium" ? "border-yellow-500" : "border-emerald-500"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : incident.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-lg bg-black/40 ${
+                  incident.incidentType === "stolen" ? "text-red-400" :
+                  incident.incidentType === "lost" ? "text-yellow-400" : "text-orange-400"
+                }`}>
+                  {INCIDENT_TYPE_ICON[incident.incidentType] ?? <ShieldAlert className="w-5 h-5" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-mono text-muted-foreground">{incident.id}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${SEVERITY_BADGE[incident.severity] || ""}`}>
+                      {incident.severity}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${INCIDENT_STATUS_BADGE[incident.status] || "bg-white/5 text-muted-foreground border-white/10"}`}>
+                      {incident.status}
+                    </span>
+                    <span className="text-[10px] font-display uppercase px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                      {incident.incidentType}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-mono text-white">{incident.reportedBy}</span>
+                    <span className="text-muted-foreground text-xs">{incident.department}</span>
+                    <span className="text-muted-foreground text-xs">Key: {incident.deviceSerial}</span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs text-muted-foreground">
+                  <p>{incident.location}</p>
+                  <p>{incident.deviceModel}</p>
+                  <p>{format(new Date(incident.reportedAt), "MMM d, HH:mm")}</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Description</span>
+                    <p className="text-sm text-gray-300">{incident.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Discovered</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(incident.discoveredAt), "MMM d, HH:mm")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Revoked At</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(incident.revokedAt), "MMM d, HH:mm")}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Revoked By</span>
+                      <span className="text-xs font-mono text-white">{incident.revokedBy}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Reporter Email</span>
+                      <span className="text-xs font-mono text-white">{incident.email}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-display uppercase tracking-widest text-primary">Incident Timeline</span>
+                    </div>
+                    <div className="relative pl-6 space-y-0">
+                      {incident.timeline.map((entry: any, idx: number) => (
+                        <div key={idx} className="relative pb-4">
+                          <div className="absolute left-[-16px] top-1.5 w-2 h-2 rounded-full bg-primary" />
+                          {idx < incident.timeline.length - 1 && (
+                            <div className="absolute left-[-13px] top-3.5 w-0.5 h-full bg-white/10" />
+                          )}
+                          <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                {format(new Date(entry.time), "MMM d, HH:mm:ss")}
+                              </span>
+                              <span className="text-[10px] font-display uppercase text-muted-foreground">{entry.actor}</span>
+                            </div>
+                            <p className="text-xs text-gray-300">{entry.event}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Mail className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-display uppercase tracking-widest text-blue-400">Security Alerts</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {incident.securityAlerts.map((alert: any, idx: number) => (
+                        <div key={idx} className="p-2 rounded-lg bg-black/20 border border-white/5">
+                          <div className="flex items-center gap-2 mb-1">
+                            {alert.type === "soc_ticket" && <Hash className="w-3 h-3 text-primary" />}
+                            {alert.type === "email_alert" && <Mail className="w-3 h-3 text-blue-400" />}
+                            {alert.type === "slack_alert" && <ExternalLink className="w-3 h-3 text-green-400" />}
+                            {alert.type === "pagerduty" && <Siren className="w-3 h-3 text-red-400" />}
+                            <span className="text-[10px] font-display uppercase text-muted-foreground">{alert.type.replace(/_/g, " ")}</span>
+                          </div>
+                          {alert.id && <p className="text-xs font-mono text-white">{alert.id} <span className={`text-[10px] ${alert.status === "resolved" ? "text-emerald-400" : alert.status === "investigating" ? "text-yellow-400" : "text-blue-400"}`}>({alert.status})</span></p>}
+                          {alert.channel && <p className="text-xs font-mono text-white">{alert.channel}</p>}
+                          {alert.recipients && <p className="text-[10px] text-muted-foreground">{alert.recipients.length} recipients</p>}
+                          {alert.incidentId && <p className="text-xs font-mono text-white">{alert.incidentId}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <RotateCcw className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-display uppercase tracking-widest text-emerald-400">Re-Enrollment</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                          incident.reEnrollment.status === "completed" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                          incident.reEnrollment.status === "pending" || incident.reEnrollment.status === "initiated" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                          "bg-white/5 text-muted-foreground border-white/10"
+                        }`}>
+                          {incident.reEnrollment.status}
+                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">{incident.reEnrollment.enrollmentId}</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">New Key</span>
+                          <span className="font-mono text-white">{incident.reEnrollment.newKeySerial ?? "Pending"}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Approved By</span>
+                          <span className="font-mono text-white">{incident.reEnrollment.approvedBy ?? "Pending"}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Shipped</span>
+                          <span className="font-mono text-white">
+                            {incident.reEnrollment.shippedAt ? format(new Date(incident.reEnrollment.shippedAt), "MMM d") : "Pending"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">Activated</span>
+                          <span className="font-mono text-white">
+                            {incident.reEnrollment.activatedAt ? format(new Date(incident.reEnrollment.activatedAt), "MMM d") : "Pending"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-display uppercase tracking-widest text-primary">Post-Incident Actions</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {incident.postIncidentActions.map((action: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-black/20 border border-white/5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                          <span className="text-xs text-gray-300">{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <ShieldAlert className="w-8 h-8 mx-auto mb-3 text-primary" />
+            <p className="font-display text-sm uppercase tracking-wider">No incidents match this filter</p>
           </div>
         )}
       </div>
