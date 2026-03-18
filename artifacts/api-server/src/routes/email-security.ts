@@ -135,4 +135,64 @@ router.get("/email-security/stats", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/email-security/auth-monitor", async (_req, res): Promise<void> => {
+  try {
+    const domains = [
+      {
+        domain: "corp.com",
+        spf: { status: "pass", record: "v=spf1 include:_spf.google.com include:amazonses.com ~all", lastChecked: new Date().toISOString(), issues: [] },
+        dkim: { status: "pass", selector: "google", keyLength: 2048, lastChecked: new Date().toISOString(), issues: [] },
+        dmarc: { status: "pass", policy: "reject", record: "v=DMARC1; p=reject; rua=mailto:dmarc@corp.com; pct=100", lastChecked: new Date().toISOString(), issues: [] },
+        overallScore: 98,
+        recommendations: [],
+      },
+      {
+        domain: "marketing.corp.com",
+        spf: { status: "pass", record: "v=spf1 include:sendgrid.net include:mailchimp.com ~all", lastChecked: new Date().toISOString(), issues: [] },
+        dkim: { status: "warning", selector: "sg1", keyLength: 1024, lastChecked: new Date().toISOString(), issues: ["DKIM key length is 1024 bits - upgrade to 2048 bits recommended"] },
+        dmarc: { status: "warning", policy: "none", record: "v=DMARC1; p=none; rua=mailto:dmarc@corp.com", lastChecked: new Date().toISOString(), issues: ["DMARC policy set to 'none' - no enforcement active"] },
+        overallScore: 62,
+        recommendations: ["Upgrade DKIM key to 2048 bits for stronger authentication", "Change DMARC policy from 'none' to 'quarantine' or 'reject'", "Add aggregate reporting (rua) to monitor authentication failures"],
+      },
+      {
+        domain: "hr.corp.com",
+        spf: { status: "fail", record: "v=spf1 ?all", lastChecked: new Date().toISOString(), issues: ["SPF record uses '?all' (neutral) - should use '-all' or '~all'", "No authorized senders specified in SPF record"] },
+        dkim: { status: "fail", selector: null, keyLength: null, lastChecked: new Date().toISOString(), issues: ["No DKIM record found for this domain", "Emails sent from this domain cannot be verified"] },
+        dmarc: { status: "fail", policy: null, record: null, lastChecked: new Date().toISOString(), issues: ["No DMARC record found", "Domain is vulnerable to email spoofing"] },
+        overallScore: 15,
+        recommendations: ["CRITICAL: Add DKIM signing to all outbound emails immediately", "CRITICAL: Create a DMARC record with at least 'quarantine' policy", "Fix SPF record to list authorized mail servers and use '-all'", "This domain is highly vulnerable to spoofing attacks"],
+      },
+      {
+        domain: "support.corp.com",
+        spf: { status: "pass", record: "v=spf1 include:zendesk.com include:_spf.google.com -all", lastChecked: new Date().toISOString(), issues: [] },
+        dkim: { status: "pass", selector: "zendesk1", keyLength: 2048, lastChecked: new Date().toISOString(), issues: [] },
+        dmarc: { status: "warning", policy: "quarantine", record: "v=DMARC1; p=quarantine; rua=mailto:dmarc@corp.com; pct=50", lastChecked: new Date().toISOString(), issues: ["DMARC percentage (pct) is only 50% - increase to 100%"] },
+        overallScore: 82,
+        recommendations: ["Increase DMARC pct to 100% for full coverage", "Consider upgrading DMARC policy to 'reject' once monitoring confirms low false positives"],
+      },
+      {
+        domain: "dev.corp.com",
+        spf: { status: "pass", record: "v=spf1 include:_spf.google.com -all", lastChecked: new Date().toISOString(), issues: [] },
+        dkim: { status: "pass", selector: "google", keyLength: 2048, lastChecked: new Date().toISOString(), issues: [] },
+        dmarc: { status: "pass", policy: "reject", record: "v=DMARC1; p=reject; rua=mailto:dmarc@corp.com; ruf=mailto:forensics@corp.com; pct=100", lastChecked: new Date().toISOString(), issues: [] },
+        overallScore: 100,
+        recommendations: [],
+      },
+    ];
+
+    const totalDomains = domains.length;
+    const fullyAuthenticated = domains.filter((d) => d.overallScore >= 90).length;
+    const atRisk = domains.filter((d) => d.overallScore < 50).length;
+    const avgScore = Math.round(domains.reduce((s, d) => s + d.overallScore, 0) / totalDomains);
+
+    res.json({
+      domains,
+      summary: { totalDomains, fullyAuthenticated, atRisk, avgScore },
+    });
+  } catch (err: any) {
+    console.error("[email-security] GET /auth-monitor failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve email authentication data." });
+  }
+});
+
 export default router;

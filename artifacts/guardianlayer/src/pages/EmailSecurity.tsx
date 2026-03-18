@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListEmailThreats,
@@ -7,7 +7,6 @@ import {
   useReleaseEmail,
   getListEmailThreatsQueryKey,
   getGetEmailSecurityStatsQueryKey,
-  type EmailThreatList,
   type EmailThreat,
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -28,7 +27,13 @@ import {
   UserX,
   MessageSquareWarning,
   Scan,
+  CheckCircle,
+  XCircle,
+  Key,
+  FileCheck,
+  RefreshCw,
 } from "lucide-react";
+import { clsx } from "clsx";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
@@ -59,8 +64,48 @@ const STATUS_BADGE: Record<string, string> = {
 
 type ThreatFilter = "phishing" | "malware" | "spoofing" | "bec" | "spam" | undefined;
 type StatusFilter = "detected" | "quarantined" | "released" | "blocked" | undefined;
+type Tab = "threats" | "auth-monitor";
 
 export default function EmailSecurity() {
+  const [activeTab, setActiveTab] = useState<Tab>("threats");
+
+  const tabs: { id: Tab; label: string; icon: typeof Mail }[] = [
+    { id: "threats", label: "Threat Scanner", icon: ShieldAlert },
+    { id: "auth-monitor", label: "Auth Monitor", icon: Key },
+  ];
+
+  return (
+    <div className="pb-12">
+      <PageHeader
+        title="Email Security"
+        description="AI-powered email threat detection, phishing analysis, authentication monitoring, and quarantine management."
+      />
+
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              "flex items-center gap-2 px-5 py-3 rounded-xl font-display text-sm uppercase tracking-wider transition-all duration-300 whitespace-nowrap",
+              activeTab === tab.id
+                ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground glass-panel"
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "threats" && <ThreatScannerPanel />}
+      {activeTab === "auth-monitor" && <AuthMonitorPanel />}
+    </div>
+  );
+}
+
+function ThreatScannerPanel() {
   const [threatFilter, setThreatFilter] = useState<ThreatFilter>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -100,12 +145,7 @@ export default function EmailSecurity() {
   if (isStatsLoading) return <CyberLoading text="SCANNING EMAIL GATEWAY..." />;
 
   return (
-    <div className="pb-12">
-      <PageHeader
-        title="Email Security"
-        description="AI-powered email threat detection, phishing analysis, and quarantine management."
-      />
-
+    <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         {[
           { label: "Emails Scanned", value: stats?.totalScanned?.toLocaleString() ?? "0", icon: Scan, color: "text-primary" },
@@ -300,7 +340,234 @@ export default function EmailSecurity() {
           </AnimatePresence>
         </div>
       )}
-    </div>
+    </>
+  );
+}
+
+type AuthRecord = {
+  status: string;
+  record?: string | null;
+  selector?: string | null;
+  keyLength?: number | null;
+  policy?: string | null;
+  lastChecked: string;
+  issues: string[];
+};
+
+type DomainAuth = {
+  domain: string;
+  spf: AuthRecord;
+  dkim: AuthRecord;
+  dmarc: AuthRecord;
+  overallScore: number;
+  recommendations: string[];
+};
+
+type AuthMonitorData = {
+  domains: DomainAuth[];
+  summary: { totalDomains: number; fullyAuthenticated: number; atRisk: number; avgScore: number };
+};
+
+function AuthMonitorPanel() {
+  const [data, setData] = useState<AuthMonitorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/email-security/auth-monitor")
+      .then((r) => r.json())
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="QUERYING DNS RECORDS..." />;
+  if (!data) return <div className="text-center text-muted-foreground py-12">Failed to load auth monitor data.</div>;
+
+  const { domains, summary } = data;
+
+  const statusIcon = (s: string) => {
+    if (s === "pass") return <CheckCircle className="w-4 h-4 text-emerald-400" />;
+    if (s === "warning") return <AlertTriangle className="w-4 h-4 text-amber-400" />;
+    return <XCircle className="w-4 h-4 text-rose-400" />;
+  };
+
+  const statusColor = (s: string) => {
+    if (s === "pass") return "text-emerald-400";
+    if (s === "warning") return "text-amber-400";
+    return "text-rose-400";
+  };
+
+  const statusBg = (s: string) => {
+    if (s === "pass") return "bg-emerald-500/10 border-emerald-500/20";
+    if (s === "warning") return "bg-amber-500/10 border-amber-500/20";
+    return "bg-rose-500/10 border-rose-500/20";
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: "Monitored Domains", value: summary.totalDomains, icon: Globe, color: "text-primary" },
+          { label: "Fully Authenticated", value: summary.fullyAuthenticated, icon: CheckCircle, color: "text-emerald-400" },
+          { label: "At Risk", value: summary.atRisk, icon: AlertTriangle, color: summary.atRisk > 0 ? "text-rose-400" : "text-emerald-400" },
+          { label: "Avg Auth Score", value: `${summary.avgScore}%`, icon: Shield, color: summary.avgScore > 80 ? "text-emerald-400" : summary.avgScore > 50 ? "text-amber-400" : "text-rose-400" },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            className="glass-panel p-5 rounded-xl relative overflow-hidden"
+          >
+            <div className={`absolute top-0 right-0 p-3 opacity-10 ${stat.color}`}>
+              <stat.icon className="w-12 h-12" />
+            </div>
+            <span className="font-display uppercase text-[10px] tracking-widest text-muted-foreground block mb-2">{stat.label}</span>
+            <span className={clsx("text-2xl font-mono font-bold", stat.color)}>{stat.value}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        {domains.map((domain, i) => {
+          const isExpanded = expandedDomain === domain.domain;
+          const borderColor = domain.overallScore >= 90 ? "border-emerald-500" :
+            domain.overallScore >= 50 ? "border-amber-400" : "border-rose-500";
+
+          return (
+            <motion.div
+              key={domain.domain}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={clsx("glass-panel rounded-xl border-l-4 overflow-hidden", borderColor)}
+            >
+              <div
+                className="p-5 cursor-pointer flex items-center justify-between"
+                onClick={() => setExpandedDomain(isExpanded ? null : domain.domain)}
+              >
+                <div className="flex items-center gap-4">
+                  <Globe className={clsx("w-6 h-6",
+                    domain.overallScore >= 90 ? "text-emerald-400" :
+                    domain.overallScore >= 50 ? "text-amber-400" : "text-rose-400"
+                  )} />
+                  <div>
+                    <h4 className="font-display text-sm text-white">{domain.domain}</h4>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        {statusIcon(domain.spf.status)}
+                        <span className="text-[10px] font-mono text-muted-foreground">SPF</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {statusIcon(domain.dkim.status)}
+                        <span className="text-[10px] font-mono text-muted-foreground">DKIM</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {statusIcon(domain.dmarc.status)}
+                        <span className="text-[10px] font-mono text-muted-foreground">DMARC</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className={clsx("text-xl font-mono font-bold",
+                      domain.overallScore >= 90 ? "text-emerald-400" :
+                      domain.overallScore >= 50 ? "text-amber-400" : "text-rose-400"
+                    )}>
+                      {domain.overallScore}%
+                    </span>
+                  </div>
+                  <ChevronDown className={clsx("w-4 h-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-4">
+                  <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+                    <div
+                      className={clsx("h-full rounded-full transition-all",
+                        domain.overallScore >= 90 ? "bg-emerald-500" :
+                        domain.overallScore >= 50 ? "bg-amber-400" : "bg-rose-500"
+                      )}
+                      style={{ width: `${domain.overallScore}%` }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {([
+                      { label: "SPF", data: domain.spf, desc: "Sender Policy Framework" },
+                      { label: "DKIM", data: domain.dkim, desc: "DomainKeys Identified Mail" },
+                      { label: "DMARC", data: domain.dmarc, desc: "Domain-based Message Authentication" },
+                    ] as const).map((auth) => (
+                      <div key={auth.label} className={clsx("p-4 rounded-xl border", statusBg(auth.data.status))}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {statusIcon(auth.data.status)}
+                            <span className="font-display text-sm text-white">{auth.label}</span>
+                          </div>
+                          <span className={clsx("text-[10px] font-mono uppercase tracking-widest", statusColor(auth.data.status))}>
+                            {auth.data.status}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground mb-2">{auth.desc}</p>
+                        {auth.data.record && (
+                          <div className="bg-black/30 rounded-lg p-2 mb-2">
+                            <code className="text-[10px] font-mono text-primary/80 break-all">{auth.data.record}</code>
+                          </div>
+                        )}
+                        {auth.label === "DKIM" && auth.data.selector && (
+                          <div className="text-xs font-mono text-muted-foreground mb-1">
+                            Selector: <span className="text-white">{auth.data.selector}</span>
+                            {auth.data.keyLength && <> · Key: <span className={auth.data.keyLength >= 2048 ? "text-emerald-400" : "text-amber-400"}>{auth.data.keyLength} bits</span></>}
+                          </div>
+                        )}
+                        {auth.label === "DMARC" && auth.data.policy && (
+                          <div className="text-xs font-mono text-muted-foreground mb-1">
+                            Policy: <span className={auth.data.policy === "reject" ? "text-emerald-400" : auth.data.policy === "quarantine" ? "text-amber-400" : "text-rose-400"}>{auth.data.policy}</span>
+                          </div>
+                        )}
+                        {auth.data.issues.length > 0 && (
+                          <ul className="mt-2 space-y-1">
+                            {auth.data.issues.map((issue: string, j: number) => (
+                              <li key={j} className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                                <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                                {issue}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {domain.recommendations.length > 0 && (
+                    <div className="glass-panel p-4 rounded-xl">
+                      <h5 className="text-[10px] font-display uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                        <FileCheck className="w-3 h-3" />
+                        Recommendations
+                      </h5>
+                      <ul className="space-y-2">
+                        {domain.recommendations.map((rec, j) => (
+                          <li key={j} className={clsx("flex items-start gap-2 text-xs",
+                            rec.startsWith("CRITICAL") ? "text-rose-400" : "text-muted-foreground"
+                          )}>
+                            <RefreshCw className={clsx("w-3 h-3 shrink-0 mt-0.5",
+                              rec.startsWith("CRITICAL") ? "text-rose-400" : "text-primary"
+                            )} />
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
