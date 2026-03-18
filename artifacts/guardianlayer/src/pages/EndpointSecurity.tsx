@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListEndpoints,
   useGetEndpointStats,
@@ -23,7 +23,15 @@ import {
   Lock,
   Flame,
   Wifi,
+  Scan,
+  FileX,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Activity,
+  CheckCircle,
 } from "lucide-react";
+import { clsx } from "clsx";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
@@ -49,8 +57,48 @@ const COMPLIANCE_BADGE: Record<string, string> = {
 
 type StatusFilter = "online" | "offline" | "degraded" | undefined;
 type ComplianceFilter = "compliant" | "non_compliant" | "at_risk" | undefined;
+type Tab = "fleet" | "malware";
 
 export default function EndpointSecurity() {
+  const [activeTab, setActiveTab] = useState<Tab>("fleet");
+
+  const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
+    { id: "fleet", label: "Device Fleet", icon: Monitor },
+    { id: "malware", label: "Malware Detection", icon: Bug },
+  ];
+
+  return (
+    <div className="pb-12">
+      <PageHeader
+        title="Endpoint Security"
+        description="AI-driven endpoint monitoring, compliance enforcement, and vulnerability management."
+      />
+
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              "flex items-center gap-2 px-5 py-3 rounded-xl font-display text-sm uppercase tracking-wider transition-all duration-300 whitespace-nowrap",
+              activeTab === tab.id
+                ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground glass-panel"
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "fleet" && <DeviceFleetPanel />}
+      {activeTab === "malware" && <MalwareDetectionPanel />}
+    </div>
+  );
+}
+
+function DeviceFleetPanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [complianceFilter, setComplianceFilter] = useState<ComplianceFilter>(undefined);
 
@@ -63,12 +111,7 @@ export default function EndpointSecurity() {
   if (isStatsLoading) return <CyberLoading text="SCANNING ENDPOINT FLEET..." />;
 
   return (
-    <div className="pb-12">
-      <PageHeader
-        title="Endpoint Security"
-        description="AI-driven endpoint monitoring, compliance enforcement, and vulnerability management."
-      />
-
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-9 gap-4 mb-8">
         {[
           { label: "Total Devices", value: stats?.totalDevices ?? 0, icon: Monitor, color: "text-primary" },
@@ -204,7 +247,7 @@ export default function EndpointSecurity() {
           })}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -214,5 +257,211 @@ function SecurityFlag({ icon: Icon, label, enabled }: { icon: typeof Shield; lab
       {enabled ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
       {label}
     </div>
+  );
+}
+
+interface MalwareFile {
+  fileName: string;
+  path: string;
+  detectedAt: string;
+  signature: string;
+  severity: string;
+  action: string;
+  hash: string;
+}
+
+interface BehaviorAnomaly {
+  type: string;
+  severity: string;
+  detail: string;
+  timestamp: string;
+}
+
+interface MalwareScan {
+  id: number;
+  hostname: string;
+  deviceType: string;
+  lastScanTime: string;
+  scanStatus: string;
+  threatsFound: number;
+  quarantinedFiles: MalwareFile[];
+  behaviorAnomalies: BehaviorAnomaly[];
+  riskScore: number;
+}
+
+interface MalwareData {
+  scans: MalwareScan[];
+  summary: { totalScanned: number; threatsDetected: number; filesQuarantined: number; anomaliesDetected: number; cleanDevices: number };
+}
+
+function MalwareDetectionPanel() {
+  const [data, setData] = useState<MalwareData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/endpoints/malware-scans")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="SCANNING FOR MALWARE..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load malware scan data.</div>;
+
+  const { scans, summary } = data;
+
+  const severityColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const summaryCards = [
+    { label: "Devices Scanned", value: summary.totalScanned, icon: Scan, color: "text-primary" },
+    { label: "Threats Detected", value: summary.threatsDetected, icon: Bug, color: "text-red-400" },
+    { label: "Files Quarantined", value: summary.filesQuarantined, icon: FileX, color: "text-orange-400" },
+    { label: "Behavior Anomalies", value: summary.anomaliesDetected, icon: Activity, color: "text-yellow-400" },
+    { label: "Clean Devices", value: summary.cleanDevices, icon: CheckCircle, color: "text-green-400" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {scans.map((scan) => {
+          const isExpanded = expandedId === scan.id;
+          const DeviceIcon = DEVICE_ICONS[scan.deviceType] || Monitor;
+          const hasThreats = scan.threatsFound > 0 || scan.behaviorAnomalies.length > 0;
+
+          return (
+            <motion.div
+              key={scan.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : scan.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${hasThreats ? "bg-red-500/15" : "bg-green-500/10"}`}>
+                  <DeviceIcon className={`w-5 h-5 ${hasThreats ? "text-red-400" : "text-green-400"}`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white">{scan.hostname}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${
+                      scan.scanStatus === "scanning" ? "bg-blue-500/20 text-blue-400 border-blue-500/30 animate-pulse" :
+                      hasThreats ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                      "bg-green-500/20 text-green-400 border-green-500/30"
+                    }`}>
+                      {scan.scanStatus === "scanning" ? "Scanning..." : hasThreats ? `${scan.threatsFound} threats` : "Clean"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Last scan: {format(new Date(scan.lastScanTime), "MMM d, HH:mm")}
+                    {scan.quarantinedFiles.length > 0 && (
+                      <><span className="mx-2">|</span><span className="text-orange-400">{scan.quarantinedFiles.length} quarantined</span></>
+                    )}
+                    {scan.behaviorAnomalies.length > 0 && (
+                      <><span className="mx-2">|</span><span className="text-yellow-400">{scan.behaviorAnomalies.length} anomalies</span></>
+                    )}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Risk</span>
+                    <span className={`text-lg font-mono font-bold ${scan.riskScore > 0.7 ? "text-red-400" : scan.riskScore > 0.3 ? "text-yellow-400" : "text-green-400"}`}>
+                      {(scan.riskScore * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  {scan.quarantinedFiles.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                        <FileX className="w-3 h-3" /> Quarantined Files & Detected Signatures
+                      </h4>
+                      <div className="space-y-2">
+                        {scan.quarantinedFiles.map((f, i) => (
+                          <div key={i} className="p-3 rounded-lg bg-black/20 border border-white/5">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-mono text-white font-bold">{f.fileName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${severityColor(f.severity)}`}>{f.severity}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase ${
+                                  f.action === "deleted" ? "text-red-400" : "text-orange-400"
+                                }`}>{f.action}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-1">{f.path}</p>
+                            <div className="flex items-center gap-4 text-[10px]">
+                              <span className="text-red-300 font-mono">{f.signature}</span>
+                              <span className="text-muted-foreground">Hash: <code className="text-primary/70">{f.hash.substring(0, 16)}...</code></span>
+                              <span className="text-muted-foreground ml-auto">{format(new Date(f.detectedAt), "MMM d, HH:mm")}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {scan.behaviorAnomalies.length > 0 && (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                        <Cpu className="w-3 h-3" /> Behavior Anomalies
+                      </h4>
+                      <div className="space-y-2">
+                        {scan.behaviorAnomalies.map((a, i) => (
+                          <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                            <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${severityColor(a.severity)}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${severityColor(a.severity)}`}>{a.severity}</span>
+                                <span className="text-[10px] text-muted-foreground font-display uppercase">{a.type.replace(/_/g, " ")}</span>
+                                <span className="text-[10px] text-muted-foreground font-mono ml-auto">{format(new Date(a.timestamp), "MMM d, HH:mm")}</span>
+                              </div>
+                              <p className="text-xs text-gray-300">{a.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {scan.quarantinedFiles.length === 0 && scan.behaviorAnomalies.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">No threats or anomalies detected</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+    </>
   );
 }
