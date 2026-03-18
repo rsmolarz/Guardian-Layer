@@ -42,6 +42,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { useToast } from "@/hooks/use-toast";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { SimilarPastIncidents, getSimilarIncidents } from "@/components/clarity/SimilarPastIncidents";
+import { IncidentResponsePlaybook, getPlaybookForThreatType } from "@/components/clarity/IncidentResponsePlaybook";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { WhatIfScenario } from "@/components/clarity/WhatIfScenario";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/clarity/PlainEnglishThreatCard";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { RiskImpactCalculator } from "@/components/clarity/RiskImpactCalculator";
+import { SuccessStory } from "@/components/clarity/SuccessStories";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; glow: string }> = {
   detected: { bg: "bg-rose-500/10", text: "text-rose-400", border: "border-rose-500/30", glow: "shadow-[0_0_15px_rgba(244,63,94,0.3)]" },
@@ -81,14 +92,14 @@ export default function ThreatNeutralization() {
   const { data: summary, isLoading: isSummaryLoading } = useGetThreatSummary();
   const [expandedThreat, setExpandedThreat] = useState<number | null>(null);
 
-  if (isThreatsLoading || isSummaryLoading) return <CyberLoading text="SCANNING THREAT MATRIX..." />;
-  if (isThreatsError || !threats) return <CyberError title="THREAT SCAN FAILED" message="Unable to retrieve threat data from the neutralization system." />;
+  if (isThreatsLoading || isSummaryLoading) return <CyberLoading text="Loading active threats..." />;
+  if (isThreatsError || !threats) return <CyberError title="Couldn't Load Threats" message="We couldn't load active threat data. Please try again." />;
 
   const summaryCards = [
     { label: "Active Threats", value: summary?.totalActive ?? 0, icon: ShieldX, color: "text-rose-400", glow: "shadow-[0_0_20px_rgba(244,63,94,0.15)]" },
-    { label: "Contained", value: summary?.threatsContained ?? 0, icon: ShieldAlert, color: "text-blue-400", glow: "shadow-[0_0_20px_rgba(59,130,246,0.15)]" },
-    { label: "Neutralized", value: summary?.threatsNeutralized ?? 0, icon: ShieldCheck, color: "text-emerald-400", glow: "shadow-[0_0_20px_rgba(16,185,129,0.15)]" },
-    { label: "Avg Containment", value: `${summary?.avgContainmentMinutes ?? 0}m`, icon: Clock, color: "text-primary", glow: "shadow-[0_0_20px_rgba(6,182,212,0.15)]" },
+    { label: "Being Contained", value: summary?.threatsContained ?? 0, icon: ShieldAlert, color: "text-blue-400", glow: "shadow-[0_0_20px_rgba(59,130,246,0.15)]" },
+    { label: "Fully Stopped", value: summary?.threatsNeutralized ?? 0, icon: ShieldCheck, color: "text-emerald-400", glow: "shadow-[0_0_20px_rgba(16,185,129,0.15)]" },
+    { label: "Avg Response Time", value: `${summary?.avgContainmentMinutes ?? 0}m`, icon: Clock, color: "text-primary", glow: "shadow-[0_0_20px_rgba(6,182,212,0.15)]" },
   ];
 
   const groupedThreats: Record<string, typeof threats.threats> = {};
@@ -103,9 +114,20 @@ export default function ThreatNeutralization() {
   return (
     <div className="pb-12">
       <PageHeader
-        title="Threat Neutralization"
-        description="Active threat containment, isolation actions, and multi-step neutralization workflows."
+        title="Threat Response"
+        description="View and manage active security threats — contain them, neutralize them, and track every step of the response."
       />
+
+      <div className="mb-8">
+        <ExecutiveSummary
+          title="Threat Response"
+          sections={[
+            { heading: "Current Situation", content: `There are ${summary?.totalActive ?? 0} active threats requiring attention. ${summary?.threatsContained ?? 0} threats are being contained, and ${summary?.threatsNeutralized ?? 0} have been fully stopped.` },
+            { heading: "Response Time", content: `The average response time is ${summary?.avgContainmentMinutes ?? 0} minutes. Faster response times mean less potential damage.` },
+            { heading: "Recommended Action", content: summary?.totalActive ? "Review the active threats below, starting with 'Act Now' items. Use the Quick Actions to contain threats and follow the step-by-step workflow to resolve them." : "No active threats at this time. Continue monitoring." },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {summaryCards.map((stat, i) => (
@@ -149,7 +171,7 @@ export default function ThreatNeutralization() {
               <div className="flex items-center gap-3 mb-4">
                 <div className={clsx("w-3 h-3 rounded-full animate-pulse", sev === "critical" ? "bg-rose-500" : sev === "high" ? "bg-orange-500" : "bg-amber-500")} />
                 <h2 className={clsx("font-display text-sm uppercase tracking-widest", sevStyle.text)}>
-                  {sev} Severity
+                  {sev === "critical" ? "Act Now" : sev === "high" ? "Needs Attention" : "Monitor"}
                 </h2>
                 <span className="font-mono text-xs text-muted-foreground">({group.length})</span>
               </div>
@@ -203,13 +225,9 @@ function ThreatCard({ threat, isExpanded, onToggle }: {
               <span className={clsx("px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest border", statusStyle.bg, statusStyle.text, statusStyle.border)}>
                 {threat.status}
               </span>
-              <span className={clsx("px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest",
-                SEVERITY_STYLES[threat.severity]?.bg, SEVERITY_STYLES[threat.severity]?.text
-              )}>
-                {threat.severity}
-              </span>
+              <UrgencyBadge severity={threat.severity} />
             </div>
-            <p className="text-sm text-muted-foreground font-sans mt-1 line-clamp-2">{threat.description}</p>
+            <p className="text-sm text-muted-foreground font-sans mt-1 line-clamp-2"><AutoJargon text={threat.description} /></p>
             <div className="flex items-center gap-6 mt-3 font-mono text-xs text-muted-foreground">
               <span>Source: <span className="text-foreground">{threat.detectionSource}</span></span>
               <span>Detected: <span className="text-foreground">{format(new Date(threat.detectedAt), "MMM dd, HH:mm")}</span></span>
@@ -244,7 +262,7 @@ function ThreatDetailPanel({ threatId }: { threatId: number }) {
   const { data, isLoading } = useGetThreatDetail(threatId);
   const isolateMutation = useExecuteIsolationAction();
   const completeMutation = useCompleteNeutralizationStep();
-  const [executingAction, setExecutingAction] = useState<string | null>(null);
+  const [executingAction, setExecutingAction] = useState<IsolationActionRequestAction | null>(null);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: getListThreatsQueryKey() });
@@ -252,10 +270,10 @@ function ThreatDetailPanel({ threatId }: { threatId: number }) {
     queryClient.invalidateQueries({ queryKey: getGetThreatDetailQueryKey(threatId) });
   };
 
-  const handleIsolate = (action: string) => {
+  const handleIsolate = (action: IsolationActionRequestAction) => {
     setExecutingAction(action);
     isolateMutation.mutate(
-      { id: threatId, data: { action: action as any } },
+      { id: threatId, data: { action } },
       {
         onSuccess: (result) => {
           toast({ description: result.message });
@@ -279,7 +297,7 @@ function ThreatDetailPanel({ threatId }: { threatId: number }) {
           invalidateAll();
         },
         onError: () => {
-          toast({ description: "Failed to complete step.", variant: "destructive" });
+          toast({ description: "Couldn't complete this step. Please try again.", variant: "destructive" });
         },
       }
     );
@@ -415,6 +433,68 @@ function ThreatDetailPanel({ threatId }: { threatId: number }) {
           })}
         </div>
       </div>
+
+      <ThreatExplainer narrative={
+        data.threat.type === "SSN Exposure"
+          ? "We found a Social Security Number linked to your organization being sold on a dark web marketplace. The seller listed it alongside full names and dates of birth, which makes it especially dangerous because criminals can use this combination to open new bank accounts, apply for credit cards, or even file fake tax returns in the victim's name."
+          : data.threat.type === "Credit Card Compromise"
+          ? "Three credit cards connected to your organization were found in a database of stolen card numbers. Criminals have already started testing these cards with small purchases. If not stopped quickly, they'll begin making larger fraudulent charges."
+          : data.threat.type === "Email Account Breach"
+          ? "An email account in your organization appears to have been taken over by an unauthorized user. The attacker can read private conversations, send emails pretending to be the account owner, and use password reset links to access other connected services."
+          : "A security threat has been detected that requires attention. Expanding the details below will show you exactly what was found, where the problem is, and what steps are being taken to resolve it."
+      } />
+
+      <PlainEnglishThreatCard
+        severity={getUrgencyFromSeverity(data.threat.severity)}
+        breakdown={{
+          whatWeFound: data.threat.description,
+          howWeFoundIt: `Detected by ${data.threat.detectionSource} monitoring systems`,
+          whereTheThreatIs: data.threat.affectedAssets,
+          whatThisMeans: data.threat.type === "SSN Exposure" ? "Someone's personal identity information is exposed and could be used for fraud." : data.threat.type === "Credit Card Compromise" ? "Stolen card data could be used for unauthorized purchases at any time." : "This threat needs immediate attention to prevent potential damage.",
+          potentialImpact: data.threat.type === "SSN Exposure" ? "Identity theft, fraudulent accounts, credit damage lasting years." : data.threat.type === "Credit Card Compromise" ? "Unauthorized charges, financial loss, potential cascading fraud." : "Potential data loss, unauthorized access, or financial harm.",
+          whatCanBeDone: "Use the Quick Actions above to contain the threat, then follow the step-by-step workflow to fully resolve it.",
+          howItsBeingHandled: `Current status: ${data.threat.status}. ${completedSteps}/${totalSteps} response steps completed.`,
+          recoverySteps: "After the threat is neutralized, follow the Recovery Center to restore any compromised items.",
+        }}
+      />
+
+      <RiskImpactCalculator
+        financialImpact={data.threat.type === "Credit Card Compromise" ? "Potential unauthorized charges on compromised cards" : data.threat.type === "SSN Exposure" ? "Identity theft can cost victims thousands in recovery" : "Financial impact depends on the scope of the threat"}
+        dataExposureScope={data.threat.affectedAssets}
+        businessDisruption={data.threat.type === "SSN Exposure" ? "HR and legal teams may need to issue notifications" : data.threat.type === "Credit Card Compromise" ? "Finance team needs to reissue cards and review charges" : "Remediation effort required across affected teams"}
+      />
+
+      <WhyThisMatters explanation={
+        data.threat.type === "SSN Exposure" 
+          ? "A Social Security Number is one of the most valuable pieces of personal data for criminals. If misused, it can lead to identity theft, fraudulent accounts, and long-term financial damage that takes years to resolve."
+          : data.threat.type === "Credit Card Compromise"
+          ? "Stolen credit card numbers can be used immediately for fraudulent purchases. Quick containment is essential to limit financial losses and prevent cascading fraud."
+          : data.threat.type === "Email Account Breach"
+          ? "A compromised email account gives attackers access to password reset links for other services, sensitive communications, and can be used to trick your colleagues."
+          : "This threat could lead to unauthorized access, data loss, or financial harm if not addressed promptly."
+      } />
+
+      <SimilarPastIncidents incidents={getSimilarIncidents(data.threat.type)} />
+
+      <IncidentResponsePlaybook
+        threatType={data.threat.type}
+        steps={getPlaybookForThreatType(data.threat.type.toLowerCase().includes("email") ? "phishing" : data.threat.type.toLowerCase().includes("malware") ? "malware" : "default")}
+      />
+
+      <WhatIfScenario
+        scenario={
+          data.threat.type === "SSN Exposure"
+            ? "If left unresolved, your SSN could be used to open new credit accounts, file fraudulent tax returns, or commit identity fraud — potentially costing thousands and taking months to resolve."
+            : data.threat.type === "Credit Card Compromise"
+            ? "Unaddressed card compromises can result in unauthorized charges, cascading fraud across linked accounts, and potential liability for fraudulent transactions."
+            : "Without action, this threat could expand to affect more systems, compromise additional data, or enable more sophisticated follow-up attacks."
+        }
+        timeframe={
+          data.threat.type === "SSN Exposure" ? "Risk increases daily — act within 24 hours"
+            : data.threat.type === "Credit Card Compromise" ? "Fraudulent charges can begin within hours"
+            : "Prompt action recommended"
+        }
+      />
 
       {data.timeline.length > 0 && (
         <div>

@@ -18,7 +18,10 @@ import Monitoring from "@/pages/Monitoring";
 import DarkWebMonitor from "@/pages/DarkWebMonitor";
 import Recovery from "@/pages/Recovery";
 import ThreatNeutralization from "@/pages/ThreatNeutralization";
+import Glossary from "@/pages/Glossary";
 import NotFound from "@/pages/not-found";
+import { QuickHelp } from "@/components/clarity/QuickHelp";
+import { useLocation } from "wouter";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +31,11 @@ const queryClient = new QueryClient({
     }
   }
 });
+
+function QuickHelpWrapper() {
+  const [location] = useLocation();
+  return <QuickHelp currentPath={location} />;
+}
 
 function Router() {
   return (
@@ -47,8 +55,10 @@ function Router() {
         <Route path="/dark-web" component={DarkWebMonitor} />
         <Route path="/recovery" component={Recovery} />
         <Route path="/threat-neutralization" component={ThreatNeutralization} />
+        <Route path="/glossary" component={Glossary} />
         <Route component={NotFound} />
       </Switch>
+      <QuickHelpWrapper />
     </AppLayout>
   );
 }

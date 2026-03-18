@@ -43,8 +43,8 @@ router.get("/email-security/threats", async (req, res): Promise<void> => {
       threats,
       total: countResult?.count ?? 0,
     }));
-  } catch (err: any) {
-    console.error("[email-security] GET /threats failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /threats failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve email threats." });
   }
 });
@@ -67,8 +67,8 @@ router.post("/email-security/threats/:id/quarantine", async (req, res): Promise<
       status: "quarantined",
       message: `Email "${updated.subject}" has been quarantined.`,
     }));
-  } catch (err: any) {
-    console.error("[email-security] quarantine failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] quarantine failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to quarantine email." });
   }
 });
@@ -91,8 +91,8 @@ router.post("/email-security/threats/:id/release", async (req, res): Promise<voi
       status: "released",
       message: `Email "${updated.subject}" has been released from quarantine.`,
     }));
-  } catch (err: any) {
-    console.error("[email-security] release failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] release failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to release email." });
   }
 });
@@ -123,14 +123,14 @@ router.get("/email-security/stats", async (_req, res): Promise<void> => {
       malwareBlocked: malware?.count ?? 0,
       quarantined: quarantined?.count ?? 0,
       avgRiskScore: Math.round((avgRisk?.avg ?? 0) * 100) / 100,
-      topSenderDomains: (domainRows.rows as any[]).map((r: any) => ({
-        domain: r.domain,
-        count: r.count,
-        avgRisk: Math.round(r.avg_risk * 100) / 100,
+      topSenderDomains: domainRows.rows.map((r) => ({
+        domain: String(r.domain),
+        count: Number(r.count),
+        avgRisk: Math.round(Number(r.avg_risk) * 100) / 100,
       })),
     }));
-  } catch (err: any) {
-    console.error("[email-security] GET /stats failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /stats failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve email security stats." });
   }
 });
@@ -189,8 +189,8 @@ router.get("/email-security/auth-monitor", async (_req, res): Promise<void> => {
       domains,
       summary: { totalDomains, fullyAuthenticated, atRisk, avgScore },
     });
-  } catch (err: any) {
-    console.error("[email-security] GET /auth-monitor failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /auth-monitor failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve email authentication data." });
   }
 });
@@ -318,8 +318,8 @@ router.get("/email-security/attachment-analysis", async (_req, res): Promise<voi
       attachments,
       summary: { totalAnalyzed, malicious, blocked, quarantined, clean },
     });
-  } catch (err: any) {
-    console.error("[email-security] GET /attachment-analysis failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /attachment-analysis failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve attachment analysis data." });
   }
 });
@@ -425,8 +425,8 @@ router.get("/email-security/account-compromise", async (_req, res): Promise<void
       accounts,
       summary: { totalMonitored, compromised: compromisedCount, atRisk, totalEvents },
     });
-  } catch (err: any) {
-    console.error("[email-security] GET /account-compromise failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /account-compromise failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve account compromise data." });
   }
 });
@@ -574,8 +574,8 @@ router.get("/email-security/phishing-campaigns", async (_req, res): Promise<void
       campaigns,
       summary: { totalCampaigns, activeCampaigns, totalBlocked, totalLookalikes },
     });
-  } catch (err: any) {
-    console.error("[email-security] GET /phishing-campaigns failed:", err.message);
+  } catch (err: unknown) {
+    console.error("[email-security] GET /phishing-campaigns failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Failed to retrieve phishing campaign data." });
   }
 });

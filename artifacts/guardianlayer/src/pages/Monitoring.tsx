@@ -6,10 +6,18 @@ import {
   useGetThroughput,
   useGetRiskDistribution,
   useGetTopThreats,
+  getGetSystemHealthQueryKey,
+  getGetActivityLogQueryKey,
+  getGetThroughputQueryKey,
 } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard } from "@/components/clarity/PlainEnglishThreatCard";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { format } from "date-fns";
@@ -85,19 +93,31 @@ export default function Monitoring() {
   const [activitySeverity, setActivitySeverity] = useState<string>("");
 
   const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
-    { id: "overview", label: "System Health", icon: Monitor },
+    { id: "overview", label: "Overview", icon: Monitor },
     { id: "activity", label: "Activity Log", icon: Eye },
-    { id: "threats", label: "Threat Intel", icon: Globe },
-    { id: "throughput", label: "Throughput", icon: TrendingUp },
-    { id: "compliance", label: "Compliance Report", icon: Shield },
+    { id: "threats", label: "Threat Sources", icon: Globe },
+    { id: "throughput", label: "Performance", icon: TrendingUp },
+    { id: "compliance", label: "Compliance", icon: Shield },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader
-        title="System Monitoring"
-        description="Real-time infrastructure health, audit trail, threat intelligence, performance metrics, and compliance."
+        title="System Health"
+        description="Check if all parts of your security platform are running smoothly — servers, databases, and services."
       />
+
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="This page shows you whether all parts of your security platform are running properly. If any service goes down or slows down, you'll see it here so your team can respond quickly." />
+        <ExecutiveSummary
+          title="System Health"
+          sections={[
+            { heading: "What This Shows", content: "A real-time view of your security platform's internal systems — servers, databases, threat analysis engines, and alert pipelines. Think of it as a health check for the tools protecting your organization." },
+            { heading: "Key Metrics", content: "Request speed, error rates, CPU usage, and memory consumption. Green means healthy; yellow means degraded performance; red means a service is down and needs immediate attention." },
+            { heading: "What to Do", content: "If all systems show green, no action needed. If anything is yellow or red, coordinate with your IT team to investigate. The activity log tab provides a detailed audit trail of all system events." },
+          ]}
+        />
+      </div>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map((tab) => (
@@ -135,11 +155,11 @@ export default function Monitoring() {
 
 function SystemHealthPanel() {
   const { data: health, isLoading, isError } = useGetSystemHealth({
-    query: { refetchInterval: 10000 },
+    query: { queryKey: getGetSystemHealthQueryKey(), refetchInterval: 10000 },
   });
 
-  if (isLoading) return <CyberLoading text="SCANNING SUBSYSTEMS..." />;
-  if (isError || !health) return <CyberError title="HEALTH CHECK FAILED" message="Unable to reach system health endpoint." />;
+  if (isLoading) return <CyberLoading text="Checking system health..." />;
+  if (isError || !health) return <CyberError title="Couldn't Check System Health" message="We couldn't check your system status. Please try again." />;
 
   const overallColor = health.overall === "healthy" ? "text-emerald-400" : health.overall === "degraded" ? "text-amber-400" : "text-red-400";
   const overallBg = health.overall === "healthy" ? "bg-emerald-500/10 border-emerald-500/20" : health.overall === "degraded" ? "bg-amber-500/10 border-amber-500/20" : "bg-red-500/10 border-red-500/20";
@@ -193,7 +213,7 @@ function SystemHealthPanel() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel p-6 rounded-2xl">
         <h3 className="font-display text-sm uppercase tracking-widest text-primary mb-6 flex items-center gap-2">
           <Server className="w-4 h-4" />
-          Service Health Matrix
+          Service Status Overview
         </h3>
         <div className="space-y-3">
           {health.services.map((service, i) => {
@@ -212,7 +232,7 @@ function SystemHealthPanel() {
                   <Icon className="w-5 h-5 text-muted-foreground" />
                   <div>
                     <div className="font-display text-sm text-foreground">{service.name}</div>
-                    <div className="font-mono text-xs text-muted-foreground mt-0.5">{service.details}</div>
+                    <div className="font-mono text-xs text-muted-foreground mt-0.5"><AutoJargon text={service.details ?? ""} /></div>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
@@ -250,11 +270,11 @@ function ActivityLogPanel({
   if (severity) params.severity = severity;
 
   const { data, isLoading, isError } = useGetActivityLog(params, {
-    query: { refetchInterval: 5000 },
+    query: { queryKey: getGetActivityLogQueryKey(params), refetchInterval: 5000 },
   });
 
-  if (isLoading) return <CyberLoading text="LOADING AUDIT TRAIL..." />;
-  if (isError || !data) return <CyberError title="LOG RETRIEVAL FAILED" message="Unable to fetch activity logs." />;
+  if (isLoading) return <CyberLoading text="Loading activity log..." />;
+  if (isError || !data) return <CyberError title="Couldn't Load Activity Log" message="We couldn't load the activity log. Please try again." />;
 
   const categories = ["", "transaction", "approval", "alert", "integration", "system", "auth"];
   const severities = ["", "info", "warning", "error", "critical"];
@@ -361,7 +381,7 @@ function ActivityLogPanel({
           })}
           {data.entries.length === 0 && (
             <div className="p-12 text-center font-mono text-muted-foreground">
-              NO ENTRIES MATCH CURRENT FILTERS
+              No entries match the current filters
             </div>
           )}
         </div>
@@ -375,7 +395,7 @@ function ThreatIntelPanel() {
   const { data: riskDist, isLoading: isDistLoading } = useGetRiskDistribution();
   const { data: topThreats, isLoading: isThreatsLoading } = useGetTopThreats();
 
-  if (isMapLoading || isDistLoading || isThreatsLoading) return <CyberLoading text="ANALYZING THREAT VECTORS..." />;
+  if (isMapLoading || isDistLoading || isThreatsLoading) return <CyberLoading text="Loading threat analysis..." />;
 
   return (
     <div className="space-y-6">
@@ -514,37 +534,55 @@ function ThreatIntelPanel() {
             <Zap className="w-4 h-4" />
             Recent High-Risk Transactions
           </h3>
-          <div className="space-y-3">
+          <ThreatExplainer
+            narrative={`We found ${topThreats.recentHighRisk.length} recent high-risk transactions. These are transfers that scored above normal risk thresholds — they may involve unusual amounts, destinations, or patterns that could indicate fraud or unauthorized activity. Each item below shows the sender, receiver, amount, and risk score.`}
+          />
+          <div className="space-y-3 mt-4">
             {topThreats.recentHighRisk.map((txn) => (
-              <div key={txn.id} className="flex items-center justify-between p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 hover:border-rose-500/20 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-lg bg-rose-500/10">
-                    <AlertTriangle className="w-4 h-4 text-rose-400" />
-                  </div>
-                  <div>
-                    <div className="font-mono text-sm text-foreground">{txn.source} → {txn.destination}</div>
-                    <div className="font-mono text-xs text-muted-foreground mt-0.5">
-                      {txn.category} | {txn.country || "Unknown"} | {format(new Date(txn.createdAt), "MMM dd HH:mm")}
+              <div key={txn.id} className="space-y-2">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-rose-500/5 border border-rose-500/10 hover:border-rose-500/20 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 rounded-lg bg-rose-500/10">
+                      <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    </div>
+                    <div>
+                      <div className="font-mono text-sm text-foreground">{txn.source} → {txn.destination}</div>
+                      <div className="font-mono text-xs text-muted-foreground mt-0.5">
+                        {txn.category} | {txn.country || "Unknown"} | {format(new Date(txn.createdAt), "MMM dd HH:mm")}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="font-mono text-sm font-bold text-foreground">{txn.amount.toLocaleString()} {txn.currency}</div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="font-mono text-sm font-bold text-foreground">{txn.amount.toLocaleString()} {txn.currency}</div>
+                    </div>
+                    <div className={clsx("font-mono text-sm font-bold px-3 py-1 rounded-lg",
+                      txn.riskScore > 0.8 ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"
+                    )}>
+                      {(txn.riskScore * 100).toFixed(0)}%
+                    </div>
+                    <span className={clsx("px-2 py-1 rounded-lg text-xs font-display uppercase tracking-wider",
+                      txn.status === "BLOCKED" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
+                      txn.status === "HELD" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                      "bg-primary/10 text-primary border border-primary/20"
+                    )}>
+                      {txn.status}
+                    </span>
                   </div>
-                  <div className={clsx("font-mono text-sm font-bold px-3 py-1 rounded-lg",
-                    txn.riskScore > 0.8 ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"
-                  )}>
-                    {(txn.riskScore * 100).toFixed(0)}%
-                  </div>
-                  <span className={clsx("px-2 py-1 rounded-lg text-xs font-display uppercase tracking-wider",
-                    txn.status === "BLOCKED" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
-                    txn.status === "HELD" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                    "bg-primary/10 text-primary border border-primary/20"
-                  )}>
-                    {txn.status}
-                  </span>
                 </div>
+                <PlainEnglishThreatCard
+                  breakdown={{
+                    whatWeFound: `A ${txn.currency} ${txn.amount.toLocaleString()} transfer from "${txn.source}" to "${txn.destination}" with a ${(txn.riskScore * 100).toFixed(0)}% risk score.`,
+                    howWeFoundIt: "Our automated monitoring flagged this transaction based on amount, destination, timing, and behavioral pattern analysis.",
+                    whereTheThreatIs: `The transfer path from "${txn.source}" to "${txn.destination}" in ${txn.country || "an unknown location"}.`,
+                    whatThisMeans: txn.riskScore > 0.8 ? "Very high risk — this transaction closely matches known fraud patterns." : "Elevated risk — some suspicious indicators were detected.",
+                    potentialImpact: `If fraudulent, ${txn.currency} ${txn.amount.toLocaleString()} could be lost. May indicate broader financial system compromise.`,
+                    whatCanBeDone: txn.status === "HELD" ? "Review this transaction in the Approvals queue — approve if legitimate or block to prevent transfer." : txn.status === "BLOCKED" ? "Already blocked. Investigate the source for potential account compromise." : "Monitor for follow-up activity from the same source.",
+                    howItsBeingHandled: txn.status === "BLOCKED" ? "Blocked automatically — funds are safe." : txn.status === "HELD" ? "Held for your manual review." : "Being monitored by the automated system.",
+                    recoverySteps: "If confirmed fraud: freeze related accounts, initiate chargeback, file incident report.",
+                  }}
+                  severity={txn.riskScore > 0.8 ? "act-now" : "needs-attention"}
+                />
               </div>
             ))}
           </div>
@@ -556,11 +594,11 @@ function ThreatIntelPanel() {
 
 function ThroughputPanel() {
   const { data: throughput, isLoading, isError } = useGetThroughput({ hours: 48 }, {
-    query: { refetchInterval: 15000 },
+    query: { queryKey: getGetThroughputQueryKey({ hours: 48 }), refetchInterval: 15000 },
   });
 
-  if (isLoading) return <CyberLoading text="COMPUTING THROUGHPUT METRICS..." />;
-  if (isError || !throughput) return <CyberError title="METRICS UNAVAILABLE" message="Failed to retrieve throughput data." />;
+  if (isLoading) return <CyberLoading text="Loading performance data..." />;
+  if (isError || !throughput) return <CyberError title="Couldn't Load Performance Data" message="We couldn't load performance data. Please try again." />;
 
   return (
     <div className="space-y-6">

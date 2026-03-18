@@ -37,6 +37,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { useToast } from "@/hooks/use-toast";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { PlainEnglishThreatCard } from "@/components/clarity/PlainEnglishThreatCard";
+import { RecoveryRoadmap } from "@/components/clarity/RecoveryRoadmap";
+import { SuccessStory } from "@/components/clarity/SuccessStories";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
 
 const ASSET_ICONS: Record<string, typeof Shield> = {
   passport: FileText,
@@ -74,7 +79,7 @@ function RecoveryCaseCard({ caseId }: { caseId: number }) {
   const { toast } = useToast();
 
   const { data, isLoading } = useGetRecoveryCase(caseId, {
-    query: { enabled: expanded },
+    query: { queryKey: getGetRecoveryCaseQueryKey(caseId), enabled: expanded },
   });
 
   const updateStepMutation = useUpdateRecoveryStepStatus();
@@ -209,6 +214,22 @@ function RecoveryCaseCard({ caseId }: { caseId: number }) {
                 </p>
               </div>
 
+              <div className="mb-4">
+                <PlainEnglishThreatCard
+                  breakdown={{
+                    whatWeFound: `Your ${ASSET_LABELS[caseInfo.assetType] ?? caseInfo.assetType} (${caseInfo.assetIdentifier}) was compromised and is ${caseInfo.status === "recovered" ? "now fully recovered" : "currently being restored"}.`,
+                    howWeFoundIt: "Our dark web monitoring and breach detection systems identified that this asset was exposed or compromised.",
+                    whereTheThreatIs: `The compromised asset: ${ASSET_LABELS[caseInfo.assetType] ?? caseInfo.assetType} — ${caseInfo.assetIdentifier}.`,
+                    whatThisMeans: caseInfo.status === "recovered" ? "This asset has been fully recovered and verified secure. No further action is needed." : "This asset was compromised and recovery steps are underway. Follow the steps below to complete the restoration.",
+                    potentialImpact: `A compromised ${(ASSET_LABELS[caseInfo.assetType] ?? caseInfo.assetType).toLowerCase()} could be used for identity theft, unauthorized access, or financial fraud if not properly recovered.`,
+                    whatCanBeDone: "Complete all recovery steps listed below. Each step has been tailored to this specific type of compromise.",
+                    howItsBeingHandled: `Recovery is ${caseInfo.recoveryPercentage}% complete. Status: ${statusStyle.label}.`,
+                    recoverySteps: "Follow the numbered steps below in order. Mark each as complete when done, then verify the final recovery.",
+                  }}
+                  severity={caseInfo.status === "recovered" ? "all-clear" : caseInfo.recoveryPercentage > 0 ? "needs-attention" : "act-now"}
+                />
+              </div>
+
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -243,7 +264,7 @@ function RecoveryCaseCard({ caseId }: { caseId: number }) {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h5 className="text-white text-sm font-medium">{step.title}</h5>
-                                <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                <p className="text-xs text-muted-foreground mt-1"><AutoJargon text={step.description} /></p>
                                 {step.completedAt && (
                                   <span className="text-[10px] font-mono text-muted-foreground mt-2 block">
                                     Completed: {format(new Date(step.completedAt), "PP pp")}
@@ -344,11 +365,11 @@ export default function Recovery() {
   const { data: summary, isLoading: isSummaryLoading, isError: isSummaryError } = useGetRecoverySummary();
   const { data: casesData, isLoading: isCasesLoading } = useListRecoveryCases();
   const { data: timeline, isLoading: isTimelineLoading } = useGetRecoveryTimeline({
-    query: { enabled: activeTab === "timeline" },
+    query: { queryKey: getGetRecoveryTimelineQueryKey(), enabled: activeTab === "timeline" },
   });
 
-  if (isSummaryLoading || isCasesLoading) return <CyberLoading text="SCANNING RECOVERY STATUS..." />;
-  if (isSummaryError || !summary) return <CyberError title="RECOVERY FAULT" message="Unable to retrieve recovery data from the core." />;
+  if (isSummaryLoading || isCasesLoading) return <CyberLoading text="Loading recovery progress..." />;
+  if (isSummaryError || !summary) return <CyberError title="Couldn't Load Recovery Data" message="We couldn't load your recovery data. Please try again." />;
 
   const summaryCards = [
     { label: "Assets Affected", value: summary.totalAffected, icon: ShieldAlert, color: "text-rose-500" },
@@ -360,8 +381,35 @@ export default function Recovery() {
     <div className="pb-12">
       <PageHeader
         title="Recovery Center"
-        description="Track and manage recovery of compromised assets. Restore access, replace credentials, and verify secure status."
+        description="Track the recovery of compromised items — passwords, credit cards, and identity documents — step by step."
       />
+
+      <div className="mb-8 space-y-4">
+        <ExecutiveSummary
+          title="Recovery Status"
+          sections={[
+            { heading: "Current Status", content: `${summary.totalAffected} items were affected. ${summary.totalRecovered} have been fully recovered, and ${summary.inProgress} are currently being restored.` },
+            { heading: "What to Do", content: summary.inProgress > 0 ? "Continue working through the recovery steps for each case below. Complete all steps to fully restore each compromised item." : summary.totalRecovered === summary.totalAffected ? "All items have been recovered. Great work!" : "Review the cases below and begin the recovery process for any pending items." },
+          ]}
+        />
+
+        <RecoveryRoadmap
+          title="Overall Recovery Progress"
+          steps={[
+            { title: "Identify", status: "completed", detail: `${summary.totalAffected} items identified` },
+            { title: "Contain", status: summary.inProgress > 0 || summary.totalRecovered > 0 ? "completed" : "in-progress", detail: "Threats contained" },
+            { title: "Recover", status: summary.inProgress > 0 ? "in-progress" : summary.totalRecovered === summary.totalAffected ? "completed" : "upcoming", detail: `${summary.totalRecovered}/${summary.totalAffected} restored` },
+            { title: "Verify", status: summary.totalRecovered === summary.totalAffected ? "completed" : "upcoming", detail: "Confirm recovery" },
+          ]}
+        />
+
+        {summary.totalRecovered > 0 && (
+          <SuccessStory
+            summary={`${summary.totalRecovered} compromised item${summary.totalRecovered > 1 ? "s" : ""} successfully recovered and verified secure.`}
+            dataCompromised={summary.totalAffected > summary.totalRecovered}
+          />
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {summaryCards.map((stat, i) => (

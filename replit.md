@@ -14,7 +14,8 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 
 **Core Features & Design Patterns:**
 
-*   **Dashboard (Command Center):** Centralized overview with real-time stats, an AI Risk Assistant for contextual security insights, a Threat Correlation Engine, and a Real-Time Threat Intel Feed. Visualizations include a 7-Day Risk & Volume Topology chart.
+*   **Plain English Overhaul:** All UI text has been rewritten for non-technical executives. Technical jargon replaced with everyday language across all 14 pages. 18 clarity components in `/components/clarity/` provide structured explanations (PlainEnglishThreatCard, ThreatExplainer, WhyThisMatters, WhatIfScenario, etc.). Severity labels use "Act Now / Needs Attention / Monitor / All Clear". ExecutiveSummary panels on major pages. Searchable Glossary at `/glossary` with 45+ terms. QuickHelp button provides page-specific guidance on all routes. JargonTooltip wraps technical acronyms (SPF, DKIM, DMARC) with hover definitions.
+*   **Dashboard (Command Center):** Centralized overview with SecurityHealthScore, ProtectionStatus, WhatHappenedToday, RecommendedActions, ThreatComparison, and ExecutiveSummary components. Plain English descriptions throughout.
 *   **Transaction Management:** Features a Transaction Ledger with filtering, a "Scan Payload" function for ML risk analysis, and a Manual Override Queue for approving/rejecting held transactions. ML risk scoring considers transaction amount, country of origin, and category.
 *   **Security Advisories:** Provides alerts with severity levels, dismiss functionality, and auto-remediate buttons that trigger predefined actions.
 *   **Domain-Specific Security Modules:**

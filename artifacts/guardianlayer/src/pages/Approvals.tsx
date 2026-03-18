@@ -15,6 +15,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { getRiskColor } from "@/lib/constants";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/clarity/PlainEnglishThreatCard";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 
 export default function Approvals() {
   const queryClient = useQueryClient();
@@ -40,14 +45,26 @@ export default function Approvals() {
   return (
     <div className="pb-12">
       <PageHeader 
-        title="Manual Override Queue" 
-        description="Transactions flagged by ML models requiring human-in-the-loop authorization."
+        title="Approval Queue" 
+        description="Transactions that were flagged as potentially risky and need your review before processing."
       />
 
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="These transactions were automatically flagged because they show unusual patterns — large amounts, high-risk countries, or suspicious categories. Your review ensures legitimate transactions proceed while fraudulent ones are blocked." />
+        <ExecutiveSummary
+          title="Approval Queue"
+          sections={[
+            { heading: "What This Shows", content: "Transactions that were automatically held because they exceeded your organization's risk thresholds. Each one needs a human decision before it can proceed." },
+            { heading: "Your Role", content: "Review each transaction's source, destination, amount, and risk score. Approve legitimate transactions and block suspicious ones. Your decision is final — blocked transactions cannot be reversed." },
+            { heading: "What to Do", content: "For each item: check if the sender and recipient are known parties, verify the amount is expected, and review the origin country. When in doubt, block the transaction — it's safer to investigate and resubmit than to allow potential fraud." },
+          ]}
+        />
+      </div>
+
       {isLoading ? (
-        <CyberLoading text="FETCHING HELD PAYLOADS..." />
+        <CyberLoading text="Loading items awaiting your review..." />
       ) : isError || !data ? (
-        <CyberError title="QUEUE FAULT" message="Unable to load approval queue." />
+        <CyberError title="Couldn't Load Review Queue" message="We couldn't load items waiting for review. Please try again." />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AnimatePresence>
@@ -57,7 +74,7 @@ export default function Approvals() {
                 className="col-span-full py-20 flex flex-col items-center justify-center text-muted-foreground glass-panel rounded-2xl border-dashed border-2 border-white/5"
               >
                 <ShieldAlert className="w-12 h-12 mb-4 opacity-50" />
-                <p className="font-mono text-sm tracking-widest uppercase">Zero pending approvals.</p>
+                <p className="font-mono text-sm tracking-widest uppercase">No items waiting for review.</p>
               </motion.div>
             )}
             {data.transactions.map((tx, idx) => (
@@ -86,7 +103,7 @@ export default function Approvals() {
                     <span className={`text-2xl font-bold font-mono ${getRiskColor(tx.riskScore)} block drop-shadow-[0_0_8px_currentColor]`}>
                       {(tx.riskScore * 100).toFixed(1)}%
                     </span>
-                    <span className="text-[10px] uppercase font-display tracking-widest text-muted-foreground">Risk Vector</span>
+                    <span className="text-[10px] uppercase font-display tracking-widest text-muted-foreground">Risk Level</span>
                   </div>
                 </div>
 
@@ -107,6 +124,28 @@ export default function Approvals() {
                     <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">IP Location</span>
                     <span className="font-mono text-sm text-white/70 block">{tx.ipAddress || 'Unknown'} / {tx.country || 'N/A'}</span>
                   </div>
+                </div>
+
+                <div className="mb-4">
+                  <UrgencyBadge severity={tx.riskScore > 0.7 ? "critical" : tx.riskScore > 0.4 ? "high" : "medium"} showExplanation />
+                </div>
+                <div className="mb-4 space-y-2">
+                  <ThreatExplainer
+                    narrative={`This ${tx.amount.toLocaleString()} ${tx.currency} transaction from "${tx.source}" to "${tx.destination}" was flagged with a ${(tx.riskScore * 100).toFixed(0)}% risk score. ${tx.riskScore > 0.7 ? "This is a high-risk transaction that should be carefully reviewed before approving." : "This transaction has some suspicious characteristics. Review the details to decide if it should proceed."} ${tx.country ? `Origin: ${tx.country}.` : ""}`}
+                  />
+                  <PlainEnglishThreatCard
+                    breakdown={{
+                      whatWeFound: `A ${tx.amount.toLocaleString()} ${tx.currency} transaction from "${tx.source}" to "${tx.destination}" was flagged as potentially risky with a ${(tx.riskScore * 100).toFixed(0)}% risk score.`,
+                      howWeFoundIt: `Our ML risk scoring system analyzed the transaction amount, destination, ${tx.country ? `origin country (${tx.country}),` : ""} and category to calculate this risk score.`,
+                      whereTheThreatIs: `Source: ${tx.source}. Destination: ${tx.destination}. ${tx.ipAddress ? `IP: ${tx.ipAddress}.` : ""} ${tx.country ? `Country: ${tx.country}.` : ""}`,
+                      whatThisMeans: tx.riskScore > 0.7 ? "This transaction has multiple high-risk indicators and could be fraudulent." : "This transaction triggered our risk threshold but may be legitimate.",
+                      potentialImpact: "If fraudulent, this could result in direct financial loss. If legitimate, blocking it could disrupt business operations.",
+                      whatCanBeDone: "Review the source, destination, amount, and origin. If you recognize the parties and the amount seems appropriate, approve it. Otherwise, block it.",
+                      howItsBeingHandled: "This transaction is currently held and cannot be processed until you approve or block it.",
+                      recoverySteps: "1. Verify the sender and recipient are known. 2. Confirm the amount is expected. 3. Check if the origin country matches expected activity. 4. Approve or block based on your assessment.",
+                    }}
+                    severity={getUrgencyFromSeverity(tx.riskScore > 0.7 ? "critical" : tx.riskScore > 0.4 ? "high" : "medium")}
+                  />
                 </div>
 
                 <div className="flex gap-3 mt-4">

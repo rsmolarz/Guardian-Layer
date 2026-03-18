@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   useListTransactions, 
@@ -18,6 +18,40 @@ import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { STATUS_COLORS, getRiskColor } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard } from "@/components/clarity/PlainEnglishThreatCard";
+import type { ThreatBreakdown } from "@/components/clarity/PlainEnglishThreatCard";
+
+function getTransactionBreakdown(tx: { source: string; destination: string; amount: number; currency: string; riskScore: number; status: string }): ThreatBreakdown {
+  const riskPct = (tx.riskScore * 100).toFixed(1);
+  return {
+    whatWeFound: `A ${tx.currency} ${tx.amount.toLocaleString()} transaction from "${tx.source}" to "${tx.destination}" with a risk score of ${riskPct}%.`,
+    howWeFoundIt: "Our automated fraud scanner evaluates every transaction against known patterns of suspicious financial activity.",
+    whereTheThreatIs: `The transaction path from "${tx.source}" to "${tx.destination}" — specifically the combination of amount, destination, and timing.`,
+    whatThisMeans: tx.riskScore > 0.7
+      ? "This transaction has a very high risk score. It closely matches patterns seen in fraud, money laundering, or unauthorized transfers."
+      : tx.riskScore > 0.4
+        ? "This transaction shows some suspicious patterns but hasn't been confirmed as fraudulent. It warrants a closer look."
+        : "This transaction appears normal. Low risk scores indicate the transfer matches expected legitimate business patterns.",
+    potentialImpact: tx.riskScore > 0.7
+      ? "If this is fraud, the full amount could be lost. High-risk transactions may also indicate a broader compromise of financial systems."
+      : "Low to moderate financial risk. Monitoring continues to catch any pattern changes.",
+    whatCanBeDone: tx.status === "flagged"
+      ? "Review this transaction on the Approvals page. You can approve it if legitimate or block it to prevent the transfer."
+      : "No action needed right now. The system will continue monitoring for pattern changes.",
+    howItsBeingHandled: tx.status === "flagged"
+      ? "This transaction has been held for your review and will not proceed until you approve it."
+      : tx.status === "blocked"
+        ? "This transaction has been blocked and the funds are safe."
+        : "The transaction has been processed. Continuous monitoring remains active.",
+    recoverySteps: tx.riskScore > 0.7
+      ? "If confirmed fraudulent: freeze the source account, initiate a chargeback, and file an incident report."
+      : "No recovery needed at this time.",
+  };
+}
 
 const scanSchema = z.object({
   source: z.string().min(1, "Source required"),
@@ -31,6 +65,7 @@ const scanSchema = z.object({
 
 export default function Transactions() {
   const [filter, setFilter] = useState<TransactionStatus | "ALL">("ALL");
+  const [expandedTx, setExpandedTx] = useState<number | null>(null);
   const [isScanOpen, setIsScanOpen] = useState(false);
   
   const { data, isLoading, isError } = useListTransactions({ 
@@ -41,18 +76,30 @@ export default function Transactions() {
   return (
     <div className="pb-12">
       <PageHeader 
-        title="Transaction Ledger" 
-        description="Global stream of monetary movements analyzed by GuardianLayer ML models."
+        title="Transaction Monitor" 
+        description="Every financial transaction is automatically scanned for fraud and suspicious activity."
         action={
           <button 
             onClick={() => setIsScanOpen(true)}
             className="cyber-button px-6 py-3 bg-primary text-primary-foreground rounded-xl flex items-center shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]"
           >
             <Radar className="w-5 h-5 mr-2" />
-            Scan Payload
+            Check Transaction
           </button>
         }
       />
+
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="This page monitors all financial transactions flowing through your systems. Each transaction gets a risk score — the higher the number, the more suspicious the activity. Flagged transactions are held for your review on the Approvals page." />
+        <ExecutiveSummary
+          title="Transaction Monitor"
+          sections={[
+            { heading: "What This Shows", content: "Every financial transaction is automatically scanned and assigned a risk score from 0% (safe) to 100% (highly suspicious). Transactions above a certain threshold are flagged for manual review." },
+            { heading: "Risk Scores", content: "Green (0-30%) means normal activity. Yellow (30-70%) means some suspicious patterns were detected. Red (70-100%) means the transaction closely matches known fraud patterns." },
+            { heading: "What to Do", content: "Review flagged transactions on the Approvals page. Click any transaction row to see a detailed breakdown of why it was scored the way it was. Use the 'Check Transaction' button to manually scan a specific transaction." },
+          ]}
+        />
+      </div>
 
       <div className="mb-6 flex items-center gap-4 glass-panel p-2 rounded-xl inline-flex w-full md:w-auto overflow-x-auto">
         <div className="pl-4 pr-2 flex items-center text-muted-foreground border-r border-white/10 shrink-0">
@@ -79,9 +126,9 @@ export default function Transactions() {
       </div>
 
       {isLoading ? (
-        <CyberLoading text="QUERYING LEDGER DATABASE..." />
+        <CyberLoading text="Loading transaction history..." />
       ) : isError || !data ? (
-        <CyberError title="DATA CORRUPTION" message="Unable to read transaction stream." />
+        <CyberError title="Couldn't Load Transactions" message="We couldn't load your transaction history. Please try refreshing." />
       ) : (
         <div className="glass-panel rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
           <div className="overflow-x-auto">
@@ -90,9 +137,9 @@ export default function Transactions() {
                 <tr className="border-b border-white/10 bg-black/40 text-xs font-display uppercase tracking-widest text-muted-foreground">
                   <th className="px-6 py-4 font-semibold">ID</th>
                   <th className="px-6 py-4 font-semibold">Timestamp</th>
-                  <th className="px-6 py-4 font-semibold">Vector (Src → Dest)</th>
-                  <th className="px-6 py-4 font-semibold">Value</th>
-                  <th className="px-6 py-4 font-semibold">Risk Factor</th>
+                  <th className="px-6 py-4 font-semibold">From → To</th>
+                  <th className="px-6 py-4 font-semibold">Amount</th>
+                  <th className="px-6 py-4 font-semibold">Risk Level</th>
                   <th className="px-6 py-4 font-semibold">Status</th>
                 </tr>
               </thead>
@@ -106,12 +153,13 @@ export default function Transactions() {
                     </tr>
                   )}
                   {data.transactions.map((tx, idx) => (
+                    <React.Fragment key={tx.id}>
                     <motion.tr 
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      key={tx.id} 
-                      className="hover:bg-white/5 transition-colors group"
+                      className="hover:bg-white/5 transition-colors group cursor-pointer"
+                      onClick={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}
                     >
                       <td className="px-6 py-4 text-muted-foreground">#{tx.id}</td>
                       <td className="px-6 py-4 text-white/80">{format(new Date(tx.createdAt), 'MMM dd HH:mm:ss')}</td>
@@ -135,6 +183,7 @@ export default function Transactions() {
                               style={{ width: `${tx.riskScore * 100}%` }}
                             />
                           </div>
+                          <UrgencyBadge severity={tx.riskScore > 0.7 ? "critical" : tx.riskScore > 0.4 ? "high" : tx.riskScore > 0.2 ? "medium" : "low"} />
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -143,6 +192,22 @@ export default function Transactions() {
                         </span>
                       </td>
                     </motion.tr>
+                    {expandedTx === tx.id && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 bg-black/20">
+                          <div className="space-y-3 max-w-4xl">
+                            <ThreatExplainer
+                              narrative={`This ${tx.currency} ${tx.amount.toLocaleString()} transfer from "${tx.source}" to "${tx.destination}" received a risk score of ${(tx.riskScore * 100).toFixed(1)}%. ${tx.riskScore > 0.7 ? "This is very high — the transaction closely matches known fraud patterns and has been flagged for your review." : tx.riskScore > 0.4 ? "Some suspicious patterns were detected. Worth investigating but not necessarily fraudulent." : "This looks like normal business activity. No action needed."}`}
+                            />
+                            <PlainEnglishThreatCard
+                              breakdown={getTransactionBreakdown(tx)}
+                              severity={tx.riskScore > 0.7 ? "act-now" : tx.riskScore > 0.4 ? "needs-attention" : tx.riskScore > 0.2 ? "monitor" : "all-clear"}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </AnimatePresence>
               </tbody>
@@ -207,7 +272,7 @@ function ScanModal({ onClose }: { onClose: () => void }) {
         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
           <h2 className="font-display font-bold text-xl text-white flex items-center">
             <Zap className="w-5 h-5 text-primary mr-2" />
-            NEW SCAN PAYLOAD
+            Check a Transaction
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-white transition-colors">
             <X className="w-5 h-5" />
@@ -277,14 +342,14 @@ function ScanModal({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               className="px-6 py-2 rounded-xl text-sm font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
             >
-              Abort
+              Cancel
             </button>
             <button 
               type="submit" 
               disabled={scanMutation.isPending}
               className="cyber-button px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm flex items-center shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50"
             >
-              {scanMutation.isPending ? "Executing..." : "Execute Scan"}
+              {scanMutation.isPending ? "Scanning..." : "Run Security Check"}
             </button>
           </div>
         </form>

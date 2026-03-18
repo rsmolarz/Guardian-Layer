@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, type SQL } from "drizzle-orm";
 import { db, threatsTable, neutralizationStepsTable, activityLogsTable } from "@workspace/db";
 import {
   ListThreatsQueryParams,
@@ -27,7 +27,7 @@ router.get("/threats", async (req, res): Promise<void> => {
   }
 
   const { status, severity } = query.data;
-  let conditions: any[] = [];
+  let conditions: SQL[] = [];
 
   if (status) {
     conditions.push(eq(threatsTable.status, status));
@@ -171,8 +171,8 @@ router.post("/threats/:id/status", async (req, res): Promise<void> => {
     return;
   }
 
-  const updates: Record<string, any> = { status: body.data.status };
   const now = new Date();
+  const updates: Partial<typeof threatsTable.$inferInsert> = { status: body.data.status };
 
   if (body.data.status === "contained") updates.containedAt = now;
   if (body.data.status === "neutralized") updates.neutralizedAt = now;
@@ -299,17 +299,17 @@ router.post("/threats/:threatId/steps/:stepId/complete", async (req, res): Promi
       .from(threatsTable)
       .where(eq(threatsTable.id, params.data.threatId));
 
-    const updates: Record<string, any> = {
+    const threatUpdates: Partial<typeof threatsTable.$inferInsert> = {
       status: "neutralized",
       neutralizedAt: now,
     };
     if (!currentThreat?.containedAt) {
-      updates.containedAt = now;
+      threatUpdates.containedAt = now;
     }
 
     await db
       .update(threatsTable)
-      .set(updates)
+      .set(threatUpdates)
       .where(eq(threatsTable.id, params.data.threatId));
   }
 

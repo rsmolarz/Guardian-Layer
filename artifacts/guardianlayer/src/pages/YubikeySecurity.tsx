@@ -52,6 +52,12 @@ import {
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/clarity/PlainEnglishThreatCard";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
 
 const STATUS_BADGE: Record<string, string> = {
   active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -80,14 +86,25 @@ export default function YubikeySecurity() {
   const { data: devicesData, isLoading: isDevicesLoading } = useListYubikeyDevices({ status: statusFilter });
   const { data: eventsData, isLoading: isEventsLoading } = useListYubikeyEvents({ eventType: eventFilter });
 
-  if (isStatsLoading) return <CyberLoading text="SCANNING YUBIKEY FLEET..." />;
+  if (isStatsLoading) return <CyberLoading text="Loading security key data..." />;
 
   return (
     <div className="pb-12">
       <PageHeader
-        title="YubiKey & Hardware MFA"
-        description="Hardware security key management, authentication monitoring, enrollment lifecycle, and MFA policy enforcement."
+        title="Security Keys"
+        description="Manage physical security keys (YubiKeys) used by employees to securely log into systems."
       />
+
+      <div className="mb-6">
+        <ExecutiveSummary
+          title="Security Keys"
+          sections={[
+            { heading: "What This Shows", content: "An overview of all physical security keys (YubiKeys) used by employees to securely log into company systems. These hardware keys provide the strongest form of authentication available." },
+            { heading: "Key Metrics", content: "Active keys are working correctly. Suspended or revoked keys have been disabled. Failed logins may indicate stolen keys or brute force attacks. Recent failures deserve immediate attention." },
+            { heading: "What to Do", content: "Monitor for failed login spikes — these could indicate a compromised key. Review the Lost/Stolen tab for reported keys that need deactivation. Ensure all employees in high-security roles have active keys assigned." },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
         {[
@@ -95,8 +112,8 @@ export default function YubikeySecurity() {
           { label: "Active", value: stats?.activeCount ?? 0, icon: ShieldCheck, color: "text-emerald-400" },
           { label: "Suspended", value: stats?.suspendedCount ?? 0, icon: ShieldX, color: "text-rose-400" },
           { label: "Unassigned", value: stats?.unassignedCount ?? 0, icon: Usb, color: "text-muted-foreground" },
-          { label: "Auth Success", value: stats?.totalAuthSuccess?.toLocaleString() ?? "0", icon: CheckCircle2, color: "text-emerald-400" },
-          { label: "Auth Failures", value: stats?.totalAuthFail ?? 0, icon: XCircle, color: "text-rose-400" },
+          { label: "Successful Logins", value: stats?.totalAuthSuccess?.toLocaleString() ?? "0", icon: CheckCircle2, color: "text-emerald-400" },
+          { label: "Failed Logins", value: stats?.totalAuthFail ?? 0, icon: XCircle, color: "text-rose-400" },
           { label: "Recent Failures", value: stats?.recentFailures ?? 0, icon: AlertTriangle, color: stats?.recentFailures ? "text-rose-500 animate-pulse" : "text-emerald-400" },
         ].map((stat, i) => (
           <motion.div
@@ -117,14 +134,14 @@ export default function YubikeySecurity() {
 
       <div className="mb-6 flex items-center gap-2 glass-panel p-1.5 rounded-xl inline-flex flex-wrap">
         {([
-          { id: "devices" as Tab, label: "Fleet Manager", icon: Key },
-          { id: "events" as Tab, label: "Audit Log", icon: Fingerprint },
-          { id: "enrollment" as Tab, label: "Enrollment", icon: Package },
-          { id: "failed-auth" as Tab, label: "Failed Auth", icon: Ban },
-          { id: "policies" as Tab, label: "Policies", icon: BookOpen },
+          { id: "devices" as Tab, label: "All Keys", icon: Key },
+          { id: "events" as Tab, label: "Login History", icon: Fingerprint },
+          { id: "enrollment" as Tab, label: "Key Requests", icon: Package },
+          { id: "failed-auth" as Tab, label: "Failed Logins", icon: Ban },
+          { id: "policies" as Tab, label: "Rules", icon: BookOpen },
           { id: "lost-stolen" as Tab, label: "Lost/Stolen", icon: ShieldAlert },
-          { id: "mfa-compliance" as Tab, label: "MFA Compliance", icon: ShieldCheck },
-          { id: "anomaly-detector" as Tab, label: "Anomaly Detector", icon: Brain },
+          { id: "mfa-compliance" as Tab, label: "Compliance", icon: ShieldCheck },
+          { id: "anomaly-detector" as Tab, label: "Unusual Activity", icon: Brain },
         ]).map((t) => (
           <button
             key={t.id}
@@ -165,8 +182,8 @@ function EnrollmentPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="LOADING ENROLLMENT REQUESTS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load enrollment data.</div>;
+  if (loading) return <CyberLoading text="Loading key requests..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load key enrollment data. Please try again.</div>;
 
   const { requests, summary } = data;
   const filtered = statusFilter ? requests.filter((r: any) => r.status === statusFilter) : requests;
@@ -357,8 +374,8 @@ function FailedAuthPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="ANALYZING FAILED AUTHENTICATIONS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load failed auth data.</div>;
+  if (loading) return <CyberLoading text="Loading failed login attempts..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load failed login data. Please try again.</div>;
 
   const { incidents, summary } = data;
 
@@ -444,6 +461,24 @@ function FailedAuthPanel() {
 
               {isExpanded && (
                 <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  <UrgencyBadge severity={inc.riskLevel === "critical" ? "critical" : inc.riskLevel === "high" ? "high" : "medium"} showExplanation />
+                  <ThreatExplainer
+                    narrative={`User "${inc.user}" had ${inc.failureCount} failed login attempts in ${inc.timeWindow} using security key ${inc.deviceSerial}. ${inc.accountLocked ? "The account has been automatically locked for safety." : "The account remains active but is being monitored."} ${inc.riskLevel === "critical" ? "This pattern strongly suggests a brute force attack or stolen key." : "This could be a malfunctioning key or an unauthorized access attempt."}`}
+                  />
+                  <PlainEnglishThreatCard
+                    breakdown={{
+                      whatWeFound: `${inc.failureCount} failed login attempts for user "${inc.user}" within ${inc.timeWindow}.`,
+                      howWeFoundIt: `Our authentication monitoring system detected repeated failures from security key ${inc.deviceSerial}.`,
+                      whereTheThreatIs: `User: ${inc.user}. Key: ${inc.deviceSerial}. Source IPs: ${inc.ipAddresses.join(", ")}. Locations: ${inc.geoLocations.join(", ")}.`,
+                      whatThisMeans: inc.bruteForce ? "The pattern of rapid repeated failures indicates a possible brute force attack — someone is trying to guess or force their way in." : "Multiple failed attempts may indicate a malfunctioning key, wrong key being used, or an unauthorized access attempt.",
+                      potentialImpact: "If this is an attack, the attacker could gain access to the employee's accounts and sensitive company data.",
+                      whatCanBeDone: inc.accountLocked ? "The account has been locked. Verify the employee's identity before unlocking." : "Monitor for additional failures. Consider locking the account if failures continue.",
+                      howItsBeingHandled: `Risk level: ${inc.riskLevel}. ${inc.accountLocked ? "Account automatically locked." : "Account is being monitored."}`,
+                      recoverySteps: inc.recommendation,
+                    }}
+                    severity={getUrgencyFromSeverity(inc.riskLevel === "critical" ? "critical" : inc.riskLevel === "high" ? "high" : "medium")}
+                  />
+
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-2 rounded-lg bg-black/20 border border-white/5">
                       <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">First Failure</span>
@@ -519,8 +554,8 @@ function PoliciesPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="LOADING MFA POLICIES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load policy data.</div>;
+  if (loading) return <CyberLoading text="Loading authentication policies..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load policy data. Please try again.</div>;
 
   const { policies, overallCompliance } = data;
 
@@ -594,7 +629,7 @@ function PoliciesPanel() {
                 <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
                   <div className="p-3 rounded-lg bg-black/30 border border-white/5">
                     <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Description</span>
-                    <p className="text-xs text-gray-300">{policy.description}</p>
+                    <p className="text-xs text-gray-300"><AutoJargon text={policy.description} /></p>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -662,8 +697,8 @@ function FleetManagerPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING YUBIKEY FLEET..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load fleet data.</div>;
+  if (loading) return <CyberLoading text="Loading security key data..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load device data. Please try again.</div>;
 
   const { fleet, summary } = data;
   const filtered = fleetFilter ? fleet.filter((d: any) => d.status === fleetFilter) : fleet;
@@ -873,8 +908,8 @@ function AuditLogPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="LOADING AUDIT LOG..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load audit log.</div>;
+  if (loading) return <CyberLoading text="Loading login history..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load the activity log. Please try again.</div>;
 
   const { events, summary } = data;
   const filtered = eventFilter ? events.filter((e: any) => e.eventType === eventFilter) : events;
@@ -1079,8 +1114,8 @@ function LostStolenPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="LOADING INCIDENT DATA..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load incident data.</div>;
+  if (loading) return <CyberLoading text="Loading incident details..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load incident data. Please try again.</div>;
 
   const { incidents, summary } = data;
   const filtered = statusFilter ? incidents.filter((i: any) => i.status === statusFilter) : incidents;
@@ -1176,9 +1211,27 @@ function LostStolenPanel() {
 
               {isExpanded && (
                 <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <UrgencyBadge severity={incident.severity === "critical" ? "critical" : incident.severity === "medium" ? "medium" : "high"} showExplanation />
+                  <ThreatExplainer
+                    narrative={`A ${incident.incidentType} security key was reported by ${incident.reportedBy} (${incident.department}). ${incident.description} The key (serial: ${incident.deviceSerial}, model: ${incident.deviceModel}) has been ${incident.status}. ${incident.severity === "critical" ? "This is a critical incident requiring immediate action." : "This incident is being investigated."}`}
+                  />
+                  <PlainEnglishThreatCard
+                    breakdown={{
+                      whatWeFound: `A YubiKey security key was reported as ${incident.incidentType} by ${incident.reportedBy} from the ${incident.department} department.`,
+                      howWeFoundIt: `${incident.reportedBy} reported this incident at ${format(new Date(incident.reportedAt), "MMM d, HH:mm")} from ${incident.location}.`,
+                      whereTheThreatIs: `Device: ${incident.deviceModel} (Serial: ${incident.deviceSerial}). Location: ${incident.location}.`,
+                      whatThisMeans: incident.incidentType === "stolen" ? "A stolen security key could be used by an attacker to impersonate the employee and access company systems." : "A lost key could potentially be found and misused by someone to access company systems.",
+                      potentialImpact: "If the key falls into the wrong hands, an attacker could bypass password protections and access sensitive company resources.",
+                      whatCanBeDone: "The key has been revoked to prevent unauthorized use. A replacement key needs to be issued to the employee.",
+                      howItsBeingHandled: `Status: ${incident.status}. The key has been revoked by ${incident.revokedBy || "the security team"}.`,
+                      recoverySteps: "1. Verify the key is revoked. 2. Check for any suspicious login activity using this key. 3. Issue a replacement key. 4. Complete the re-enrollment process.",
+                    }}
+                    severity={getUrgencyFromSeverity(incident.severity === "critical" ? "critical" : incident.severity === "medium" ? "medium" : "high")}
+                  />
+
                   <div className="p-3 rounded-lg bg-black/20 border border-white/5">
                     <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Description</span>
-                    <p className="text-sm text-gray-300">{incident.description}</p>
+                    <p className="text-sm text-gray-300"><AutoJargon text={incident.description} /></p>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1349,8 +1402,8 @@ function MfaCompliancePanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="LOADING MFA COMPLIANCE..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load compliance data.</div>;
+  if (loading) return <CyberLoading text="Checking authentication compliance..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load compliance data. Please try again.</div>;
 
   const { users, summary } = data;
   let filtered = methodFilter ? users.filter((u: any) => u.mfaMethod === methodFilter) : users;
@@ -1544,8 +1597,8 @@ function AnomalyDetectorPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING FOR ANOMALIES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load anomaly data.</div>;
+  if (loading) return <CyberLoading text="Checking for unusual patterns..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load anomaly data. Please try again.</div>;
 
   const { anomalies, summary } = data;
   let filtered = typeFilter ? anomalies.filter((a: any) => a.type === typeFilter) : anomalies;
@@ -1669,7 +1722,7 @@ function AnomalyDetectorPanel() {
                 <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
                   <div className="p-3 rounded-lg bg-black/20 border border-white/5">
                     <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Description</span>
-                    <p className="text-sm text-gray-300">{anomaly.description}</p>
+                    <p className="text-sm text-gray-300"><AutoJargon text={anomaly.description} /></p>
                   </div>
 
                   <div>

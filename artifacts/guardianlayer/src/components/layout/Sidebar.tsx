@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen } from "lucide-react";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
@@ -8,15 +8,16 @@ const NAV_ITEMS = [
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/alerts", label: "Security Alerts", icon: Bell },
   { href: "/email-security", label: "Email Security", icon: Mail },
-  { href: "/endpoints", label: "Endpoint Security", icon: Laptop },
+  { href: "/endpoints", label: "Device Security", icon: Laptop },
   { href: "/network", label: "Network Security", icon: Network },
-  { href: "/yubikey", label: "YubiKey MFA", icon: Key },
-  { href: "/openclaw", label: "OpenClaw Monitor", icon: Scale },
-  { href: "/integrations", label: "Integrations", icon: Plug2 },
-  { href: "/monitoring", label: "Monitoring", icon: Monitor },
-  { href: "/dark-web", label: "Dark Web Monitor", icon: Eye },
+  { href: "/yubikey", label: "Security Keys", icon: Key },
+  { href: "/openclaw", label: "Contract Monitor", icon: Scale },
+  { href: "/integrations", label: "Connected Services", icon: Plug2 },
+  { href: "/monitoring", label: "System Health", icon: Monitor },
+  { href: "/dark-web", label: "Data Exposure", icon: Eye },
   { href: "/recovery", label: "Recovery Center", icon: RefreshCw },
-  { href: "/threat-neutralization", label: "Neutralization", icon: Crosshair },
+  { href: "/threat-neutralization", label: "Threat Response", icon: Crosshair },
+  { href: "/glossary", label: "Glossary", icon: BookOpen },
 ];
 
 export function Sidebar() {
@@ -58,7 +59,7 @@ export function Sidebar() {
       <div className="p-6 border-t border-white/5">
         <div className="flex items-center space-x-3">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          <span className="font-mono text-xs text-emerald-500/80">SYSTEM SECURE</span>
+          <span className="font-mono text-xs text-emerald-500/80">ALL SYSTEMS PROTECTED</span>
         </div>
       </div>
     </aside>

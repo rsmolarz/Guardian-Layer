@@ -6,6 +6,11 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreatExplainer } from "../components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity, type ThreatBreakdown } from "../components/clarity/PlainEnglishThreatCard";
+import { UrgencyBadge } from "../components/clarity/UrgencyIndicators";
+import { AutoJargon } from "../components/clarity/JargonTranslator";
+import { WhyThisMatters } from "../components/clarity/WhyThisMatters";
 import {
   Network,
   ShieldAlert,
@@ -42,6 +47,7 @@ import {
 import { clsx } from "clsx";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 
 const EVENT_ICONS: Record<string, typeof Network> = {
@@ -75,19 +81,30 @@ export default function NetworkSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("events");
 
   const tabs: { id: Tab; label: string; icon: typeof Network }[] = [
-    { id: "events", label: "Events Monitor", icon: Radar },
-    { id: "ids", label: "Intrusion Detection", icon: Fingerprint },
-    { id: "dns", label: "DNS Security", icon: Search },
-    { id: "vpn", label: "VPN & Zero-Trust", icon: Lock },
-    { id: "firewall", label: "Firewall Analyzer", icon: Flame },
+    { id: "events", label: "Security Events", icon: Radar },
+    { id: "ids", label: "Break-in Detection", icon: Fingerprint },
+    { id: "dns", label: "Website Safety", icon: Search },
+    { id: "vpn", label: "Secure Access", icon: Lock },
+    { id: "firewall", label: "Firewall Activity", icon: Flame },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader
         title="Network Security"
-        description="Real-time AI network monitoring with firewall events, IDS/IPS alerts, and traffic anomaly detection."
+        description="Monitor your internet and network traffic for unauthorized access, attacks, and suspicious activity."
       />
+
+      <div className="mb-8 space-y-4">
+        <ExecutiveSummary
+          title="Network Security"
+          sections={[
+            { heading: "What This Page Covers", content: "Your network is the highway that connects your organization to the internet. This page monitors all traffic flowing in and out, looking for unauthorized access attempts, attacks, and suspicious patterns." },
+            { heading: "Key Areas", content: "Security Events logs all notable network activity. Break-in Detection watches for unauthorized access attempts. Website Safety blocks dangerous websites. Secure Access manages VPN and remote connections. Firewall Activity shows what's being blocked and allowed." },
+          ]}
+        />
+        <WhyThisMatters explanation="Your network is the front door to your organization's data. Monitoring network traffic catches unauthorized access attempts, data theft, and attacks before they cause damage. A single undetected breach can compromise your entire infrastructure." />
+      </div>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map((tab) => (
@@ -116,6 +133,29 @@ export default function NetworkSecurity() {
   );
 }
 
+function getNetworkEventBreakdown(event: NetworkEvent): ThreatBreakdown {
+  const typeLabels: Record<string, string> = {
+    firewall: "a firewall event — your network barrier detected and responded to suspicious traffic",
+    ids: "an intrusion detection alert — our monitoring system spotted potential hacking activity",
+    anomaly: "unusual network behavior that doesn't match normal patterns",
+    portscan: "someone scanning your network for open entry points, like checking every door and window",
+    ddos: "a flood of fake traffic designed to overwhelm your systems and take them offline",
+  };
+  const eventDesc = typeLabels[event.eventType] || `a ${event.eventType} network event`;
+  const riskPct = (event.riskScore * 100).toFixed(0);
+
+  return {
+    whatWeFound: `We detected ${eventDesc}. Traffic came from ${event.sourceIp}${event.sourcePort ? `:${event.sourcePort}` : ""} heading to ${event.destinationIp}${event.destinationPort ? `:${event.destinationPort}` : ""} using the ${event.protocol} protocol.`,
+    howWeFoundIt: `Our network monitoring system analyzed traffic patterns and flagged this activity with a ${riskPct}% risk rating. ${event.ruleName ? `Triggered by rule: "${event.ruleName}".` : ""}`,
+    whereTheThreatIs: `The source of this activity is ${event.sourceIp}${event.country ? ` (${event.country})` : ""}. The target is ${event.destinationIp}${event.destinationPort ? ` on port ${event.destinationPort}` : ""}.`,
+    whatThisMeans: `${event.severity === "critical" ? "This is a serious security event requiring immediate investigation. It may indicate an active attack on your network." : event.severity === "high" ? "This is a significant event that should be reviewed promptly to ensure your network remains secure." : "This event was logged for monitoring purposes. While not immediately critical, it helps build a picture of network activity."}`,
+    potentialImpact: `${event.eventType === "ddos" ? "Your services could become unavailable, disrupting business operations and customer access." : event.eventType === "portscan" ? "Attackers may be mapping your network to find vulnerabilities for a future attack." : event.eventType === "ids" ? "Unauthorized access could lead to data theft, system compromise, or further network infiltration." : "Unusual traffic patterns could indicate unauthorized data transfer or compromised systems."}`,
+    whatCanBeDone: `Action taken: ${event.action}. ${event.action === "blocked" ? "The traffic has been blocked and cannot reach its target." : event.action === "alerted" ? "An alert has been raised for security team review." : "The event has been logged for analysis."}`,
+    howItsBeingHandled: `Current status: ${event.status}. ${event.bytesTransferred != null && event.bytesTransferred > 0 ? `${event.bytesTransferred.toLocaleString()} bytes of data were involved.` : ""}`,
+    recoverySteps: `1. Review the source IP and determine if it's known or authorized. 2. ${event.eventType === "ddos" ? "Activate DDoS mitigation rules and contact your ISP if the attack persists." : "Check if any systems at the destination IP show signs of compromise."} 3. Update firewall rules if this is a new threat pattern. 4. Document the incident for compliance records.`,
+  };
+}
+
 function EventsMonitorPanel() {
   const [eventFilter, setEventFilter] = useState<EventTypeFilter>(undefined);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>(undefined);
@@ -127,7 +167,7 @@ function EventsMonitorPanel() {
     severity: severityFilter,
   });
 
-  if (isStatsLoading) return <CyberLoading text="SCANNING NETWORK PERIMETER..." />;
+  if (isStatsLoading) return <CyberLoading text="Checking network security..." />;
 
   return (
     <>
@@ -204,7 +244,7 @@ function EventsMonitorPanel() {
       </div>
 
       {isEventsLoading ? (
-        <CyberLoading text="LOADING EVENTS..." />
+        <CyberLoading text="Loading security events..." />
       ) : (
         <div className="space-y-3">
           <AnimatePresence>
@@ -274,8 +314,18 @@ function EventsMonitorPanel() {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-2">
-                          {event.details && <p className="text-sm text-muted-foreground">{event.details}</p>}
+                        <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-4">
+                          <div className="flex items-center gap-2">
+                            <UrgencyBadge severity={event.severity} showExplanation />
+                          </div>
+                          <ThreatExplainer
+                            narrative={`A ${event.eventType} event was detected from ${event.sourceIp}${event.country ? ` (${event.country})` : ""} targeting ${event.destinationIp}. ${event.severity === "critical" || event.severity === "high" ? "This is a significant security event that your team should review." : "This event has been logged and is being monitored."} ${event.action === "blocked" ? "The traffic was automatically blocked." : `Action: ${event.action}.`}`}
+                          />
+                          <PlainEnglishThreatCard
+                            breakdown={getNetworkEventBreakdown(event)}
+                            severity={getUrgencyFromSeverity(event.severity)}
+                          />
+                          {event.details && <p className="text-sm text-muted-foreground"><AutoJargon text={event.details} /></p>}
                           <div className="flex flex-wrap gap-4 text-xs font-mono text-muted-foreground">
                             {event.ruleName && <span>Rule: <span className="text-primary">{event.ruleName}</span></span>}
                             {event.bytesTransferred != null && event.bytesTransferred > 0 && (
@@ -365,8 +415,8 @@ function IdsPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING FOR INTRUSIONS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load IDS data.</div>;
+  if (loading) return <CyberLoading text="Checking for break-in attempts..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load intrusion detection data. Please try again.</div>;
 
   const { intrusions, summary } = data;
   const filtered = severityFilter ? intrusions.filter((i) => i.severity === severityFilter) : intrusions;
@@ -625,8 +675,8 @@ function DnsSecurityPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="ANALYZING DNS QUERIES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load DNS security data.</div>;
+  if (loading) return <CyberLoading text="Checking website safety..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load website safety data. Please try again.</div>;
 
   const { queries, summary } = data;
   const filtered = threatFilter ? queries.filter((q) => q.threatType === threatFilter) : queries;
@@ -887,8 +937,8 @@ function VpnZeroTrustPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="VERIFYING ZERO-TRUST POLICIES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load VPN/Zero-Trust data.</div>;
+  if (loading) return <CyberLoading text="Checking secure access policies..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load secure access data. Please try again.</div>;
 
   const { sessions, summary } = data;
   const filtered = statusFilter ? sessions.filter((s) => s.zeroTrustStatus === statusFilter) : sessions;
@@ -1197,8 +1247,8 @@ function FirewallRuleAnalyzerPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="ANALYZING FIREWALL RULES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load firewall rule analysis.</div>;
+  if (loading) return <CyberLoading text="Loading firewall activity..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load firewall data. Please try again.</div>;
 
   const { rules, summary } = data;
   const filtered = riskFilter ? rules.filter((r) => r.riskLevel === riskFilter) : rules;

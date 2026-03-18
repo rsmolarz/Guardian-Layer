@@ -6,6 +6,11 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { ThreatExplainer } from "../components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity, type ThreatBreakdown } from "../components/clarity/PlainEnglishThreatCard";
+import { UrgencyBadge } from "../components/clarity/UrgencyIndicators";
+import { AutoJargon } from "../components/clarity/JargonTranslator";
+import { WhyThisMatters } from "../components/clarity/WhyThisMatters";
 import {
   Monitor,
   Laptop,
@@ -46,6 +51,7 @@ import {
 import { clsx } from "clsx";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 
 const DEVICE_ICONS: Record<string, typeof Monitor> = {
@@ -75,19 +81,30 @@ export default function EndpointSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("fleet");
 
   const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
-    { id: "fleet", label: "Device Fleet", icon: Monitor },
-    { id: "malware", label: "Malware Detection", icon: Bug },
-    { id: "patches", label: "Patch Compliance", icon: ClipboardCheck },
-    { id: "behavioral", label: "Behavioral Analytics", icon: Brain },
-    { id: "usb", label: "USB Monitor", icon: Usb },
+    { id: "fleet", label: "All Devices", icon: Monitor },
+    { id: "malware", label: "Harmful Software", icon: Bug },
+    { id: "patches", label: "Update Status", icon: ClipboardCheck },
+    { id: "behavioral", label: "Unusual Activity", icon: Brain },
+    { id: "usb", label: "USB Devices", icon: Usb },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader
-        title="Endpoint Security"
-        description="AI-driven endpoint monitoring, compliance enforcement, and vulnerability management."
+        title="Device Security"
+        description="Monitor all company devices — computers, laptops, and servers — for security issues and missing updates."
       />
+
+      <div className="mb-8 space-y-4">
+        <ExecutiveSummary
+          title="Device Security"
+          sections={[
+            { heading: "What This Page Covers", content: "Every computer, laptop, and server in your organization is monitored here. We check for harmful software (malware), missing security updates, unusual behavior, and unauthorized USB devices." },
+            { heading: "Why It Matters", content: "Unpatched devices are one of the easiest ways for attackers to get in. Keeping devices updated and monitored is one of the most effective security measures you can take." },
+          ]}
+        />
+        <WhyThisMatters explanation="Each device is a potential entry point for attackers. A single unpatched laptop or computer without antivirus can give hackers access to your entire network. Keeping all devices secure and updated is one of the most effective defenses you have." />
+      </div>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map((tab) => (
@@ -116,6 +133,37 @@ export default function EndpointSecurity() {
   );
 }
 
+function getEndpointBreakdown(ep: EndpointDevice): ThreatBreakdown {
+  const issues: string[] = [];
+  if (!ep.encryptionEnabled) issues.push("encryption is turned off");
+  if (!ep.firewallEnabled) issues.push("the firewall is disabled");
+  if (!ep.antivirusEnabled) issues.push("antivirus protection is inactive");
+  if (ep.vulnerabilities > 0) issues.push(`${ep.vulnerabilities} known vulnerabilities exist`);
+  if (ep.patchesPending > 0) issues.push(`${ep.patchesPending} software updates are pending`);
+
+  const issueText = issues.length > 0 ? issues.join(", ") : "no critical issues detected";
+  const riskPct = (ep.riskScore * 100).toFixed(0);
+  const complianceDesc = ep.complianceStatus === "non_compliant" ? "not meeting security standards" : ep.complianceStatus === "at_risk" ? "at risk of falling below security standards" : "meeting all security standards";
+
+  return {
+    whatWeFound: `Device "${ep.hostname}" (${ep.os} ${ep.osVersion}) is currently ${ep.status} and ${complianceDesc}. Key findings: ${issueText}.`,
+    howWeFoundIt: `Our endpoint monitoring system continuously scans all devices on your network. This device has a ${riskPct}% risk rating based on its security configuration, patch status, and vulnerability scan results.`,
+    whereTheThreatIs: `The device "${ep.hostname}" is a ${ep.deviceType}${ep.location ? ` located at ${ep.location}` : ""}${ep.assignedUser ? `, assigned to ${ep.assignedUser}` : ""}.`,
+    whatThisMeans: `${ep.complianceStatus === "non_compliant" ? "This device doesn't meet your organization's security requirements and could be a weak point for attackers." : ep.complianceStatus === "at_risk" ? "This device has some security gaps that should be addressed before they become serious problems." : "This device is in good security shape and meets compliance requirements."}`,
+    potentialImpact: `${ep.vulnerabilities > 0 ? `The ${ep.vulnerabilities} vulnerabilities could be exploited by attackers to gain access to this device and potentially spread across your network.` : ""} ${!ep.encryptionEnabled ? "Without encryption, data on this device could be read if it's lost or stolen." : ""} ${ep.patchesPending > 0 ? `The ${ep.patchesPending} pending updates may contain fixes for known security problems.` : "The device is up to date with all patches."}`,
+    whatCanBeDone: `${ep.patchesPending > 0 ? "Install all pending software updates as soon as possible." : ""} ${!ep.encryptionEnabled ? "Enable disk encryption to protect data." : ""} ${!ep.firewallEnabled ? "Turn on the firewall." : ""} ${!ep.antivirusEnabled ? "Activate antivirus protection." : ""} ${issues.length === 0 ? "No immediate action needed — maintain current security posture." : ""}`,
+    howItsBeingHandled: `The device is ${ep.status}. Compliance status: ${ep.complianceStatus.replace("_", " ")}. Our monitoring system is tracking this device continuously.`,
+    recoverySteps: `1. ${ep.patchesPending > 0 ? "Apply all pending patches and updates." : "Verify all software is up to date."} 2. ${!ep.encryptionEnabled || !ep.firewallEnabled || !ep.antivirusEnabled ? "Enable all disabled security features (encryption, firewall, antivirus)." : "Confirm all security features remain active."} 3. Run a full vulnerability scan. 4. Verify compliance after changes.`,
+  };
+}
+
+function getEndpointSeverity(ep: EndpointDevice): string {
+  if (ep.complianceStatus === "non_compliant" || ep.riskScore > 0.7) return "critical";
+  if (ep.complianceStatus === "at_risk" || ep.riskScore > 0.4) return "high";
+  if (ep.vulnerabilities > 0 || ep.patchesPending > 0) return "medium";
+  return "low";
+}
+
 function DeviceFleetPanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [complianceFilter, setComplianceFilter] = useState<ComplianceFilter>(undefined);
@@ -126,7 +174,7 @@ function DeviceFleetPanel() {
     complianceStatus: complianceFilter,
   });
 
-  if (isStatsLoading) return <CyberLoading text="SCANNING ENDPOINT FLEET..." />;
+  if (isStatsLoading) return <CyberLoading text="Checking your devices..." />;
 
   return (
     <>
@@ -190,7 +238,7 @@ function DeviceFleetPanel() {
       </div>
 
       {isEndpointsLoading ? (
-        <CyberLoading text="LOADING DEVICES..." />
+        <CyberLoading text="Loading device list..." />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {(endpointsData?.endpoints ?? []).map((ep: EndpointDevice, idx: number) => {
@@ -242,16 +290,32 @@ function DeviceFleetPanel() {
                   <SecurityFlag icon={Shield} label="Antivirus" enabled={ep.antivirusEnabled} />
                 </div>
 
+                <div className="flex items-center gap-2 mb-3">
+                  <UrgencyBadge severity={getEndpointSeverity(ep)} showExplanation />
+                </div>
+
+                {(ep.complianceStatus !== "compliant" || ep.vulnerabilities > 0 || ep.patchesPending > 0) && (
+                  <div className="mb-3 space-y-2">
+                    <ThreatExplainer
+                      narrative={`This ${ep.deviceType} "${ep.hostname}" ${ep.complianceStatus === "non_compliant" ? "is not meeting security standards and needs immediate attention" : ep.complianceStatus === "at_risk" ? "has some security gaps that should be addressed soon" : "is compliant but has some items to address"}. ${ep.vulnerabilities > 0 ? `It has ${ep.vulnerabilities} known vulnerabilities.` : ""} ${ep.patchesPending > 0 ? `${ep.patchesPending} software updates are waiting to be installed.` : ""} ${!ep.encryptionEnabled ? "Disk encryption is turned off." : ""} ${!ep.firewallEnabled ? "The firewall is disabled." : ""} ${!ep.antivirusEnabled ? "Antivirus is not active." : ""}`}
+                    />
+                    <PlainEnglishThreatCard
+                      breakdown={getEndpointBreakdown(ep)}
+                      severity={getUrgencyFromSeverity(getEndpointSeverity(ep))}
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-white/5 pt-3">
                   <div className="flex gap-4">
                     {ep.vulnerabilities > 0 && (
                       <span className="text-rose-400 flex items-center gap-1">
-                        <Bug className="w-3 h-3" /> {ep.vulnerabilities} vulns
+                        <Bug className="w-3 h-3" /> {ep.vulnerabilities} vulnerabilities
                       </span>
                     )}
                     {ep.patchesPending > 0 && (
                       <span className="text-orange-400 flex items-center gap-1">
-                        <Wrench className="w-3 h-3" /> {ep.patchesPending} patches
+                        <Wrench className="w-3 h-3" /> {ep.patchesPending} updates pending
                       </span>
                     )}
                   </div>
@@ -324,8 +388,8 @@ function MalwareDetectionPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING FOR MALWARE..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load malware scan data.</div>;
+  if (loading) return <CyberLoading text="Checking for harmful software..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load malware scan data. Please try again.</div>;
 
   const { scans, summary } = data;
 
@@ -529,8 +593,8 @@ function PatchCompliancePanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="CHECKING PATCH STATUS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load patch compliance data.</div>;
+  if (loading) return <CyberLoading text="Checking for missing updates..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load update status data. Please try again.</div>;
 
   const { devices, summary } = data;
 
@@ -780,8 +844,8 @@ function BehavioralAnalyticsPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="ANALYZING BEHAVIOR PATTERNS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load behavioral analytics data.</div>;
+  if (loading) return <CyberLoading text="Checking for unusual activity..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load behavior analysis data. Please try again.</div>;
 
   const { devices, summary } = data;
 
@@ -980,8 +1044,8 @@ function UsbMonitorPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING USB DEVICES..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load USB monitor data.</div>;
+  if (loading) return <CyberLoading text="Checking connected USB devices..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load USB device data. Please try again.</div>;
 
   const { events, summary } = data;
   const filtered = statusFilter ? events.filter((e) => e.status === statusFilter) : events;

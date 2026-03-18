@@ -11,6 +11,11 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreatExplainer } from "../components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity, type ThreatBreakdown } from "../components/clarity/PlainEnglishThreatCard";
+import { UrgencyBadge } from "../components/clarity/UrgencyIndicators";
+import { AutoJargon } from "../components/clarity/JargonTranslator";
+import { WhyThisMatters } from "../components/clarity/WhyThisMatters";
 import {
   Mail,
   ShieldAlert,
@@ -58,6 +63,8 @@ import {
 import { clsx } from "clsx";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { JargonTooltip } from "@/components/clarity/JargonTranslator";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,25 +93,67 @@ const STATUS_BADGE: Record<string, string> = {
 
 type ThreatFilter = "phishing" | "malware" | "spoofing" | "bec" | "spam" | undefined;
 type StatusFilter = "detected" | "quarantined" | "released" | "blocked" | undefined;
+function getEmailThreatBreakdown(threat: EmailThreat): ThreatBreakdown {
+  const typeLabels: Record<string, string> = {
+    phishing: "a phishing email designed to trick someone into revealing sensitive information",
+    malware: "an email containing malicious software that could harm your systems",
+    spoofing: "an email pretending to be from someone it's not",
+    bec: "a business email compromise attempt — someone impersonating a trusted person to steal money or data",
+    spam: "unwanted bulk email that may contain harmful links",
+  };
+  const threatDesc = typeLabels[threat.threatType] || `a suspicious ${threat.threatType} email`;
+  const riskPct = (threat.riskScore * 100).toFixed(0);
+  const repPct = (threat.senderReputation * 100).toFixed(0);
+
+  return {
+    whatWeFound: `We detected ${threatDesc}. The email was sent from "${threat.sender}" to "${threat.recipient}" with the subject line "${threat.subject}".`,
+    howWeFoundIt: `Our AI scanning system analyzed the email content, sender reputation (${repPct}% trustworthy), and attachment behavior to flag this as suspicious with a ${riskPct}% risk rating.`,
+    whereTheThreatIs: `The threat originates from ${threat.sender}${threat.country ? ` (${threat.country})` : ""}${threat.ipAddress ? `, IP address ${threat.ipAddress}` : ""}.${threat.hasAttachment ? ` A suspicious attachment "${threat.attachmentName}" was included.` : ""}`,
+    whatThisMeans: `${threat.riskScore > 0.8 ? "This is a high-confidence threat that likely targets your organization specifically." : threat.riskScore > 0.5 ? "This email shows signs of being malicious and should be investigated." : "This email has some suspicious characteristics but may not be immediately dangerous."}`,
+    potentialImpact: `${threat.threatType === "phishing" ? "If an employee clicks the link or enters credentials, attackers could gain access to company accounts and sensitive data." : threat.threatType === "malware" ? "If the attachment is opened, malware could spread across your network, potentially leading to data theft or ransomware." : threat.threatType === "bec" ? "Employees could be tricked into transferring funds or sharing confidential business information." : "Engaging with this email could compromise account security or expose sensitive information."}`,
+    whatCanBeDone: `${threat.status === "detected" ? "Quarantine this email immediately to prevent anyone from interacting with it. Alert the intended recipient." : threat.status === "quarantined" ? "The email has been quarantined. Review it carefully before deciding to release or permanently delete it." : "The email has been handled. Monitor for similar messages from this sender."}`,
+    howItsBeingHandled: `Status: ${threat.status}. ${threat.status === "quarantined" ? "The email is safely isolated and cannot reach the recipient." : threat.status === "blocked" ? "The email has been blocked and will not be delivered." : "The email has been flagged and is awaiting action."}`,
+    recoverySteps: `1. Verify no one clicked links or opened attachments from this email. 2. ${threat.threatType === "phishing" ? "Reset passwords for any accounts that may have been compromised." : "Run a malware scan on any devices that may have interacted with this email."} 3. Report the sender domain for blocklisting. 4. Brief your team about this type of threat.`,
+  };
+}
+
+function getEmailSeverityFromRisk(riskScore: number): string {
+  if (riskScore > 0.8) return "critical";
+  if (riskScore > 0.6) return "high";
+  if (riskScore > 0.3) return "medium";
+  return "low";
+}
+
 type Tab = "threats" | "auth-monitor" | "attachments" | "compromise" | "phishing";
 
 export default function EmailSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("threats");
 
   const tabs: { id: Tab; label: string; icon: typeof Mail }[] = [
-    { id: "threats", label: "Threat Scanner", icon: ShieldAlert },
-    { id: "auth-monitor", label: "Auth Monitor", icon: Key },
-    { id: "attachments", label: "Attachment Analyzer", icon: Paperclip },
-    { id: "compromise", label: "Compromise Detector", icon: UserX },
-    { id: "phishing", label: "Phishing Campaigns", icon: Target },
+    { id: "threats", label: "Suspicious Emails", icon: ShieldAlert },
+    { id: "auth-monitor", label: "Email Verification", icon: Key },
+    { id: "attachments", label: "Attachment Safety", icon: Paperclip },
+    { id: "compromise", label: "Account Safety", icon: UserX },
+    { id: "phishing", label: "Fake Email Campaigns", icon: Target },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader
         title="Email Security"
-        description="AI-powered email threat detection, phishing analysis, authentication monitoring, and quarantine management."
+        description="Protect your organization from fake emails, dangerous attachments, and email account takeovers."
       />
+
+      <div className="mb-8 space-y-4">
+        <ExecutiveSummary
+          title="Email Security"
+          sections={[
+            { heading: "What This Page Covers", content: "Email is the #1 way attackers try to break into organizations. This page monitors all incoming emails for phishing attempts, malicious attachments, and signs that email accounts may have been compromised." },
+            { heading: "Key Areas", content: "Suspicious Emails shows flagged messages. Email Verification ensures senders are who they claim to be. Attachment Safety scans files for malware. Account Safety watches for takeover attempts. Fake Email Campaigns tracks organized attacks." },
+          ]}
+        />
+        <WhyThisMatters explanation="Over 90% of successful cyberattacks start with a phishing email. Monitoring your email security helps catch these attacks before employees click on dangerous links or open malicious attachments, protecting your entire organization from data breaches and financial loss." />
+      </div>
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map((tab) => (
@@ -170,7 +219,7 @@ function ThreatScannerPanel() {
     });
   };
 
-  if (isStatsLoading) return <CyberLoading text="SCANNING EMAIL GATEWAY..." />;
+  if (isStatsLoading) return <CyberLoading text="Checking email security..." />;
 
   return (
     <>
@@ -253,7 +302,7 @@ function ThreatScannerPanel() {
       </div>
 
       {isThreatsLoading ? (
-        <CyberLoading text="ANALYZING THREATS..." />
+        <CyberLoading text="Loading threat details..." />
       ) : (
         <div className="space-y-3">
           <AnimatePresence>
@@ -340,23 +389,35 @@ function ThreatScannerPanel() {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-4 pb-4 border-t border-white/5 pt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <DetailRow label="Sender Reputation" value={`${(threat.senderReputation * 100).toFixed(0)}%`} color={threat.senderReputation < 0.2 ? "text-rose-400" : "text-emerald-400"} />
-                            {threat.country && <DetailRow label="Origin Country" value={threat.country} />}
-                            {threat.ipAddress && <DetailRow label="Source IP" value={threat.ipAddress} />}
-                            <DetailRow label="Detected" value={format(new Date(threat.createdAt), "PPpp")} />
+                        <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-4">
+                          <div className="flex items-center gap-2">
+                            <UrgencyBadge severity={getEmailSeverityFromRisk(threat.riskScore)} showExplanation />
                           </div>
-                          <div className="space-y-2">
-                            {threat.hasAttachment && threat.attachmentScanResult && (
-                              <DetailRow label="Attachment Scan" value={threat.attachmentScanResult} color="text-rose-400" />
-                            )}
-                            {threat.details && (
-                              <div>
-                                <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">AI Analysis</span>
-                                <p className="text-sm text-muted-foreground mt-1">{threat.details}</p>
-                              </div>
-                            )}
+                          <ThreatExplainer
+                            narrative={`This ${threat.threatType} email from "${threat.sender}" was flagged with a ${(threat.riskScore * 100).toFixed(0)}% risk score. ${threat.riskScore > 0.7 ? "This is a serious threat that needs immediate attention — the sender has a very low trust rating and the email shows strong signs of being malicious." : "The email has suspicious characteristics. Review the details below to decide if action is needed."} ${threat.hasAttachment ? `It includes a potentially dangerous attachment called "${threat.attachmentName}".` : ""}`}
+                          />
+                          <PlainEnglishThreatCard
+                            breakdown={getEmailThreatBreakdown(threat)}
+                            severity={getUrgencyFromSeverity(getEmailSeverityFromRisk(threat.riskScore))}
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <DetailRow label="Sender Reputation" value={`${(threat.senderReputation * 100).toFixed(0)}%`} color={threat.senderReputation < 0.2 ? "text-rose-400" : "text-emerald-400"} />
+                              {threat.country && <DetailRow label="Origin Country" value={threat.country} />}
+                              {threat.ipAddress && <DetailRow label="Source IP" value={threat.ipAddress} />}
+                              <DetailRow label="Detected" value={format(new Date(threat.createdAt), "PPpp")} />
+                            </div>
+                            <div className="space-y-2">
+                              {threat.hasAttachment && threat.attachmentScanResult && (
+                                <DetailRow label="Attachment Scan" value={threat.attachmentScanResult} color="text-rose-400" />
+                              )}
+                              {threat.details && (
+                                <div>
+                                  <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">AI Analysis</span>
+                                  <p className="text-sm text-muted-foreground mt-1"><AutoJargon text={threat.details} /></p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </motion.div>
@@ -408,8 +469,8 @@ function AuthMonitorPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="QUERYING DNS RECORDS..." />;
-  if (!data) return <div className="text-center text-muted-foreground py-12">Failed to load auth monitor data.</div>;
+  if (loading) return <CyberLoading text="Checking email verification..." />;
+  if (!data) return <div className="text-center text-muted-foreground py-12">Couldn't load authentication data. Please try again.</div>;
 
   const { domains, summary } = data;
 
@@ -484,15 +545,15 @@ function AuthMonitorPanel() {
                     <div className="flex items-center gap-3 mt-1">
                       <div className="flex items-center gap-1.5">
                         {statusIcon(domain.spf.status)}
-                        <span className="text-[10px] font-mono text-muted-foreground">SPF</span>
+                        <JargonTooltip term="SPF"><span className="text-[10px] font-mono text-muted-foreground">SPF</span></JargonTooltip>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {statusIcon(domain.dkim.status)}
-                        <span className="text-[10px] font-mono text-muted-foreground">DKIM</span>
+                        <JargonTooltip term="DKIM"><span className="text-[10px] font-mono text-muted-foreground">DKIM</span></JargonTooltip>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {statusIcon(domain.dmarc.status)}
-                        <span className="text-[10px] font-mono text-muted-foreground">DMARC</span>
+                        <JargonTooltip term="DMARC"><span className="text-[10px] font-mono text-muted-foreground">DMARC</span></JargonTooltip>
                       </div>
                     </div>
                   </div>
@@ -524,9 +585,9 @@ function AuthMonitorPanel() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {([
-                      { label: "SPF", data: domain.spf, desc: "Sender Policy Framework" },
-                      { label: "DKIM", data: domain.dkim, desc: "DomainKeys Identified Mail" },
-                      { label: "DMARC", data: domain.dmarc, desc: "Domain-based Message Authentication" },
+                      { label: "SPF", data: domain.spf, desc: "Verifies that emails actually come from your organization's servers — prevents spoofing" },
+                      { label: "DKIM", data: domain.dkim, desc: "Adds a digital signature to emails to prove they haven't been tampered with in transit" },
+                      { label: "DMARC", data: domain.dmarc, desc: "Tells other email servers what to do with emails that fail SPF or DKIM checks" },
                     ] as const).map((auth) => (
                       <div key={auth.label} className={clsx("p-4 rounded-xl border", statusBg(auth.data.status))}>
                         <div className="flex items-center justify-between mb-3">
@@ -648,7 +709,7 @@ function AttachmentAnalyzerPanel() {
   }, []);
 
   if (loading) return <CyberLoading />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load attachment data.</div>;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load attachment data. Please try again.</div>;
 
   const { attachments, summary } = data;
 
@@ -917,7 +978,7 @@ function CompromiseDetectorPanel() {
   }, []);
 
   if (loading) return <CyberLoading />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load compromise detection data.</div>;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load compromise check data. Please try again.</div>;
 
   const { accounts, summary } = data;
 
@@ -1153,7 +1214,7 @@ function PhishingCampaignPanel() {
   }, []);
 
   if (loading) return <CyberLoading />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load phishing campaign data.</div>;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load phishing campaign data. Please try again.</div>;
 
   const { campaigns, summary } = data;
 

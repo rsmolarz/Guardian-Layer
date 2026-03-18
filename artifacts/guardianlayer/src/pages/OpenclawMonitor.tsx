@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   useListOpenclawContracts,
   useGetOpenclawStats,
   type OpenclawContract,
 } from "@workspace/api-client-react";
+import { ThreatExplainer } from "../components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard } from "../components/clarity/PlainEnglishThreatCard";
+import type { ThreatBreakdown } from "../components/clarity/PlainEnglishThreatCard";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
@@ -47,6 +50,9 @@ import {
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 
 const RISK_COLORS: Record<string, string> = {
   low: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
@@ -78,17 +84,29 @@ export default function OpenclawMonitor() {
   return (
     <div className="pb-12">
       <PageHeader
-        title="OpenClaw Monitor"
-        description="AI-powered contract analysis, clause risk detection, and regulatory compliance monitoring."
+        title="Contract Monitor"
+        description="Review and monitor contracts for risky clauses, compliance issues, and upcoming expirations."
       />
+
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="This page monitors all your legal contracts for risky clauses, compliance gaps, and upcoming expirations. Catching problems early prevents costly legal surprises." />
+        <ExecutiveSummary
+          title="Contract Monitor"
+          sections={[
+            { heading: "What This Shows", content: "An automated review of all your organization's contracts — employment agreements, vendor contracts, service-level agreements, and more. Each contract is scanned for risky clauses, compliance issues, and expiration dates." },
+            { heading: "Risk Levels", content: "Contracts are rated from low to critical risk. Critical means there are serious issues that could expose the organization to legal liability. High-risk contracts should be reviewed by legal counsel." },
+            { heading: "What to Do", content: "Review any contracts flagged as high or critical risk. Check expiring contracts to decide whether to renew or renegotiate. Use the flagged clauses count to prioritize which contracts need the most attention." },
+          ]}
+        />
+      </div>
 
       <div className="mb-6 flex gap-1 glass-panel p-1.5 rounded-xl w-fit">
         {([
           { id: "contracts" as Tab, label: "Contracts", icon: Scale },
-          { id: "health" as Tab, label: "UI Health Monitor", icon: Activity },
-          { id: "api-security" as Tab, label: "API Security Scanner", icon: ShieldAlert },
-          { id: "sessions" as Tab, label: "User Sessions", icon: Users },
-          { id: "config-drift" as Tab, label: "Config Drift", icon: Scan },
+          { id: "health" as Tab, label: "App Health", icon: Activity },
+          { id: "api-security" as Tab, label: "API Safety Check", icon: ShieldAlert },
+          { id: "sessions" as Tab, label: "Active Users", icon: Users },
+          { id: "config-drift" as Tab, label: "Config Changes", icon: Scan },
         ]).map((t) => (
           <button
             key={t.id}
@@ -124,7 +142,7 @@ function ContractsPanel() {
     status: statusFilter,
   });
 
-  if (isStatsLoading) return <CyberLoading text="SCANNING CONTRACTS..." />;
+  if (isStatsLoading) return <CyberLoading text="Checking contracts..." />;
 
   return (
     <>
@@ -188,7 +206,7 @@ function ContractsPanel() {
       </div>
 
       {isContractsLoading ? (
-        <CyberLoading text="LOADING CONTRACTS..." />
+        <CyberLoading text="Loading contract list..." />
       ) : (
         <div className="space-y-3">
           <AnimatePresence>
@@ -263,7 +281,25 @@ function ContractsPanel() {
                         className="overflow-hidden"
                       >
                         <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-3">
-                          {contract.details && <p className="text-sm text-muted-foreground">{contract.details}</p>}
+                          {contract.details && <p className="text-sm text-muted-foreground"><AutoJargon text={contract.details} /></p>}
+                          <ThreatExplainer
+                            narrative={`This ${contract.contractType.replace("_", " ")} contract with ${contract.counterparty} (${contract.jurisdiction}) has a risk score of ${(contract.riskScore * 100).toFixed(0)}%. ${contract.flaggedClauses > 0 ? `${contract.flaggedClauses} out of ${contract.totalClauses} clauses have been flagged for review — these may contain unfavorable terms, compliance risks, or unusual provisions.` : "No clauses were flagged."} ${contract.status === "expiring_soon" ? "This contract is expiring soon and needs renewal attention." : contract.status === "expired" ? "This contract has expired and should be renewed or decommissioned." : ""}`}
+                          />
+                          {contract.riskScore > 0.3 && (
+                            <PlainEnglishThreatCard
+                              breakdown={{
+                                whatWeFound: `Contract "${contract.title}" with ${contract.counterparty} has ${contract.flaggedClauses} flagged clauses and a ${(contract.riskScore * 100).toFixed(0)}% risk score.`,
+                                howWeFoundIt: "Our contract scanner automatically reviews all clauses against legal best practices and compliance requirements.",
+                                whereTheThreatIs: `In the contract terms between your organization and ${contract.counterparty}, governed by ${contract.jurisdiction} law.`,
+                                whatThisMeans: contract.riskLevel === "critical" ? "This contract has serious issues — unfavorable terms, compliance violations, or high-risk clauses that could expose your organization." : "Some contract terms need review but the overall risk is manageable with proper oversight.",
+                                potentialImpact: contract.riskLevel === "critical" ? "Could result in regulatory penalties, unfavorable legal obligations, or financial losses if the flagged clauses are triggered." : "Moderate risk — flagged clauses may create obligations that need monitoring.",
+                                whatCanBeDone: "Have your legal team review the flagged clauses. Consider renegotiating terms before renewal.",
+                                howItsBeingHandled: `The contract is being monitored continuously. Last scanned ${format(new Date(contract.lastScanned), "PP")}.`,
+                                recoverySteps: contract.status === "expired" ? "Decide whether to renew with amended terms or let the contract lapse." : "No immediate recovery needed — continue monitoring.",
+                              }}
+                              severity={contract.riskLevel === "critical" ? "act-now" : contract.riskLevel === "high" ? "needs-attention" : "monitor"}
+                            />
+                          )}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                             <div>
                               <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Clauses</span>
@@ -339,8 +375,8 @@ function HealthMonitorPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="CHECKING SYSTEM HEALTH..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load health data.</div>;
+  if (loading) return <CyberLoading text="Checking system status..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load system health data. Please try again.</div>;
 
   const { services, recentIncidents, summary } = data;
   const filtered = statusFilter ? services.filter((s: any) => s.status === statusFilter) : services;
@@ -498,7 +534,7 @@ function HealthMonitorPanel() {
                                 {check.status}
                               </span>
                             </div>
-                            {check.details && <p className="text-[10px] text-muted-foreground mt-0.5">{check.details}</p>}
+                            {check.details && <p className="text-[10px] text-muted-foreground mt-0.5"><AutoJargon text={check.details} /></p>}
                           </div>
                           {check.latency > 0 && (
                             <span className={`text-xs font-mono shrink-0 ${check.latency > 1000 ? "text-yellow-400" : "text-muted-foreground"}`}>
@@ -597,8 +633,8 @@ function ApiSecurityPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING API ENDPOINTS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load security scan data.</div>;
+  if (loading) return <CyberLoading text="Checking API connections..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load security scan data. Please try again.</div>;
 
   const { endpoints, summary } = data;
   const filtered = severityFilter
@@ -745,7 +781,7 @@ function ApiSecurityPanel() {
                         </div>
 
                         <h4 className="text-sm text-white font-display mb-2">{vuln.title}</h4>
-                        <p className="text-xs text-gray-300 mb-3">{vuln.description}</p>
+                        <p className="text-xs text-gray-300 mb-3"><AutoJargon text={vuln.description} /></p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                           <div className="p-2 rounded-lg bg-black/20 border border-white/5">
@@ -842,8 +878,8 @@ function UserSessionPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="MONITORING USER SESSIONS..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load session data.</div>;
+  if (loading) return <CyberLoading text="Loading active users..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load user session data. Please try again.</div>;
 
   const { sessions, summary } = data;
   const filtered = statusFilter
@@ -1018,7 +1054,7 @@ function UserSessionPanel() {
                               {FLAG_TYPE_ICON[flag.type] || flag.type.replace(/_/g, " ")}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-300 mt-1">{flag.description}</p>
+                          <p className="text-xs text-gray-300 mt-1"><AutoJargon text={flag.description} /></p>
                         </div>
                       ))}
                     </div>
@@ -1090,8 +1126,8 @@ function ConfigDriftPanel() {
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <CyberLoading text="SCANNING CONFIGURATION DRIFT..." />;
-  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load config drift data.</div>;
+  if (loading) return <CyberLoading text="Checking configuration changes..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load configuration data. Please try again.</div>;
 
   const { configs, summary } = data;
   const filtered = statusFilter
@@ -1261,7 +1297,7 @@ function ConfigDriftPanel() {
                             </div>
                           </div>
 
-                          <p className="text-xs text-gray-300">{change.description}</p>
+                          <p className="text-xs text-gray-300"><AutoJargon text={change.description} /></p>
                         </div>
                       ))}
                     </div>

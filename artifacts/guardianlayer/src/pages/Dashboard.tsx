@@ -7,14 +7,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Activity, ShieldAlert, ShieldCheck, Zap, Ban, Database, Bot, Send, AlertTriangle, Link2, Radio, MessageSquare, X } from "lucide-react";
 import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area } from "recharts";
 
+import { SecurityHealthScore, calculateHealthGrade } from "@/components/clarity/SecurityHealthScore";
+import { ProtectionStatus, generateProtectionAreas } from "@/components/clarity/ProtectionStatus";
+import { WhatHappenedToday, generateDailyEvents } from "@/components/clarity/WhatHappenedToday";
+import { RecommendedActions, generateRecommendedActions } from "@/components/clarity/RecommendedActions";
+import { ThreatComparison } from "@/components/clarity/ThreatComparison";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard } from "@/components/clarity/PlainEnglishThreatCard";
+import { ThreatTimeline } from "@/components/clarity/ThreatTimeline";
+import type { ThreatTimelineEvent } from "@/components/clarity/ThreatTimeline";
+
 const AI_RESPONSES: Record<string, string> = {
-  default: "I can help you analyze security threats, review risk patterns, and provide recommendations. Try asking about recent threats, risk trends, or compliance status.",
-  threat: "Based on current telemetry: 3 critical threats detected in the last 24h. The primary attack vector is phishing (42%), followed by brute-force SSH attempts (28%). Recommend reviewing the Email Security and Network Security dashboards for detailed analysis.",
-  risk: "Current risk assessment: Average network risk score is trending down 12% this week. However, 2 endpoints show elevated risk due to pending patches. The offshore wire transfer category remains the highest-risk transaction type at 0.87 avg risk score.",
-  compliance: "Compliance overview: 7/10 endpoints are fully compliant. 2 contracts flagged for review (data processing agreement and cyber liability insurance expiring in 15 days). All GDPR-related controls are active. Recommend immediate attention to the expiring insurance policy.",
-  phishing: "Phishing analysis: 12 phishing attempts detected this period. Top impersonated brands: PayPal, Microsoft, FedEx, AWS. 83% originated from NG, RU, and CN. All were blocked or quarantined. Sender reputation scoring is actively filtering with 95.2% detection rate.",
-  endpoint: "Endpoint fleet status: 10 devices monitored. 2 non-compliant (missing antivirus, outdated OS). 19 total vulnerabilities detected across fleet. Priority: WS-HR-004 has 8 vulnerabilities and disabled encryption - immediate remediation required.",
-  network: "Network security summary: 2,857 total events processed. 1 active DDoS mitigation in progress. 2 IDS alerts require investigation (SQL injection and APT signature). Top attack sources: Russia (3), Nigeria (2), Iran (2), China (2).",
+  default: "I can help you understand your security status, review risks, and suggest next steps. Try asking about recent threats, risk trends, or compliance status.",
+  threat: "In the last 24 hours, we detected 3 serious threats. The most common attack type is fake emails (phishing) at 42%, followed by password-guessing attempts at 28%. I'd recommend checking the Email Security and Network Security pages for details.",
+  risk: "Good news — your average risk score is down 12% this week. However, 2 devices need security updates. The highest-risk area is overseas wire transfers with a 0.87 average risk score.",
+  compliance: "7 out of 10 devices are fully up to date. 2 contracts need review — one data agreement and your cyber insurance expires in 15 days. All privacy controls are active. The insurance renewal should be your top priority.",
+  phishing: "We caught 12 fake emails this period. The most common brands being impersonated: PayPal, Microsoft, FedEx, and AWS. 83% came from Nigeria, Russia, and China. All were blocked successfully with a 95.2% detection rate.",
+  endpoint: "10 devices are being monitored. 2 need attention — one is missing antivirus and another has an outdated operating system. The HR workstation (WS-HR-004) is the highest priority with 8 security gaps and no disk encryption.",
+  network: "2,857 network events processed. One active attack is being blocked right now (DDoS). Two suspicious activities need investigation — a possible database attack and a known hacker signature. Most attacks came from Russia, Nigeria, Iran, and China.",
 };
 
 function getAIResponse(input: string): string {
@@ -29,20 +41,85 @@ function getAIResponse(input: string): string {
 }
 
 const THREAT_FEED = [
-  { time: "2m ago", type: "critical", source: "Email Gateway", detail: "Ransomware payload blocked in attachment from security@paypa1-verify.com" },
-  { time: "8m ago", type: "high", source: "Network IDS", detail: "SQL injection attempt from 103.44.55.66 targeting production API" },
-  { time: "15m ago", type: "high", source: "Endpoint EDR", detail: "Suspicious process execution on WS-HR-004 - investigation required" },
-  { time: "22m ago", type: "medium", source: "Auth Monitor", detail: "3 failed YubiKey auth attempts for hr@corp.com from foreign IP" },
-  { time: "31m ago", type: "critical", source: "Network Firewall", detail: "DDoS SYN flood mitigated - 500k packets/sec from 1,200 IPs" },
-  { time: "45m ago", type: "medium", source: "Contract AI", detail: "Cyber liability insurance policy expiring in 15 days - renewal required" },
-  { time: "1h ago", type: "high", source: "Dark Web Scanner", detail: "New credential exposure found on underground marketplace" },
-  { time: "1h ago", type: "medium", source: "Stripe Monitor", detail: "Unusual transaction pattern detected - 3 high-value transfers in 10 minutes" },
+  { time: "2m ago", type: "critical", source: "Email Security", detail: "Blocked a dangerous email attachment pretending to be from PayPal — it contained ransomware." },
+  { time: "8m ago", type: "high", source: "Network Monitor", detail: "Someone tried to break into our database from IP 103.44.55.66 — the attempt was blocked." },
+  { time: "15m ago", type: "high", source: "Device Monitor", detail: "A suspicious program was detected on an HR workstation (WS-HR-004) — under investigation." },
+  { time: "22m ago", type: "medium", source: "Login Monitor", detail: "3 failed security key login attempts for hr@corp.com from an unfamiliar location." },
+  { time: "31m ago", type: "critical", source: "Network Firewall", detail: "A flood attack was stopped — 500,000 fake requests per second from 1,200 different sources." },
+  { time: "45m ago", type: "medium", source: "Contract Monitor", detail: "Cyber liability insurance expires in 15 days — renewal needed to maintain coverage." },
+  { time: "1h ago", type: "high", source: "Data Exposure", detail: "Employee login credentials found on an underground marketplace — password resets initiated." },
+  { time: "1h ago", type: "medium", source: "Payment Monitor", detail: "Unusual pattern detected — 3 large transfers in 10 minutes flagged for review." },
 ];
 
 const CORRELATIONS = [
-  { severity: "critical", title: "Coordinated Attack Pattern Detected", sources: ["Email Gateway", "Network IDS", "Endpoint EDR"], detail: "Phishing email from paypa1-verify.com correlates with SQL injection attempts from same subnet (103.44.x.x). Possible coordinated APT campaign targeting finance department.", confidence: 94 },
-  { severity: "high", title: "Insider Threat Risk - HR Department", sources: ["Auth Monitor", "Endpoint EDR", "YubiKey MFA"], detail: "HR workstation WS-HR-004 shows: disabled encryption, 8 vulnerabilities, 15 failed YubiKey auths from foreign IPs. Possible account compromise.", confidence: 87 },
-  { severity: "medium", title: "Data Exfiltration Attempt", sources: ["Network Firewall", "Endpoint EDR"], detail: "2.4GB outbound transfer from marketing workstation to unknown external host on non-standard port. Correlates with C2 communication pattern.", confidence: 72 },
+  {
+    severity: "critical",
+    title: "Coordinated Attack Detected",
+    sources: ["Email Security", "Network Monitor", "Device Monitor"],
+    detail: "The fake PayPal email and the database attack came from the same network (103.44.x.x). This looks like a coordinated attempt targeting the finance department.",
+    confidence: 94,
+    timeline: [
+      { time: "09:12 AM", title: "Phishing Email Sent", description: "A fake PayPal notification was sent to the finance team from IP 103.44.x.x.", status: "detected" as const },
+      { time: "09:14 AM", title: "Email Blocked", description: "Our email security filter caught the fake email and prevented delivery.", status: "contained" as const },
+      { time: "09:18 AM", title: "Database Probe Detected", description: "SQL injection attempt detected from the same IP range targeting the payment database.", status: "detected" as const },
+      { time: "09:19 AM", title: "Network Block Applied", description: "Firewall rule added to block all traffic from 103.44.x.x range.", status: "contained" as const },
+      { time: "09:25 AM", title: "Correlation Identified", description: "System linked the phishing email and database attack as a coordinated effort.", status: "investigating" as const },
+      { time: "09:45 AM", title: "Threat Neutralized", description: "All attack vectors blocked. No data was accessed or exfiltrated.", status: "resolved" as const },
+    ],
+    breakdown: {
+      whatWeFound: "A coordinated attack combining fake emails and database intrusion attempts, all originating from the same network (103.44.x.x), targeting your finance department.",
+      howWeFoundIt: "Our email filter caught the phishing attempt first, then network monitoring detected SQL injection probes from the same IP range within minutes.",
+      whereTheThreatIs: "The attack targeted two entry points: employee email (phishing) and your payment database (SQL injection). Both came from IP range 103.44.x.x.",
+      whatThisMeans: "This was a sophisticated, multi-pronged attack. The attackers tried to trick employees via email while simultaneously probing for database vulnerabilities — a common advanced persistent threat (APT) tactic.",
+      potentialImpact: "If successful, attackers could have gained access to financial records, payment data, and employee credentials. The coordinated nature suggests professional threat actors.",
+      whatCanBeDone: "Both attack vectors have been blocked. Consider adding the IP range to your permanent blocklist and running targeted phishing awareness training for the finance team.",
+      howItsBeingHandled: "All traffic from the attacking network is blocked. Email filters have been updated with the new threat signatures. The incident has been logged for compliance reporting.",
+      recoverySteps: "No data was compromised, so no data recovery is needed. Recommended: rotate finance team passwords as a precaution and enable enhanced monitoring for 72 hours.",
+    },
+  },
+  {
+    severity: "high",
+    title: "Possible Account Compromise — HR Department",
+    sources: ["Login Monitor", "Device Monitor", "Security Keys"],
+    detail: "An HR workstation has disabled encryption, 8 security gaps, and 15 failed login attempts from overseas. This account may be compromised.",
+    confidence: 87,
+    timeline: [
+      { time: "Yesterday 11:30 PM", title: "Unusual Login Attempts", description: "15 failed login attempts from Nigeria and Russia on the HR admin account.", status: "detected" as const },
+      { time: "Today 6:15 AM", title: "Device Scan Flagged", description: "HR workstation WS-HR-004 found with disabled disk encryption and 8 unpatched vulnerabilities.", status: "detected" as const },
+      { time: "Today 7:00 AM", title: "Account Monitoring Increased", description: "Enhanced logging enabled for all HR accounts. Security key requirement enforced.", status: "investigating" as const },
+    ],
+    breakdown: {
+      whatWeFound: "An HR workstation with disabled security protections combined with overseas login attempts on the same account — a strong indicator of account compromise.",
+      howWeFoundIt: "Login monitoring detected repeated failed attempts from unusual locations, and the device scanner found the workstation's protections had been disabled.",
+      whereTheThreatIs: "HR workstation WS-HR-004 and the associated HR admin account. The failed logins came from Nigeria and Russia.",
+      whatThisMeans: "Someone may have obtained the HR admin credentials and is trying to log in from overseas. The disabled device protections make this workstation especially vulnerable.",
+      potentialImpact: "HR accounts typically have access to employee records, payroll data, and benefits information. A compromise could expose sensitive personal data for all employees.",
+      whatCanBeDone: "Reset the HR admin password immediately. Re-enable disk encryption on WS-HR-004. Apply all 8 pending security patches. Consider requiring security key authentication.",
+      howItsBeingHandled: "Enhanced monitoring is active. Security key requirement has been enforced for all HR accounts. The workstation has been flagged for urgent patching.",
+      recoverySteps: "If the account was compromised: audit all HR data access logs for the past 30 days, notify affected employees per data breach protocol, and reset all HR team credentials.",
+    },
+  },
+  {
+    severity: "medium",
+    title: "Possible Data Leak Attempt",
+    sources: ["Network Firewall", "Device Monitor"],
+    detail: "A marketing workstation sent 2.4GB of data to an unknown external server on an unusual port. This pattern looks like unauthorized data transfer.",
+    confidence: 72,
+    timeline: [
+      { time: "Today 3:22 AM", title: "Large Transfer Detected", description: "2.4GB outbound transfer from marketing workstation to external IP on port 8443.", status: "detected" as const },
+      { time: "Today 3:25 AM", title: "Transfer Flagged", description: "Automated firewall rules flagged the transfer as suspicious due to unusual port and time of day.", status: "investigating" as const },
+    ],
+    breakdown: {
+      whatWeFound: "A marketing workstation transferred 2.4GB of data to an external server at 3:22 AM using an unusual network port — a pattern consistent with data exfiltration.",
+      howWeFoundIt: "Network firewall rules automatically flag large outbound transfers to unknown destinations, especially during off-hours and on non-standard ports.",
+      whereTheThreatIs: "The marketing workstation that initiated the transfer. The destination was an unrecognized external server on port 8443.",
+      whatThisMeans: "This could be unauthorized data theft, malware sending collected data to an external server, or (less likely) a legitimate large file upload. The timing and port are suspicious.",
+      potentialImpact: "If this was a data leak, 2.4GB could contain significant amounts of customer data, marketing assets, competitive intelligence, or internal documents.",
+      whatCanBeDone: "Investigate the marketing workstation — check what files were transferred, scan for malware, and verify whether any employee authorized this transfer.",
+      howItsBeingHandled: "The transfer has been logged and the destination IP is under review. The marketing workstation has been flagged for investigation.",
+      recoverySteps: "If confirmed as data theft: identify exactly what data was sent, block the destination IP, scan the workstation for malware, and follow data breach notification procedures.",
+    },
+  },
 ];
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
@@ -53,7 +130,7 @@ export default function Dashboard() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { role: "assistant", text: "GuardianLayer AI Risk Assistant online. How can I help you analyze security threats today?" },
+    { role: "assistant", text: "Hi! I'm your security assistant. Ask me anything about your organization's security — threats, risks, compliance, or device status." },
   ]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -71,24 +148,36 @@ export default function Dashboard() {
     }, 600);
   };
 
-  if (isStatsLoading || isTimelineLoading) return <CyberLoading text="AGGREGATING TELEMETRY..." />;
-  if (isStatsError || !stats) return <CyberError title="TELEMETRY FAULT" message="Failed to retrieve dashboard statistics from the core." />;
+  if (isStatsLoading || isTimelineLoading) return <CyberLoading text="Loading your security overview..." />;
+  if (isStatsError || !stats) return <CyberError title="Couldn't Load Dashboard" message="We couldn't load your security overview. Please try again." />;
+
+  const healthGrade = calculateHealthGrade({
+    totalBlocked: stats.totalBlocked,
+    totalHeld: stats.totalHeld,
+    averageRiskScore: stats.averageRiskScore,
+  });
 
   const statCards = [
-    { label: "Total Monitored", value: stats.totalTransactions, icon: Activity, color: "text-primary" },
+    { label: "Transactions Scanned", value: stats.totalTransactions, icon: Activity, color: "text-primary" },
     { label: "Threats Blocked", value: stats.totalBlocked, icon: Ban, color: "text-rose-500" },
-    { label: "Held For Review", value: stats.totalHeld, icon: ShieldAlert, color: "text-amber-400" },
+    { label: "Awaiting Review", value: stats.totalHeld, icon: ShieldAlert, color: "text-amber-400" },
     { label: "Safe Transfers", value: stats.totalAllowed, icon: ShieldCheck, color: "text-emerald-400" },
-    { label: "Avg Network Risk", value: stats.averageRiskScore.toFixed(2), icon: Zap, color: "text-secondary" },
-    { label: "Active Integrations", value: stats.integrationsOnline, icon: Database, color: "text-primary" },
+    { label: "Average Risk Level", value: stats.averageRiskScore.toFixed(2), icon: Zap, color: "text-secondary" },
+    { label: "Connected Services", value: stats.integrationsOnline, icon: Database, color: "text-primary" },
   ];
 
   return (
     <div className="pb-12">
       <PageHeader 
-        title="Command Center" 
-        description="Real-time overview of network transaction security, threat vectors, and mitigation actions." 
+        title="Security Dashboard" 
+        description="Your organization's security at a glance — what's happening, what needs attention, and what's been handled." 
       />
+
+      <div className="space-y-6 mb-10">
+        <SecurityHealthScore grade={healthGrade.grade} summary={healthGrade.summary} issuesCount={healthGrade.issuesCount} />
+        <ProtectionStatus areas={generateProtectionAreas()} />
+        <ThreatComparison currentCount={stats.totalBlocked} previousCount={Math.max(1, stats.totalBlocked - 2)} />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {statCards.map((stat, i) => (
@@ -118,6 +207,23 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+        <WhatHappenedToday events={generateDailyEvents()} />
+        <RecommendedActions actions={generateRecommendedActions()} />
+      </div>
+
+      <div className="mb-10">
+        <ExecutiveSummary
+          title="Daily Security Report"
+          sections={[
+            { heading: "Overall Status", content: `Your organization's security health is rated "${healthGrade.grade}". ${healthGrade.summary}` },
+            { heading: "Key Activity", content: `Today we scanned ${stats.totalTransactions} transactions and blocked ${stats.totalBlocked} threats. ${stats.totalHeld} items are waiting for your review.` },
+            { heading: "Top Concern", content: "A coordinated attack targeting the finance department was detected and stopped. The attackers used fake emails combined with database intrusion attempts from the same network." },
+            { heading: "Recommendation", content: "Priority action: Update the HR workstation (WS-HR-004) which has 8 known security gaps. Also review and renew the cyber liability insurance expiring in 15 days." },
+          ]}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -126,7 +232,7 @@ export default function Dashboard() {
         >
           <h3 className="font-display text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
             <Link2 className="w-4 h-4" />
-            Threat Correlation Engine
+            Connected Threats — Attacks That May Be Related
           </h3>
           <div className="space-y-3">
             {CORRELATIONS.map((c, i) => (
@@ -142,20 +248,30 @@ export default function Dashboard() {
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="text-sm font-display text-white">{c.title}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-display text-white">{c.title}</h4>
+                    <UrgencyBadge severity={c.severity} />
+                  </div>
                   <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
                     c.confidence > 90 ? "text-rose-400 bg-rose-500/20" :
                     c.confidence > 80 ? "text-orange-400 bg-orange-500/20" :
                     "text-amber-400 bg-amber-500/20"
                   }`}>
-                    {c.confidence}% confidence
+                    {c.confidence}% sure
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{c.detail}</p>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap mb-3">
                   {c.sources.map((s) => (
                     <span key={s} className="text-[9px] font-mono px-2 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/10">{s}</span>
                   ))}
+                </div>
+                <div className="space-y-2">
+                  {c.timeline && <ThreatTimeline events={c.timeline} incidentTitle={c.title} />}
+                  <PlainEnglishThreatCard
+                    breakdown={c.breakdown}
+                    severity={c.severity === "critical" ? "act-now" : c.severity === "high" ? "needs-attention" : "monitor"}
+                  />
                 </div>
               </motion.div>
             ))}
@@ -170,7 +286,7 @@ export default function Dashboard() {
         >
           <h3 className="font-display text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
             <Radio className="w-4 h-4 animate-pulse" />
-            Real-Time Threat Intel Feed
+            Live Security Feed
           </h3>
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
             {THREAT_FEED.map((item, i) => (
@@ -194,9 +310,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`text-[9px] font-mono uppercase tracking-widest ${
-                      item.type === "critical" ? "text-rose-400" : item.type === "high" ? "text-orange-400" : "text-amber-400"
-                    }`}>{item.type}</span>
+                    <UrgencyBadge severity={item.type} />
                     <span className="text-[9px] font-mono text-muted-foreground">{item.source}</span>
                     <span className="text-[9px] font-mono text-muted-foreground ml-auto">{item.time}</span>
                   </div>
@@ -216,7 +330,7 @@ export default function Dashboard() {
       >
         <h3 className="font-display text-lg uppercase tracking-widest text-primary mb-8 border-b border-white/5 pb-4 flex items-center">
           <Activity className="w-5 h-5 mr-3" />
-          7-Day Risk & Volume Topology
+          7-Day Risk & Transaction Volume
         </h3>
         
         <div className="h-[400px] w-full cyber-grid rounded-xl p-4">
@@ -280,7 +394,7 @@ export default function Dashboard() {
                   strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorRisk)" 
-                  name="Avg Risk Score"
+                  name="Average Risk"
                 />
                 <Area 
                   yAxisId="right"
@@ -290,13 +404,13 @@ export default function Dashboard() {
                   strokeWidth={2}
                   fillOpacity={1} 
                   fill="url(#colorCount)" 
-                  name="Total Volume"
+                  name="Transaction Count"
                 />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center font-mono text-muted-foreground">
-              INSUFFICIENT DATA FOR VISUALIZATION
+              Not enough data to show a chart yet
             </div>
           )}
         </div>
@@ -313,7 +427,7 @@ export default function Dashboard() {
             <div className="p-4 border-b border-white/10 flex items-center justify-between bg-primary/5">
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-primary" />
-                <span className="font-display text-sm uppercase tracking-widest text-primary">AI Risk Assistant</span>
+                <span className="font-display text-sm uppercase tracking-widest text-primary">Security Assistant</span>
               </div>
               <button onClick={() => setChatOpen(false)} className="text-muted-foreground hover:text-white">
                 <X className="w-4 h-4" />
@@ -340,7 +454,7 @@ export default function Dashboard() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Ask about threats, risks, compliance..."
+                  placeholder="Ask about threats, risks, devices..."
                   className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/30"
                 />
                 <button
@@ -351,7 +465,7 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="flex gap-1 mt-2 flex-wrap">
-                {["Recent threats", "Risk trends", "Compliance status", "Phishing analysis"].map((q) => (
+                {["Recent threats", "Risk trends", "Compliance status", "Email security"].map((q) => (
                   <button
                     key={q}
                     onClick={() => { setChatInput(q); }}

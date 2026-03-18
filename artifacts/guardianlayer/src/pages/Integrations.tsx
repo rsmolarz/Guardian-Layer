@@ -1,4 +1,18 @@
-import { useListIntegrations, useGetGoogleWorkspaceStatus, useGetStripeStatus, useSyncStripeTransactions, useConfigureIntegration, getListIntegrationsQueryKey } from "@workspace/api-client-react";
+import { useListIntegrations, useGetGoogleWorkspaceStatus, useGetStripeStatus, useSyncStripeTransactions, useConfigureIntegration, getListIntegrationsQueryKey, getGetStripeStatusQueryKey, getGetGoogleWorkspaceStatusQueryKey } from "@workspace/api-client-react";
+
+interface StripeSyncResult {
+  synced: number;
+  skipped: number;
+  errors: string[];
+  message: string;
+}
+
+interface ConfigureIntegrationResult {
+  id: string;
+  name: string;
+  status: string;
+  message: string;
+}
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
@@ -34,8 +48,13 @@ import { clsx } from "clsx";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 
-const PROVIDER_ICONS: Record<string, any> = {
+import type { LucideIcon } from "lucide-react";
+
+const PROVIDER_ICONS: Record<string, LucideIcon> = {
   stripe: CreditCard,
   plaid: Database,
   cloudflare: Network,
@@ -49,7 +68,7 @@ const PROVIDER_ICONS: Record<string, any> = {
   "google-workspace-admin": Lock,
 };
 
-const GOOGLE_SERVICE_ICONS: Record<string, any> = {
+const GOOGLE_SERVICE_ICONS: Record<string, LucideIcon> = {
   Gmail: Mail,
   "Google Drive": HardDrive,
   "Google Calendar": Calendar,
@@ -77,7 +96,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   privacy: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
 };
 
-const STATUS_CONFIG: Record<string, { icon: any; color: string; barColor: string; label: string }> = {
+const STATUS_CONFIG: Record<string, { icon: LucideIcon; color: string; barColor: string; label: string }> = {
   online: { icon: CheckCircle2, color: "text-emerald-500", barColor: "bg-emerald-500 shadow-[0_0_15px_#10b981]", label: "ONLINE" },
   degraded: { icon: AlertTriangle, color: "text-amber-500", barColor: "bg-amber-500", label: "DEGRADED" },
   offline: { icon: XCircle, color: "text-rose-500", barColor: "bg-rose-500", label: "OFFLINE" },
@@ -88,8 +107,8 @@ export default function Integrations() {
   const { data, isLoading, isError } = useListIntegrations();
   const [configureId, setConfigureId] = useState<{ id: string; name: string; provider: string } | null>(null);
 
-  if (isLoading) return <CyberLoading text="PINGING EXTERNAL NODES..." />;
-  if (isError || !data) return <CyberError title="LINK FAULT" message="Cannot retrieve integration telemetry." />;
+  if (isLoading) return <CyberLoading text="Loading connected services..." />;
+  if (isError || !data) return <CyberError title="Couldn't Load Services" message="We couldn't load your connected services. Please try again." />;
 
   const active = data.integrations.filter((i) => i.status !== "pending");
   const pending = data.integrations.filter((i) => i.status === "pending");
@@ -99,9 +118,21 @@ export default function Integrations() {
   return (
     <div className="pb-12">
       <PageHeader
-        title="External Linkages"
-        description="Status of connected 3rd-party intelligence, identity protection, and operational APIs."
+        title="Connected Services"
+        description="View the status of all external services connected to your security platform — payments, identity protection, and more."
       />
+
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="This page shows all external services connected to your security platform. Each service needs to be properly connected and monitored to ensure your defenses work together." />
+        <ExecutiveSummary
+          title="Connected Services"
+          sections={[
+            { heading: "What This Shows", content: "The status of all third-party services integrated with your security platform — payment processors, identity protection services, email providers, and more." },
+            { heading: "Status Indicators", content: "Green (online) means the service is working correctly. Yellow (degraded) means it's partially working. Red (offline) means it's disconnected and needs attention. Gray means it hasn't been set up yet." },
+            { heading: "What to Do", content: "Ensure all critical services show green. If any service is offline, check its API credentials or contact the service provider. You can configure new integrations by clicking on the available services below." },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {active.map((int, idx) => (
@@ -151,16 +182,16 @@ export default function Integrations() {
 
 function StripePanel() {
   const { data: status, isLoading: statusLoading } = useGetStripeStatus({
-    query: { refetchInterval: 30000 },
+    query: { queryKey: getGetStripeStatusQueryKey(), refetchInterval: 30000 },
   });
   const syncMutation = useSyncStripeTransactions();
-  const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; errors: string[]; message: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<StripeSyncResult | null>(null);
 
   const handleSync = () => {
     setSyncResult(null);
     syncMutation.mutate(undefined, {
       onSuccess: (data) => {
-        setSyncResult(data as any);
+        setSyncResult(data as StripeSyncResult);
       },
     });
   };
@@ -274,7 +305,7 @@ function StripePanel() {
 
 function GoogleWorkspacePanel() {
   const { data, isLoading } = useGetGoogleWorkspaceStatus({
-    query: { refetchInterval: 30000 },
+    query: { queryKey: getGetGoogleWorkspaceStatusQueryKey(), refetchInterval: 30000 },
   });
 
   if (isLoading || !data) return null;
@@ -371,7 +402,7 @@ function ConfigureModal({
       { id: integrationId, data: { apiKey, webhookUrl: webhookUrl || null, environment: null } },
       {
         onSuccess: (result) => {
-          setSuccess((result as any).message);
+          setSuccess((result as ConfigureIntegrationResult).message);
           queryClient.invalidateQueries({ queryKey: getListIntegrationsQueryKey() });
           setTimeout(onClose, 1500);
         },
@@ -493,7 +524,7 @@ function IntegrationCard({
     status: string;
     category: string;
     description: string;
-    lastChecked: Date;
+    lastChecked: Date | string;
   };
   index: number;
   onConfigure?: () => void;
@@ -541,7 +572,7 @@ function IntegrationCard({
       </div>
 
       <p className="font-mono text-xs text-muted-foreground mb-5 leading-relaxed min-h-[2.5rem]">
-        {int.description}
+        <AutoJargon text={int.description} />
       </p>
 
       {isPending ? (

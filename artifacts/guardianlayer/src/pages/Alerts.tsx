@@ -15,6 +15,30 @@ import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { SEVERITY_COLORS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/clarity/PlainEnglishThreatCard";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+
+function getAlertBreakdown(alert: { title: string; message: string; severity: string; createdAt: string }) {
+  const isCritical = alert.severity === "critical" || alert.severity === "high";
+  return {
+    whatWeFound: `Alert: "${alert.title}". ${alert.message}`,
+    howWeFoundIt: "Our automated monitoring systems continuously analyze activity across your organization and flagged this based on pattern matching and threat intelligence.",
+    whereTheThreatIs: `This alert relates to: ${alert.title}. Review the details above for specifics about what triggered it.`,
+    whatThisMeans: isCritical
+      ? "This is a significant security event that could impact your organization if left unaddressed. Prompt action is recommended."
+      : "This event has been logged for your awareness. While not immediately critical, it's worth monitoring.",
+    potentialImpact: isCritical
+      ? "If not addressed, this could lead to data exposure, financial loss, or unauthorized access to your systems."
+      : "Low to moderate risk. This event alone is unlikely to cause significant damage but could be part of a larger pattern.",
+    whatCanBeDone: `Review the alert details and ${isCritical ? "take immediate action using the auto-remediate button if available, or follow your incident response procedures." : "determine if any follow-up is needed. You can dismiss this alert if no action is required."}`,
+    howItsBeingHandled: "This alert has been logged and is being tracked. If auto-remediation is available, you can apply recommended fixes with one click.",
+    recoverySteps: `1. Review the alert details carefully. 2. ${isCritical ? "Apply auto-remediation if available, or escalate to your security team." : "Assess whether any changes are needed."} 3. Monitor for similar alerts. 4. Dismiss once resolved.`,
+  };
+}
 
 const REMEDIATION_MAP: Record<string, string[]> = {
   "Suspicious IP Cluster Detected": ["Block IP range 89.44.x.x", "Enable geo-fencing for Eastern Europe", "Escalate to SOC team"],
@@ -69,8 +93,8 @@ export default function Alerts() {
   return (
     <div className="pb-12">
       <PageHeader 
-        title="Security Advisories" 
-        description="System-level threat notifications and infrastructure warnings."
+        title="Security Alerts" 
+        description="Issues that need your attention — from suspicious activity to important system warnings."
       />
 
       <div className="mb-6 flex items-center gap-4 glass-panel p-2 rounded-xl inline-flex w-full md:w-auto overflow-x-auto">
@@ -98,11 +122,23 @@ export default function Alerts() {
       </div>
 
       {isLoading ? (
-        <CyberLoading text="SCANNING ALERT LOGS..." />
+        <CyberLoading text="Loading your security alerts..." />
       ) : isError || !data ? (
-        <CyberError title="LOG FAULT" message="Alert repository inaccessible." />
+        <CyberError title="Couldn't Load Alerts" message="We couldn't load your security alerts. Please try again." />
       ) : (
         <div className="space-y-4">
+          {activeAlerts.length > 0 && (
+            <div className="mb-4 space-y-4">
+              <ExecutiveSummary
+                title="Security Alerts"
+                sections={[
+                  { heading: "Overview", content: `There are ${activeAlerts.length} alerts needing your attention. ${activeAlerts.filter(a => a.severity === "critical").length} require immediate action.` },
+                  { heading: "What to Do", content: "Review alerts starting with 'Act Now' items. Use Auto-Remediate for quick fixes, or dismiss alerts you've already reviewed." },
+                ]}
+              />
+              <WhyThisMatters explanation="Security alerts are your early warning system. Responding quickly to critical alerts can prevent data breaches, financial loss, and reputational damage. Each alert represents something our systems detected that needs human judgment." />
+            </div>
+          )}
           <AnimatePresence>
             {activeAlerts.length === 0 && (
               <motion.div 
@@ -134,15 +170,24 @@ export default function Alerts() {
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border border-current ${SEVERITY_COLORS[alert.severity]}`}>
-                        {alert.severity}
-                      </span>
+                      <UrgencyBadge severity={alert.severity} />
                       <span className="text-xs font-mono text-muted-foreground">
                         {format(new Date(alert.createdAt), 'PP pp')}
                       </span>
                     </div>
                     <h4 className="text-lg font-display text-white">{alert.title}</h4>
-                    <p className="text-sm text-muted-foreground font-sans mt-1">{alert.message}</p>
+                    <p className="text-sm text-muted-foreground font-sans mt-1"><AutoJargon text={alert.message} /></p>
+                    <div className="mt-3 space-y-2">
+                      <ThreatExplainer narrative={
+                        alert.severity === "critical"
+                          ? `This is a high-priority alert: "${alert.title}". ${alert.message} This requires your immediate attention — the longer it goes unresolved, the greater the potential damage.`
+                          : `Alert: "${alert.title}". ${alert.message} Review this at your earliest convenience to determine if action is needed.`
+                      } />
+                      <PlainEnglishThreatCard
+                        breakdown={getAlertBreakdown(alert)}
+                        severity={getUrgencyFromSeverity(alert.severity)}
+                      />
+                    </div>
                   </div>
                 </div>
                 

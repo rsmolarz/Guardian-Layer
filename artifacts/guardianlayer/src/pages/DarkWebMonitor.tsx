@@ -42,6 +42,13 @@ import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { SEVERITY_COLORS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { UrgencyBadge } from "@/components/clarity/UrgencyIndicators";
+import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/clarity/PlainEnglishThreatCard";
+import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
+import { RiskImpactCalculator } from "@/components/clarity/RiskImpactCalculator";
+import { AutoJargon } from "@/components/clarity/JargonTranslator";
 
 const DATA_TYPE_ICONS: Record<string, typeof ShieldAlert> = {
   SSN: Fingerprint,
@@ -108,16 +115,27 @@ export default function DarkWebMonitor() {
     });
   };
 
-  if (isSummaryLoading) return <CyberLoading text="SCANNING DARK WEB FEEDS..." />;
+  if (isSummaryLoading) return <CyberLoading text="Checking for exposed data..." />;
 
   const globalProgress = summary?.recoveryProgress ?? 0;
 
   return (
     <div className="pb-12">
       <PageHeader
-        title="Dark Web Monitor"
-        description="Track compromised personal data found on the dark web and manage your recovery actions."
+        title="Data Exposure Monitor"
+        description="We scan hidden parts of the internet for your stolen personal data — passwords, credit cards, and identity information."
       />
+
+      <div className="mb-8">
+        <ExecutiveSummary
+          title="Data Exposure"
+          sections={[
+            { heading: "Current Status", content: `${summary?.totalExposures ?? 0} total data exposures found, with ${summary?.activeExposures ?? 0} currently active and ${summary?.criticalExposures ?? 0} requiring immediate attention.` },
+            { heading: "Recovery Progress", content: `${globalProgress}% of recovery actions have been completed. Continue working through the recovery checklist to protect your accounts and identity.` },
+            { heading: "What This Means", content: summary?.criticalExposures ? "Critical personal data has been found on dark web marketplaces. Follow the recovery steps to minimize damage — the sooner you act, the less impact it will have." : "No critical exposures found. Continue monitoring and keep your passwords updated regularly." },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
@@ -237,9 +255,9 @@ function ExposuresTab({
       </div>
 
       {isLoading ? (
-        <CyberLoading text="RETRIEVING EXPOSURE DATA..." />
+        <CyberLoading text="Loading exposure details..." />
       ) : isError || !exposuresData ? (
-        <CyberError title="SCAN FAILURE" message="Unable to retrieve dark web exposure data." />
+        <CyberError title="Couldn't Load Scan Results" message="We couldn't load exposure data. Please try again." />
       ) : exposuresData.exposures.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-16 text-center glass-panel rounded-2xl border-dashed border-2 border-white/5">
           <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4 opacity-50" />
@@ -279,9 +297,7 @@ function ExposuresTab({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1 flex-wrap">
-                          <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border border-current ${SEVERITY_COLORS[exposure.severity] || ""}`}>
-                            {exposure.severity}
-                          </span>
+                          <UrgencyBadge severity={exposure.severity} />
                           <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border ${STATUS_BADGE[exposure.status] || ""}`}>
                             {exposure.status}
                           </span>
@@ -292,7 +308,7 @@ function ExposuresTab({
                         <h4 className="text-lg font-display text-white">
                           {exposure.dataType} <span className="text-muted-foreground font-sans text-sm">— {exposure.sourceMarketplace}</span>
                         </h4>
-                        <p className="text-sm text-muted-foreground font-sans mt-1 line-clamp-2">{exposure.description}</p>
+                        <p className="text-sm text-muted-foreground font-sans mt-1 line-clamp-2"><AutoJargon text={exposure.description} /></p>
                       </div>
                     </div>
                     <div className="shrink-0 text-muted-foreground group-hover:text-white transition-colors">
@@ -309,11 +325,52 @@ function ExposuresTab({
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-5 pb-5 pt-0 border-t border-white/5">
-                          <p className="text-sm text-muted-foreground font-sans mt-4 mb-4">{exposure.description}</p>
+                        <div className="px-5 pb-5 pt-0 border-t border-white/5 space-y-4">
+                          <p className="text-sm text-muted-foreground font-sans mt-4"><AutoJargon text={exposure.description} /></p>
+
+                          <ThreatExplainer narrative={
+                            exposure.dataType === "SSN"
+                              ? "Your Social Security Number was found being sold in an underground marketplace. Criminals buy these to open bank accounts, apply for loans, or file tax returns in your name. The sooner you freeze your credit and set up monitoring, the less damage they can cause."
+                              : exposure.dataType === "Financial Account"
+                              ? "Financial account information linked to you has appeared on hidden parts of the internet. Criminals may attempt unauthorized transactions or use this data to access your banking services."
+                              : exposure.dataType === "Credentials"
+                              ? "Login credentials associated with your accounts were found in a leaked database. Criminals often try these passwords across many different services, so if you reuse passwords, multiple accounts could be at risk."
+                              : "Personal data connected to you has surfaced on parts of the internet used for illegal trading. This means someone has either stolen or leaked this information, and it could be used for fraud."
+                          } />
+
+                          <PlainEnglishThreatCard
+                            severity={getUrgencyFromSeverity(exposure.severity)}
+                            breakdown={{
+                              whatWeFound: exposure.description,
+                              howWeFoundIt: `Discovered on ${exposure.sourceMarketplace} through dark web monitoring`,
+                              whereTheThreatIs: `Found on marketplace: ${exposure.sourceMarketplace}`,
+                              whatThisMeans: exposure.dataType === "SSN" ? "Someone could use your SSN to steal your identity." : exposure.dataType === "Financial Account" ? "Your financial accounts may be at risk of unauthorized access." : "Your personal information is exposed and could be misused.",
+                              potentialImpact: exposure.dataType === "SSN" ? "Identity theft, fraudulent accounts, credit damage." : exposure.dataType === "Financial Account" ? "Unauthorized charges, account takeover." : "Account compromise, identity fraud.",
+                              whatCanBeDone: actions.length > 0 ? actions.join(". ") : "Follow the recovery steps in the Recovery Center tab.",
+                              howItsBeingHandled: `Status: ${exposure.status}. Our monitoring continues to track this exposure.`,
+                              recoverySteps: "Visit the Recovery Center tab for detailed step-by-step recovery guidance.",
+                            }}
+                          />
+
+                          <RiskImpactCalculator
+                            financialImpact={exposure.dataType === "SSN" ? "High — identity theft costs an average of $1,000+ per incident" : exposure.dataType === "Financial Account" ? "Direct financial loss from unauthorized transactions" : "Moderate — depends on what accounts use these credentials"}
+                            dataExposureScope={`${exposure.dataType} data exposed on ${exposure.sourceMarketplace}`}
+                            businessDisruption={exposure.dataType === "SSN" ? "Credit monitoring, fraud alerts, potential legal filings needed" : exposure.dataType === "Financial Account" ? "Account freeze, card replacement, charge disputes" : "Password resets across affected services"}
+                          />
+
+                          <WhyThisMatters explanation={
+                            exposure.dataType === "SSN"
+                              ? "Your Social Security Number is one of the most valuable pieces of personal data. If criminals use it, they can open accounts in your name, file false tax returns, and cause long-lasting financial damage."
+                              : exposure.dataType === "Financial Account"
+                              ? "Exposed financial data can be used immediately for unauthorized transactions. Quick action prevents financial losses."
+                              : exposure.dataType === "Credentials"
+                              ? "Leaked login credentials can be used to access your accounts, steal data, or impersonate you. Criminals often try reused passwords across many services."
+                              : "Exposed personal data on the dark web puts you at risk of fraud, identity theft, or targeted attacks."
+                          } />
+
                           {actions.length > 0 && (
                             <div>
-                              <h5 className="text-xs font-display uppercase tracking-widest text-primary mb-3">Recommended Actions</h5>
+                              <h5 className="text-xs font-display uppercase tracking-widest text-primary mb-3">What You Should Do</h5>
                               <ul className="space-y-2">
                                 {actions.map((action: string, i: number) => (
                                   <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -420,7 +477,7 @@ function RecoveryTab({
       </div>
 
       {isLoading ? (
-        <CyberLoading text="LOADING RECOVERY ACTIONS..." />
+        <CyberLoading text="Loading recovery options..." />
       ) : (
         <div className="space-y-6">
           {categoriesToShow.map((category, catIdx) => {

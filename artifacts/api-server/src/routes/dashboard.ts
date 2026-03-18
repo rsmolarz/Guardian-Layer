@@ -54,11 +54,11 @@ router.get("/dashboard/risk-timeline", async (req, res): Promise<void> => {
     ORDER BY ${transactionsTable.createdAt}::date
   `);
 
-  const dataPoints = (result.rows as any[]).map((row: any) => ({
-    date: row.date,
-    avgRisk: row.avg_risk,
-    transactionCount: row.transaction_count,
-    blockedCount: row.blocked_count,
+  const dataPoints = result.rows.map((row) => ({
+    date: String(row.date),
+    avgRisk: Number(row.avg_risk),
+    transactionCount: Number(row.transaction_count),
+    blockedCount: Number(row.blocked_count),
   }));
 
   res.json(GetRiskTimelineResponse.parse({ dataPoints }));
