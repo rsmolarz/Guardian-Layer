@@ -1,5 +1,7 @@
-import { useListIntegrations, useGetGoogleWorkspaceStatus, useGetStripeStatus, useSyncStripeTransactions } from "@workspace/api-client-react";
+import { useListIntegrations, useGetGoogleWorkspaceStatus, useGetStripeStatus, useSyncStripeTransactions, useConfigureIntegration, getListIntegrationsQueryKey } from "@workspace/api-client-react";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -25,6 +27,7 @@ import {
   Lock,
   RefreshCw,
   Zap,
+  X,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -83,6 +86,7 @@ const STATUS_CONFIG: Record<string, { icon: any; color: string; barColor: string
 
 export default function Integrations() {
   const { data, isLoading, isError } = useListIntegrations();
+  const [configureId, setConfigureId] = useState<{ id: string; name: string; provider: string } | null>(null);
 
   if (isLoading) return <CyberLoading text="PINGING EXTERNAL NODES..." />;
   if (isError || !data) return <CyberError title="LINK FAULT" message="Cannot retrieve integration telemetry." />;
@@ -120,11 +124,27 @@ export default function Integrations() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {pending.map((int, idx) => (
-              <IntegrationCard key={int.id} integration={int} index={active.length + idx} />
+              <IntegrationCard
+                key={int.id}
+                integration={int}
+                index={active.length + idx}
+                onConfigure={() => setConfigureId({ id: int.id, name: int.name, provider: int.provider })}
+              />
             ))}
           </div>
         </>
       )}
+
+      <AnimatePresence>
+        {configureId && (
+          <ConfigureModal
+            integrationId={configureId.id}
+            integrationName={configureId.name}
+            provider={configureId.provider}
+            onClose={() => setConfigureId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -328,9 +348,143 @@ function GoogleWorkspacePanel() {
   );
 }
 
+function ConfigureModal({
+  integrationId,
+  integrationName,
+  provider,
+  onClose,
+}: {
+  integrationId: string;
+  integrationName: string;
+  provider: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const configureMutation = useConfigureIntegration();
+  const [apiKey, setApiKey] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSave = () => {
+    if (!apiKey.trim()) return;
+    configureMutation.mutate(
+      { id: integrationId, data: { apiKey, webhookUrl: webhookUrl || null, environment: null } },
+      {
+        onSuccess: (result) => {
+          setSuccess((result as any).message);
+          queryClient.invalidateQueries({ queryKey: getListIntegrationsQueryKey() });
+          setTimeout(onClose, 1500);
+        },
+      }
+    );
+  };
+
+  const inputClass = "w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 font-mono text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-white/20";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="relative w-full max-w-lg glass-panel border border-primary/30 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)]"
+      >
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
+          <div>
+            <h2 className="font-display font-bold text-lg text-white flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              CONFIGURE {integrationName.toUpperCase()}
+            </h2>
+            <span className="font-mono text-xs text-muted-foreground">{provider}</span>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {success ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
+            >
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span className="font-mono text-sm text-emerald-400">{success}</span>
+            </motion.div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-display uppercase tracking-widest text-muted-foreground">
+                  API Key <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className={inputClass}
+                  placeholder="Enter API key..."
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-display uppercase tracking-widest text-muted-foreground">
+                  Webhook URL <span className="text-muted-foreground/50">(optional)</span>
+                </label>
+                <input
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  className={inputClass}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-2.5 rounded-xl text-sm font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!apiKey.trim() || configureMutation.isPending}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-display uppercase tracking-wider flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 transition-all hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
+                >
+                  {configureMutation.isPending ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Plug2 className="w-4 h-4" />
+                      Save & Connect
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function IntegrationCard({
   integration: int,
   index,
+  onConfigure,
 }: {
   integration: {
     id: string;
@@ -342,6 +496,7 @@ function IntegrationCard({
     lastChecked: Date;
   };
   index: number;
+  onConfigure?: () => void;
 }) {
   const Icon = PROVIDER_ICONS[int.id] || Plug2;
   const status = STATUS_CONFIG[int.status] || STATUS_CONFIG.offline;
@@ -398,7 +553,10 @@ function IntegrationCard({
           <p className="font-mono text-[11px] text-slate-500 leading-relaxed">
             Provide API credentials to activate this integration. Contact your {int.provider} account representative for enterprise API access.
           </p>
-          <button className="mt-3 w-full py-2 rounded-lg bg-white/5 border border-white/10 hover:border-primary/30 hover:bg-primary/5 transition-all font-display text-xs uppercase tracking-wider text-muted-foreground hover:text-primary">
+          <button
+            onClick={onConfigure}
+            className="mt-3 w-full py-2 rounded-lg bg-white/5 border border-white/10 hover:border-primary/30 hover:bg-primary/5 transition-all font-display text-xs uppercase tracking-wider text-muted-foreground hover:text-primary"
+          >
             Configure Connection
           </button>
         </div>

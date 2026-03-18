@@ -225,6 +225,26 @@ export const ListIntegrationsResponse = zod.object({
 });
 
 /**
+ * @summary Configure credentials for a pending integration
+ */
+export const ConfigureIntegrationParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ConfigureIntegrationBody = zod.object({
+  apiKey: zod.string(),
+  webhookUrl: zod.string().nullish(),
+  environment: zod.string().nullish(),
+});
+
+export const ConfigureIntegrationResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  status: zod.enum(["online", "offline", "degraded", "pending"]),
+  message: zod.string(),
+});
+
+/**
  * @summary Sync transactions from Stripe into GuardianLayer for risk analysis
  */
 export const SyncStripeTransactionsResponse = zod.object({

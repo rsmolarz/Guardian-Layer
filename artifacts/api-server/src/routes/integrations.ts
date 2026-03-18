@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { ListIntegrationsResponse, GetGoogleWorkspaceStatusResponse, SyncStripeTransactionsResponse, GetStripeStatusResponse } from "@workspace/api-zod";
+import { ListIntegrationsResponse, GetGoogleWorkspaceStatusResponse, SyncStripeTransactionsResponse, GetStripeStatusResponse, ConfigureIntegrationBody, ConfigureIntegrationResponse } from "@workspace/api-zod";
 import { checkGoogleConnection } from "../lib/google-clients";
 import { getStripeClient, isStripeConfigured } from "../lib/stripe-client";
 import { syncStripeTransactions } from "../lib/stripe-sync";
@@ -161,8 +161,45 @@ function getIntegrations() {
   ];
 }
 
+const configuredIntegrations = new Map<string, { apiKey: string; webhookUrl?: string; environment?: string }>();
+
 router.get("/integrations", async (_req, res): Promise<void> => {
-  res.json(ListIntegrationsResponse.parse({ integrations: getIntegrations() }));
+  const integrations = getIntegrations().map((int) => {
+    if (int.status === "pending" && configuredIntegrations.has(int.id)) {
+      return { ...int, status: "online" as const };
+    }
+    return int;
+  });
+  res.json(ListIntegrationsResponse.parse({ integrations }));
+});
+
+router.post("/integrations/:id/configure", async (req, res): Promise<void> => {
+  const id = req.params.id;
+  const parsed = ConfigureIntegrationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const allIntegrations = getIntegrations();
+  const integration = allIntegrations.find((i) => i.id === id);
+  if (!integration) {
+    res.status(404).json({ error: "Integration not found" });
+    return;
+  }
+
+  configuredIntegrations.set(id, {
+    apiKey: parsed.data.apiKey,
+    webhookUrl: parsed.data.webhookUrl ?? undefined,
+    environment: parsed.data.environment ?? undefined,
+  });
+
+  res.json(ConfigureIntegrationResponse.parse({
+    id,
+    name: integration.name,
+    status: "online",
+    message: `${integration.name} has been configured and is now online.`,
+  }));
 });
 
 router.get("/integrations/google-workspace/status", async (_req, res): Promise<void> => {

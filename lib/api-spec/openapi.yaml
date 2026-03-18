@@ -231,6 +231,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntegrationList"
 
+  /integrations/{id}/configure:
+    post:
+      operationId: configureIntegration
+      tags: [integrations]
+      summary: Configure credentials for a pending integration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigureIntegrationRequest"
+      responses:
+        "200":
+          description: Configuration result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigureIntegrationResult"
+
   /integrations/stripe/sync:
     post:
       operationId: syncStripeTransactions
@@ -756,6 +781,38 @@ components:
         - services
         - connectedCount
         - totalCount
+
+    ConfigureIntegrationRequest:
+      type: object
+      properties:
+        apiKey:
+          type: string
+        webhookUrl:
+          type: string
+          nullable: true
+        environment:
+          type: string
+          nullable: true
+      required:
+        - apiKey
+
+    ConfigureIntegrationResult:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [online, offline, degraded, pending]
+        message:
+          type: string
+      required:
+        - id
+        - name
+        - status
+        - message
 
     StripeSyncResult:
       type: object

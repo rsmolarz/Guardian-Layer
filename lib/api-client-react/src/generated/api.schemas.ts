@@ -164,6 +164,29 @@ export interface GoogleWorkspaceStatus {
   totalCount: number;
 }
 
+export interface ConfigureIntegrationRequest {
+  apiKey: string;
+  webhookUrl?: string | null;
+  environment?: string | null;
+}
+
+export type ConfigureIntegrationResultStatus =
+  (typeof ConfigureIntegrationResultStatus)[keyof typeof ConfigureIntegrationResultStatus];
+
+export const ConfigureIntegrationResultStatus = {
+  online: "online",
+  offline: "offline",
+  degraded: "degraded",
+  pending: "pending",
+} as const;
+
+export interface ConfigureIntegrationResult {
+  id: string;
+  name: string;
+  status: ConfigureIntegrationResultStatus;
+  message: string;
+}
+
 export interface StripeSyncResult {
   synced: number;
   skipped: number;

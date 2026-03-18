@@ -21,6 +21,8 @@ import type {
   Alert,
   AlertList,
   ApprovalResult,
+  ConfigureIntegrationRequest,
+  ConfigureIntegrationResult,
   DarkWebExposure,
   DarkWebExposureList,
   DarkWebSummary,
@@ -995,6 +997,97 @@ export function useListIntegrations<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Configure credentials for a pending integration
+ */
+export const getConfigureIntegrationUrl = (id: string) => {
+  return `/api/integrations/${id}/configure`;
+};
+
+export const configureIntegration = async (
+  id: string,
+  configureIntegrationRequest: ConfigureIntegrationRequest,
+  options?: RequestInit,
+): Promise<ConfigureIntegrationResult> => {
+  return customFetch<ConfigureIntegrationResult>(
+    getConfigureIntegrationUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(configureIntegrationRequest),
+    },
+  );
+};
+
+export const getConfigureIntegrationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof configureIntegration>>,
+    TError,
+    { id: string; data: BodyType<ConfigureIntegrationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof configureIntegration>>,
+  TError,
+  { id: string; data: BodyType<ConfigureIntegrationRequest> },
+  TContext
+> => {
+  const mutationKey = ["configureIntegration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof configureIntegration>>,
+    { id: string; data: BodyType<ConfigureIntegrationRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return configureIntegration(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfigureIntegrationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof configureIntegration>>
+>;
+export type ConfigureIntegrationMutationBody =
+  BodyType<ConfigureIntegrationRequest>;
+export type ConfigureIntegrationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Configure credentials for a pending integration
+ */
+export const useConfigureIntegration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof configureIntegration>>,
+    TError,
+    { id: string; data: BodyType<ConfigureIntegrationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof configureIntegration>>,
+  TError,
+  { id: string; data: BodyType<ConfigureIntegrationRequest> },
+  TContext
+> => {
+  return useMutation(getConfigureIntegrationMutationOptions(options));
+};
 
 /**
  * @summary Sync transactions from Stripe into GuardianLayer for risk analysis
