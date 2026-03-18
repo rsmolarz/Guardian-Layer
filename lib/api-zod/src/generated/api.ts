@@ -408,3 +408,116 @@ export const GetTopThreatsResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary List dark web exposure records
+ */
+export const ListDarkWebExposuresQueryParams = zod.object({
+  severity: zod.enum(["low", "medium", "high", "critical"]).optional(),
+  status: zod.enum(["active", "monitoring", "resolved"]).optional(),
+});
+
+export const ListDarkWebExposuresResponse = zod.object({
+  exposures: zod.array(
+    zod.object({
+      id: zod.number(),
+      dataType: zod.string(),
+      sourceMarketplace: zod.string(),
+      severity: zod.enum(["low", "medium", "high", "critical"]),
+      status: zod.enum(["active", "monitoring", "resolved"]),
+      discoveryDate: zod.date(),
+      description: zod.string(),
+      recommendedActions: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get dark web exposure detail
+ */
+export const GetDarkWebExposureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDarkWebExposureResponse = zod.object({
+  id: zod.number(),
+  dataType: zod.string(),
+  sourceMarketplace: zod.string(),
+  severity: zod.enum(["low", "medium", "high", "critical"]),
+  status: zod.enum(["active", "monitoring", "resolved"]),
+  discoveryDate: zod.date(),
+  description: zod.string(),
+  recommendedActions: zod.string(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary List recovery actions
+ */
+export const ListRecoveryActionsQueryParams = zod.object({
+  exposureId: zod.coerce.number().optional(),
+  category: zod
+    .enum(["credit_protection", "account_security", "legal_reporting"])
+    .optional(),
+});
+
+export const ListRecoveryActionsResponse = zod.object({
+  actions: zod.array(
+    zod.object({
+      id: zod.number(),
+      exposureId: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      category: zod.enum([
+        "credit_protection",
+        "account_security",
+        "legal_reporting",
+      ]),
+      completed: zod.boolean(),
+      priority: zod.number(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+  completedCount: zod.number(),
+});
+
+/**
+ * @summary Mark recovery action complete or incomplete
+ */
+export const ToggleRecoveryActionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ToggleRecoveryActionResponse = zod.object({
+  id: zod.number(),
+  exposureId: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  category: zod.enum([
+    "credit_protection",
+    "account_security",
+    "legal_reporting",
+  ]),
+  completed: zod.boolean(),
+  priority: zod.number(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Get dark web monitoring summary stats
+ */
+export const GetDarkWebSummaryResponse = zod.object({
+  totalExposures: zod.number(),
+  activeExposures: zod.number(),
+  criticalExposures: zod.number(),
+  recoveryProgress: zod.number(),
+  exposuresByType: zod.array(
+    zod.object({
+      dataType: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});

@@ -48,12 +48,17 @@ artifacts-monorepo/
    - **Activity Log** - Filterable audit trail by category and severity, with pagination
    - **Threat Intel** - Geographic threat map, risk score distribution chart, threat category pie chart, recent high-risk transactions
    - **Throughput** - Transaction volume summary cards and time-series area chart
+7. **Dark Web Monitor** - Two-tab page tracking compromised personal data:
+   - **Exposures** - Lists detected dark web exposures (SSN, email, credentials, financial accounts, phone numbers) with severity badges, status indicators, source marketplace, and expandable detail cards with recommended actions. Filterable by severity.
+   - **Recovery Center** - Interactive checklist of recovery actions grouped by category (Credit Protection, Account Security, Legal & Reporting) with progress tracking, priority badges, and completion toggle. Exposure events auto-generate alerts in the existing alerts system.
 
 ## Database Schema
 
 - **transactions** - Stores all transactions with source, destination, amount, currency, risk_score, status, category, ip_address, country
 - **alerts** - Security alerts with title, message, severity, dismissed status
 - **activity_logs** - Audit trail of system activity with action, category, source, detail, severity, ip_address, response_time_ms
+- **dark_web_exposures** - Dark web exposure records with data_type, source_marketplace, severity, status, discovery_date, description, recommended_actions
+- **recovery_actions** - Recovery action checklists linked to exposures (FK to dark_web_exposures) with title, description, category, completed, priority
 
 ## ML Risk Scoring
 
@@ -83,6 +88,11 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/monitoring/throughput` - Transaction throughput over time
 - `GET /api/monitoring/risk-distribution` - Risk score distribution buckets
 - `GET /api/monitoring/top-threats` - Top threat categories, sources, and recent high-risk transactions
+- `GET /api/dark-web/exposures` - List dark web exposures (filterable by severity, status)
+- `GET /api/dark-web/exposures/:id` - Get exposure detail
+- `GET /api/dark-web/recovery-actions` - List recovery actions (filterable by exposureId, category)
+- `POST /api/dark-web/recovery-actions/:id/toggle` - Toggle recovery action completion
+- `GET /api/dark-web/summary` - Dark web monitoring summary stats
 
 ## Key Commands
 

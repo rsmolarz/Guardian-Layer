@@ -328,6 +328,81 @@ export interface TopThreats {
   recentHighRisk: Transaction[];
 }
 
+export type DarkWebExposureSeverity =
+  (typeof DarkWebExposureSeverity)[keyof typeof DarkWebExposureSeverity];
+
+export const DarkWebExposureSeverity = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type DarkWebExposureStatus =
+  (typeof DarkWebExposureStatus)[keyof typeof DarkWebExposureStatus];
+
+export const DarkWebExposureStatus = {
+  active: "active",
+  monitoring: "monitoring",
+  resolved: "resolved",
+} as const;
+
+export interface DarkWebExposure {
+  id: number;
+  dataType: string;
+  sourceMarketplace: string;
+  severity: DarkWebExposureSeverity;
+  status: DarkWebExposureStatus;
+  discoveryDate: string;
+  description: string;
+  recommendedActions: string;
+  createdAt: string;
+}
+
+export interface DarkWebExposureList {
+  exposures: DarkWebExposure[];
+  total: number;
+}
+
+export type RecoveryActionCategory =
+  (typeof RecoveryActionCategory)[keyof typeof RecoveryActionCategory];
+
+export const RecoveryActionCategory = {
+  credit_protection: "credit_protection",
+  account_security: "account_security",
+  legal_reporting: "legal_reporting",
+} as const;
+
+export interface RecoveryAction {
+  id: number;
+  exposureId: number;
+  title: string;
+  description: string;
+  category: RecoveryActionCategory;
+  completed: boolean;
+  priority: number;
+  createdAt: string;
+}
+
+export interface RecoveryActionList {
+  actions: RecoveryAction[];
+  total: number;
+  completedCount: number;
+}
+
+export type DarkWebSummaryExposuresByTypeItem = {
+  dataType: string;
+  count: number;
+};
+
+export interface DarkWebSummary {
+  totalExposures: number;
+  activeExposures: number;
+  criticalExposures: number;
+  recoveryProgress: number;
+  exposuresByType: DarkWebSummaryExposuresByTypeItem[];
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;
@@ -395,3 +470,41 @@ export const GetActivityLogSeverity = {
 export type GetThroughputParams = {
   hours?: number;
 };
+
+export type ListDarkWebExposuresParams = {
+  severity?: ListDarkWebExposuresSeverity;
+  status?: ListDarkWebExposuresStatus;
+};
+
+export type ListDarkWebExposuresSeverity =
+  (typeof ListDarkWebExposuresSeverity)[keyof typeof ListDarkWebExposuresSeverity];
+
+export const ListDarkWebExposuresSeverity = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type ListDarkWebExposuresStatus =
+  (typeof ListDarkWebExposuresStatus)[keyof typeof ListDarkWebExposuresStatus];
+
+export const ListDarkWebExposuresStatus = {
+  active: "active",
+  monitoring: "monitoring",
+  resolved: "resolved",
+} as const;
+
+export type ListRecoveryActionsParams = {
+  exposureId?: number;
+  category?: ListRecoveryActionsCategory;
+};
+
+export type ListRecoveryActionsCategory =
+  (typeof ListRecoveryActionsCategory)[keyof typeof ListRecoveryActionsCategory];
+
+export const ListRecoveryActionsCategory = {
+  credit_protection: "credit_protection",
+  account_security: "account_security",
+  legal_reporting: "legal_reporting",
+} as const;

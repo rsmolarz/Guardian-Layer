@@ -10,6 +10,7 @@ import Approvals from "@/pages/Approvals";
 import Alerts from "@/pages/Alerts";
 import Integrations from "@/pages/Integrations";
 import Monitoring from "@/pages/Monitoring";
+import DarkWebMonitor from "@/pages/DarkWebMonitor";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/alerts" component={Alerts} />
         <Route path="/integrations" component={Integrations} />
         <Route path="/monitoring" component={Monitoring} />
+        <Route path="/dark-web" component={DarkWebMonitor} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

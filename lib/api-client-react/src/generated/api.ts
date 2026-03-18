@@ -21,6 +21,9 @@ import type {
   Alert,
   AlertList,
   ApprovalResult,
+  DarkWebExposure,
+  DarkWebExposureList,
+  DarkWebSummary,
   DashboardStats,
   GetActivityLogParams,
   GetRiskTimelineParams,
@@ -29,7 +32,11 @@ import type {
   HealthStatus,
   IntegrationList,
   ListAlertsParams,
+  ListDarkWebExposuresParams,
+  ListRecoveryActionsParams,
   ListTransactionsParams,
+  RecoveryAction,
+  RecoveryActionList,
   RiskDistribution,
   RiskTimeline,
   StripeConnectionStatus,
@@ -1701,6 +1708,455 @@ export function useGetTopThreats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTopThreatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List dark web exposure records
+ */
+export const getListDarkWebExposuresUrl = (
+  params?: ListDarkWebExposuresParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/dark-web/exposures?${stringifiedParams}`
+    : `/api/dark-web/exposures`;
+};
+
+export const listDarkWebExposures = async (
+  params?: ListDarkWebExposuresParams,
+  options?: RequestInit,
+): Promise<DarkWebExposureList> => {
+  return customFetch<DarkWebExposureList>(getListDarkWebExposuresUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDarkWebExposuresQueryKey = (
+  params?: ListDarkWebExposuresParams,
+) => {
+  return [`/api/dark-web/exposures`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDarkWebExposuresQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDarkWebExposures>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDarkWebExposuresParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDarkWebExposures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDarkWebExposuresQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDarkWebExposures>>
+  > = ({ signal }) =>
+    listDarkWebExposures(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDarkWebExposures>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDarkWebExposuresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDarkWebExposures>>
+>;
+export type ListDarkWebExposuresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List dark web exposure records
+ */
+
+export function useListDarkWebExposures<
+  TData = Awaited<ReturnType<typeof listDarkWebExposures>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDarkWebExposuresParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDarkWebExposures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDarkWebExposuresQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get dark web exposure detail
+ */
+export const getGetDarkWebExposureUrl = (id: number) => {
+  return `/api/dark-web/exposures/${id}`;
+};
+
+export const getDarkWebExposure = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DarkWebExposure> => {
+  return customFetch<DarkWebExposure>(getGetDarkWebExposureUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDarkWebExposureQueryKey = (id: number) => {
+  return [`/api/dark-web/exposures/${id}`] as const;
+};
+
+export const getGetDarkWebExposureQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDarkWebExposure>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDarkWebExposure>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDarkWebExposureQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDarkWebExposure>>
+  > = ({ signal }) => getDarkWebExposure(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDarkWebExposure>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDarkWebExposureQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDarkWebExposure>>
+>;
+export type GetDarkWebExposureQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get dark web exposure detail
+ */
+
+export function useGetDarkWebExposure<
+  TData = Awaited<ReturnType<typeof getDarkWebExposure>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDarkWebExposure>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDarkWebExposureQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List recovery actions
+ */
+export const getListRecoveryActionsUrl = (
+  params?: ListRecoveryActionsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/dark-web/recovery-actions?${stringifiedParams}`
+    : `/api/dark-web/recovery-actions`;
+};
+
+export const listRecoveryActions = async (
+  params?: ListRecoveryActionsParams,
+  options?: RequestInit,
+): Promise<RecoveryActionList> => {
+  return customFetch<RecoveryActionList>(getListRecoveryActionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRecoveryActionsQueryKey = (
+  params?: ListRecoveryActionsParams,
+) => {
+  return [
+    `/api/dark-web/recovery-actions`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListRecoveryActionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRecoveryActions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRecoveryActionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRecoveryActions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListRecoveryActionsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRecoveryActions>>
+  > = ({ signal }) =>
+    listRecoveryActions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRecoveryActions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRecoveryActionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRecoveryActions>>
+>;
+export type ListRecoveryActionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List recovery actions
+ */
+
+export function useListRecoveryActions<
+  TData = Awaited<ReturnType<typeof listRecoveryActions>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRecoveryActionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRecoveryActions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRecoveryActionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark recovery action complete or incomplete
+ */
+export const getToggleRecoveryActionUrl = (id: number) => {
+  return `/api/dark-web/recovery-actions/${id}/toggle`;
+};
+
+export const toggleRecoveryAction = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RecoveryAction> => {
+  return customFetch<RecoveryAction>(getToggleRecoveryActionUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getToggleRecoveryActionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleRecoveryAction>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleRecoveryAction>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["toggleRecoveryAction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleRecoveryAction>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return toggleRecoveryAction(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleRecoveryActionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleRecoveryAction>>
+>;
+
+export type ToggleRecoveryActionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark recovery action complete or incomplete
+ */
+export const useToggleRecoveryAction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleRecoveryAction>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleRecoveryAction>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getToggleRecoveryActionMutationOptions(options));
+};
+
+/**
+ * @summary Get dark web monitoring summary stats
+ */
+export const getGetDarkWebSummaryUrl = () => {
+  return `/api/dark-web/summary`;
+};
+
+export const getDarkWebSummary = async (
+  options?: RequestInit,
+): Promise<DarkWebSummary> => {
+  return customFetch<DarkWebSummary>(getGetDarkWebSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDarkWebSummaryQueryKey = () => {
+  return [`/api/dark-web/summary`] as const;
+};
+
+export const getGetDarkWebSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDarkWebSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDarkWebSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDarkWebSummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDarkWebSummary>>
+  > = ({ signal }) => getDarkWebSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDarkWebSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDarkWebSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDarkWebSummary>>
+>;
+export type GetDarkWebSummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get dark web monitoring summary stats
+ */
+
+export function useGetDarkWebSummary<
+  TData = Awaited<ReturnType<typeof getDarkWebSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDarkWebSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDarkWebSummaryQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

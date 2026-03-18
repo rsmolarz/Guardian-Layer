@@ -1,5 +1,6 @@
 import { db, transactionsTable, alertsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { seedDarkWebData } from "../routes/dark-web";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -41,4 +42,9 @@ export async function seedIfEmpty() {
   ]);
 
   console.log("Seed complete.");
+}
+
+export async function seedAllModules() {
+  await seedIfEmpty();
+  await seedDarkWebData();
 }

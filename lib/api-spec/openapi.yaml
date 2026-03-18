@@ -21,6 +21,8 @@ tags:
     description: Security alert operations
   - name: monitoring
     description: System monitoring operations
+  - name: dark-web
+    description: Dark web monitoring and recovery operations
 paths:
   /healthz:
     get:
@@ -372,6 +374,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TopThreats"
+
+  /dark-web/exposures:
+    get:
+      operationId: listDarkWebExposures
+      tags: [dark-web]
+      summary: List dark web exposure records
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, monitoring, resolved]
+      responses:
+        "200":
+          description: Exposure list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DarkWebExposureList"
+
+  /dark-web/exposures/{id}:
+    get:
+      operationId: getDarkWebExposure
+      tags: [dark-web]
+      summary: Get dark web exposure detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Exposure detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DarkWebExposure"
+
+  /dark-web/recovery-actions:
+    get:
+      operationId: listRecoveryActions
+      tags: [dark-web]
+      summary: List recovery actions
+      parameters:
+        - name: exposureId
+          in: query
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [credit_protection, account_security, legal_reporting]
+      responses:
+        "200":
+          description: Recovery action list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryActionList"
+
+  /dark-web/recovery-actions/{id}/toggle:
+    post:
+      operationId: toggleRecoveryAction
+      tags: [dark-web]
+      summary: Mark recovery action complete or incomplete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated recovery action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryAction"
+
+  /dark-web/summary:
+    get:
+      operationId: getDarkWebSummary
+      tags: [dark-web]
+      summary: Get dark web monitoring summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DarkWebSummary"
 
 components:
   schemas:
@@ -939,3 +1039,129 @@ components:
         - byCategory
         - bySource
         - recentHighRisk
+
+    DarkWebExposure:
+      type: object
+      properties:
+        id:
+          type: integer
+        dataType:
+          type: string
+        sourceMarketplace:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          enum: [active, monitoring, resolved]
+        discoveryDate:
+          type: string
+          format: date-time
+        description:
+          type: string
+        recommendedActions:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - dataType
+        - sourceMarketplace
+        - severity
+        - status
+        - discoveryDate
+        - description
+        - recommendedActions
+        - createdAt
+
+    DarkWebExposureList:
+      type: object
+      properties:
+        exposures:
+          type: array
+          items:
+            $ref: "#/components/schemas/DarkWebExposure"
+        total:
+          type: integer
+      required:
+        - exposures
+        - total
+
+    RecoveryAction:
+      type: object
+      properties:
+        id:
+          type: integer
+        exposureId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [credit_protection, account_security, legal_reporting]
+        completed:
+          type: boolean
+        priority:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - exposureId
+        - title
+        - description
+        - category
+        - completed
+        - priority
+        - createdAt
+
+    RecoveryActionList:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecoveryAction"
+        total:
+          type: integer
+        completedCount:
+          type: integer
+      required:
+        - actions
+        - total
+        - completedCount
+
+    DarkWebSummary:
+      type: object
+      properties:
+        totalExposures:
+          type: integer
+        activeExposures:
+          type: integer
+        criticalExposures:
+          type: integer
+        recoveryProgress:
+          type: number
+        exposuresByType:
+          type: array
+          items:
+            type: object
+            properties:
+              dataType:
+                type: string
+              count:
+                type: integer
+            required:
+              - dataType
+              - count
+      required:
+        - totalExposures
+        - activeExposures
+        - criticalExposures
+        - recoveryProgress
+        - exposuresByType
