@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
-import { ListIntegrationsResponse, GetGoogleWorkspaceStatusResponse } from "@workspace/api-zod";
+import { ListIntegrationsResponse, GetGoogleWorkspaceStatusResponse, SyncStripeTransactionsResponse, GetStripeStatusResponse } from "@workspace/api-zod";
 import { checkGoogleConnection } from "../lib/google-clients";
+import { getStripeClient, isStripeConfigured } from "../lib/stripe-client";
+import { syncStripeTransactions } from "../lib/stripe-sync";
 
 const router: IRouter = Router();
 
@@ -186,6 +188,64 @@ router.get("/integrations/google-workspace/status", async (_req, res): Promise<v
       totalCount: results.length,
     })
   );
+});
+
+router.get("/integrations/stripe/status", async (_req, res): Promise<void> => {
+  if (!isStripeConfigured()) {
+    res.json(GetStripeStatusResponse.parse({
+      connected: false,
+      mode: "test",
+      accountName: null,
+      error: "Stripe API key not configured",
+    }));
+    return;
+  }
+
+  try {
+    const stripe = getStripeClient();
+    const apiKey = process.env.SLACK_TEST_API_KEY || "";
+    const isLive = apiKey.includes("_live_");
+    const mode = isLive ? "live" as const : "test" as const;
+
+    await stripe.charges.list({ limit: 1 });
+
+    let accountName: string | null = null;
+    try {
+      const account = await stripe.accounts.retrieve();
+      accountName = account.settings?.dashboard?.display_name || account.business_profile?.name || null;
+    } catch {
+    }
+
+    res.json(GetStripeStatusResponse.parse({
+      connected: true,
+      mode,
+      accountName,
+      error: null,
+    }));
+  } catch (err: any) {
+    res.json(GetStripeStatusResponse.parse({
+      connected: false,
+      mode: "test",
+      accountName: null,
+      error: err.message,
+    }));
+  }
+});
+
+router.post("/integrations/stripe/sync", async (_req, res): Promise<void> => {
+  try {
+    const result = await syncStripeTransactions();
+    res.json(SyncStripeTransactionsResponse.parse({
+      ...result,
+      message: result.synced > 0
+        ? `Successfully synced ${result.synced} transactions from Stripe`
+        : result.errors.length > 0
+        ? `Sync failed: ${result.errors[0]}`
+        : "No new transactions found in Stripe",
+    }));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

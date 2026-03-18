@@ -164,6 +164,28 @@ export interface GoogleWorkspaceStatus {
   totalCount: number;
 }
 
+export interface StripeSyncResult {
+  synced: number;
+  skipped: number;
+  errors: string[];
+  message: string;
+}
+
+export type StripeConnectionStatusMode =
+  (typeof StripeConnectionStatusMode)[keyof typeof StripeConnectionStatusMode];
+
+export const StripeConnectionStatusMode = {
+  test: "test",
+  live: "live",
+} as const;
+
+export interface StripeConnectionStatus {
+  connected: boolean;
+  mode: StripeConnectionStatusMode;
+  accountName?: string | null;
+  error?: string | null;
+}
+
 export type SystemHealthOverall =
   (typeof SystemHealthOverall)[keyof typeof SystemHealthOverall];
 

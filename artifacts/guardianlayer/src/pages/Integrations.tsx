@@ -1,4 +1,5 @@
-import { useListIntegrations, useGetGoogleWorkspaceStatus } from "@workspace/api-client-react";
+import { useListIntegrations, useGetGoogleWorkspaceStatus, useGetStripeStatus, useSyncStripeTransactions } from "@workspace/api-client-react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -22,6 +23,8 @@ import {
   FileText,
   Table2,
   Lock,
+  RefreshCw,
+  Zap,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -87,6 +90,7 @@ export default function Integrations() {
   const active = data.integrations.filter((i) => i.status !== "pending");
   const pending = data.integrations.filter((i) => i.status === "pending");
   const hasGoogleWorkspace = active.some((i) => i.id === "google-workspace");
+  const hasStripe = active.some((i) => i.id === "stripe");
 
   return (
     <div className="pb-12">
@@ -101,6 +105,7 @@ export default function Integrations() {
         ))}
       </div>
 
+      {hasStripe && <StripePanel />}
       {hasGoogleWorkspace && <GoogleWorkspacePanel />}
 
       {pending.length > 0 && (
@@ -121,6 +126,129 @@ export default function Integrations() {
         </>
       )}
     </div>
+  );
+}
+
+function StripePanel() {
+  const { data: status, isLoading: statusLoading } = useGetStripeStatus({
+    query: { refetchInterval: 30000 },
+  });
+  const syncMutation = useSyncStripeTransactions();
+  const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; errors: string[]; message: string } | null>(null);
+
+  const handleSync = () => {
+    setSyncResult(null);
+    syncMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        setSyncResult(data as any);
+      },
+    });
+  };
+
+  if (statusLoading || !status) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25 }}
+      className="mt-8 glass-panel p-6 rounded-2xl border border-primary/10"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <CreditCard className="w-5 h-5 text-primary" />
+          <h3 className="font-display text-sm uppercase tracking-widest text-primary">
+            Stripe Transaction Sync
+          </h3>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={clsx(
+            "font-mono text-xs uppercase tracking-wider px-2 py-0.5 rounded border",
+            status.connected
+              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              : "text-rose-400 bg-rose-500/10 border-rose-500/20"
+          )}>
+            {status.connected ? "Connected" : "Disconnected"}
+          </span>
+          {status.mode && (
+            <span className="font-mono text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded uppercase">
+              {status.mode} mode
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="p-4 rounded-xl bg-black/30 border border-white/5">
+          <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1">Connection</div>
+          <div className="flex items-center gap-2">
+            {status.connected ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <XCircle className="w-4 h-4 text-rose-400" />
+            )}
+            <span className="font-mono text-sm text-foreground">
+              {status.connected ? "API Key Valid" : (status.error || "Not configured")}
+            </span>
+          </div>
+        </div>
+        <div className="p-4 rounded-xl bg-black/30 border border-white/5">
+          <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1">Account</div>
+          <span className="font-mono text-sm text-foreground">
+            {status.accountName || "Stripe Account"}
+          </span>
+        </div>
+        <div className="p-4 rounded-xl bg-black/30 border border-white/5">
+          <div className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1">Mode</div>
+          <div className="flex items-center gap-2">
+            <Zap className={clsx("w-4 h-4", status.mode === "live" ? "text-emerald-400" : "text-amber-400")} />
+            <span className="font-mono text-sm text-foreground uppercase">
+              {status.mode || "test"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleSync}
+          disabled={!status.connected || syncMutation.isPending}
+          className={clsx(
+            "flex items-center gap-2 px-6 py-3 rounded-xl font-display text-sm uppercase tracking-wider transition-all border",
+            status.connected
+              ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50"
+              : "bg-white/5 border-white/10 text-muted-foreground cursor-not-allowed"
+          )}
+        >
+          <RefreshCw className={clsx("w-4 h-4", syncMutation.isPending && "animate-spin")} />
+          {syncMutation.isPending ? "Syncing..." : "Sync Transactions from Stripe"}
+        </button>
+
+        {syncResult && (
+          <motion.div
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={clsx(
+              "flex items-center gap-2 px-4 py-2 rounded-xl border font-mono text-xs",
+              syncResult.synced > 0
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                : syncResult.errors.length > 0
+                ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                : "bg-amber-500/10 border-amber-500/20 text-amber-400"
+            )}
+          >
+            {syncResult.synced > 0 ? (
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            ) : syncResult.errors.length > 0 ? (
+              <XCircle className="w-3.5 h-3.5" />
+            ) : (
+              <AlertTriangle className="w-3.5 h-3.5" />
+            )}
+            {syncResult.message}
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 

@@ -15,7 +15,8 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
-    "googleapis": "148.0.0"
+    "googleapis": "148.0.0",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

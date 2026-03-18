@@ -229,6 +229,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntegrationList"
 
+  /integrations/stripe/sync:
+    post:
+      operationId: syncStripeTransactions
+      tags: [integrations]
+      summary: Sync transactions from Stripe into GuardianLayer for risk analysis
+      responses:
+        "200":
+          description: Sync results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeSyncResult"
+
+  /integrations/stripe/status:
+    get:
+      operationId: getStripeStatus
+      tags: [integrations]
+      summary: Check Stripe connection status
+      responses:
+        "200":
+          description: Stripe connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeConnectionStatus"
+
   /integrations/google-workspace/status:
     get:
       operationId: getGoogleWorkspaceStatus
@@ -628,6 +654,43 @@ components:
         - services
         - connectedCount
         - totalCount
+
+    StripeSyncResult:
+      type: object
+      properties:
+        synced:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+      required:
+        - synced
+        - skipped
+        - errors
+        - message
+
+    StripeConnectionStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        mode:
+          type: string
+          enum: [test, live]
+        accountName:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+        - connected
+        - mode
 
     SystemHealth:
       type: object

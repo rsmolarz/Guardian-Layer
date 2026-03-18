@@ -32,6 +32,8 @@ import type {
   ListTransactionsParams,
   RiskDistribution,
   RiskTimeline,
+  StripeConnectionStatus,
+  StripeSyncResult,
   SystemHealth,
   ThreatMapData,
   ThroughputData,
@@ -979,6 +981,162 @@ export function useListIntegrations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListIntegrationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Sync transactions from Stripe into GuardianLayer for risk analysis
+ */
+export const getSyncStripeTransactionsUrl = () => {
+  return `/api/integrations/stripe/sync`;
+};
+
+export const syncStripeTransactions = async (
+  options?: RequestInit,
+): Promise<StripeSyncResult> => {
+  return customFetch<StripeSyncResult>(getSyncStripeTransactionsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncStripeTransactionsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStripeTransactions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncStripeTransactions>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncStripeTransactions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncStripeTransactions>>,
+    void
+  > = () => {
+    return syncStripeTransactions(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncStripeTransactionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncStripeTransactions>>
+>;
+
+export type SyncStripeTransactionsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Sync transactions from Stripe into GuardianLayer for risk analysis
+ */
+export const useSyncStripeTransactions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncStripeTransactions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncStripeTransactions>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncStripeTransactionsMutationOptions(options));
+};
+
+/**
+ * @summary Check Stripe connection status
+ */
+export const getGetStripeStatusUrl = () => {
+  return `/api/integrations/stripe/status`;
+};
+
+export const getStripeStatus = async (
+  options?: RequestInit,
+): Promise<StripeConnectionStatus> => {
+  return customFetch<StripeConnectionStatus>(getGetStripeStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStripeStatusQueryKey = () => {
+  return [`/api/integrations/stripe/status`] as const;
+};
+
+export const getGetStripeStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStripeStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStripeStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStripeStatus>>> = ({
+    signal,
+  }) => getStripeStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStripeStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStripeStatus>>
+>;
+export type GetStripeStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Check Stripe connection status
+ */
+
+export function useGetStripeStatus<
+  TData = Awaited<ReturnType<typeof getStripeStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStripeStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStripeStatusQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

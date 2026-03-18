@@ -223,6 +223,26 @@ export const ListIntegrationsResponse = zod.object({
 });
 
 /**
+ * @summary Sync transactions from Stripe into GuardianLayer for risk analysis
+ */
+export const SyncStripeTransactionsResponse = zod.object({
+  synced: zod.number(),
+  skipped: zod.number(),
+  errors: zod.array(zod.string()),
+  message: zod.string(),
+});
+
+/**
+ * @summary Check Stripe connection status
+ */
+export const GetStripeStatusResponse = zod.object({
+  connected: zod.boolean(),
+  mode: zod.enum(["test", "live"]),
+  accountName: zod.string().nullish(),
+  error: zod.string().nullish(),
+});
+
+/**
  * @summary Get live status of connected Google Workspace services
  */
 export const GetGoogleWorkspaceStatusResponse = zod.object({
