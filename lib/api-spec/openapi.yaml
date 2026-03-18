@@ -23,6 +23,8 @@ tags:
     description: System monitoring operations
   - name: dark-web
     description: Dark web monitoring and recovery operations
+  - name: recovery
+    description: Asset & data recovery operations
 paths:
   /healthz:
     get:
@@ -794,6 +796,147 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DarkWebSummary"
+
+  /recovery/cases:
+    get:
+      operationId: listRecoveryCases
+      tags: [recovery]
+      summary: List all recovery cases
+      responses:
+        "200":
+          description: Recovery case list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCaseList"
+
+  /recovery/summary:
+    get:
+      operationId: getRecoverySummary
+      tags: [recovery]
+      summary: Get recovery summary statistics
+      responses:
+        "200":
+          description: Recovery summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoverySummary"
+
+  /recovery/cases/{id}:
+    get:
+      operationId: getRecoveryCase
+      tags: [recovery]
+      summary: Get recovery case detail with steps
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recovery case detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCaseDetail"
+
+  /recovery/cases/{id}/status:
+    patch:
+      operationId: updateRecoveryCaseStatus
+      tags: [recovery]
+      summary: Update recovery case status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, in_progress, verified, recovered]
+              required:
+                - status
+      responses:
+        "200":
+          description: Updated recovery case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCase"
+
+  /recovery/steps/{id}/status:
+    patch:
+      operationId: updateRecoveryStepStatus
+      tags: [recovery]
+      summary: Update recovery step status and notes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [not_started, in_progress, completed, verified]
+                notes:
+                  type: string
+              required:
+                - status
+      responses:
+        "200":
+          description: Updated recovery step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryStep"
+
+  /recovery/cases/{id}/verify:
+    post:
+      operationId: verifyRecoveryCase
+      tags: [recovery]
+      summary: Mark a recovery case as fully verified and recovered
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verified recovery case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCase"
+
+  /recovery/timeline:
+    get:
+      operationId: getRecoveryTimeline
+      tags: [recovery]
+      summary: Get chronological recovery timeline across all cases
+      responses:
+        "200":
+          description: Recovery timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryTimeline"
 
 components:
   schemas:
@@ -2093,3 +2236,154 @@ components:
         - criticalExposures
         - recoveryProgress
         - exposuresByType
+
+    RecoveryCase:
+      type: object
+      properties:
+        id:
+          type: integer
+        assetType:
+          type: string
+        assetIdentifier:
+          type: string
+        compromiseDetails:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, verified, recovered]
+        recoveryPercentage:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assetType
+        - assetIdentifier
+        - compromiseDetails
+        - status
+        - recoveryPercentage
+        - createdAt
+        - updatedAt
+
+    RecoveryStep:
+      type: object
+      properties:
+        id:
+          type: integer
+        caseId:
+          type: integer
+        stepOrder:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, verified]
+        notes:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - caseId
+        - stepOrder
+        - title
+        - description
+        - category
+        - status
+
+    RecoveryCaseList:
+      type: object
+      properties:
+        cases:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecoveryCase"
+        total:
+          type: integer
+      required:
+        - cases
+        - total
+
+    RecoveryCaseDetail:
+      type: object
+      properties:
+        case:
+          $ref: "#/components/schemas/RecoveryCase"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecoveryStep"
+      required:
+        - case
+        - steps
+
+    RecoverySummary:
+      type: object
+      properties:
+        totalAffected:
+          type: integer
+        totalRecovered:
+          type: integer
+        inProgress:
+          type: integer
+        overallPercentage:
+          type: integer
+      required:
+        - totalAffected
+        - totalRecovered
+        - inProgress
+        - overallPercentage
+
+    RecoveryTimelineEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        caseId:
+          type: integer
+        assetType:
+          type: string
+        stepTitle:
+          type: string
+        action:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - id
+        - caseId
+        - assetType
+        - stepTitle
+        - action
+        - timestamp
+
+    RecoveryTimeline:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecoveryTimelineEntry"
+      required:
+        - entries

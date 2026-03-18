@@ -16,6 +16,7 @@ import OpenclawMonitor from "@/pages/OpenclawMonitor";
 import Integrations from "@/pages/Integrations";
 import Monitoring from "@/pages/Monitoring";
 import DarkWebMonitor from "@/pages/DarkWebMonitor";
+import Recovery from "@/pages/Recovery";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ function Router() {
         <Route path="/integrations" component={Integrations} />
         <Route path="/monitoring" component={Monitoring} />
         <Route path="/dark-web" component={DarkWebMonitor} />
+        <Route path="/recovery" component={Recovery} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

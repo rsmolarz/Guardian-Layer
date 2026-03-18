@@ -54,6 +54,12 @@ import type {
   OpenclawStats,
   RecoveryAction,
   RecoveryActionList,
+  RecoveryCase,
+  RecoveryCaseDetail,
+  RecoveryCaseList,
+  RecoveryStep,
+  RecoverySummary,
+  RecoveryTimeline,
   RiskDistribution,
   RiskTimeline,
   StripeConnectionStatus,
@@ -66,6 +72,8 @@ import type {
   TransactionList,
   TransactionScanRequest,
   TransactionScanResult,
+  UpdateRecoveryCaseStatusBody,
+  UpdateRecoveryStepStatusBody,
   YubikeyDeviceList,
   YubikeyEventList,
   YubikeyStats,
@@ -3396,6 +3404,578 @@ export function useGetDarkWebSummary<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDarkWebSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all recovery cases
+ */
+export const getListRecoveryCasesUrl = () => {
+  return `/api/recovery/cases`;
+};
+
+export const listRecoveryCases = async (
+  options?: RequestInit,
+): Promise<RecoveryCaseList> => {
+  return customFetch<RecoveryCaseList>(getListRecoveryCasesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRecoveryCasesQueryKey = () => {
+  return [`/api/recovery/cases`] as const;
+};
+
+export const getListRecoveryCasesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRecoveryCases>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRecoveryCases>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRecoveryCasesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listRecoveryCases>>
+  > = ({ signal }) => listRecoveryCases({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRecoveryCases>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRecoveryCasesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRecoveryCases>>
+>;
+export type ListRecoveryCasesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all recovery cases
+ */
+
+export function useListRecoveryCases<
+  TData = Awaited<ReturnType<typeof listRecoveryCases>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listRecoveryCases>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRecoveryCasesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get recovery summary statistics
+ */
+export const getGetRecoverySummaryUrl = () => {
+  return `/api/recovery/summary`;
+};
+
+export const getRecoverySummary = async (
+  options?: RequestInit,
+): Promise<RecoverySummary> => {
+  return customFetch<RecoverySummary>(getGetRecoverySummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecoverySummaryQueryKey = () => {
+  return [`/api/recovery/summary`] as const;
+};
+
+export const getGetRecoverySummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecoverySummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoverySummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecoverySummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecoverySummary>>
+  > = ({ signal }) => getRecoverySummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoverySummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecoverySummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecoverySummary>>
+>;
+export type GetRecoverySummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recovery summary statistics
+ */
+
+export function useGetRecoverySummary<
+  TData = Awaited<ReturnType<typeof getRecoverySummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoverySummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecoverySummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get recovery case detail with steps
+ */
+export const getGetRecoveryCaseUrl = (id: number) => {
+  return `/api/recovery/cases/${id}`;
+};
+
+export const getRecoveryCase = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RecoveryCaseDetail> => {
+  return customFetch<RecoveryCaseDetail>(getGetRecoveryCaseUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecoveryCaseQueryKey = (id: number) => {
+  return [`/api/recovery/cases/${id}`] as const;
+};
+
+export const getGetRecoveryCaseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecoveryCase>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecoveryCase>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecoveryCaseQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecoveryCase>>> = ({
+    signal,
+  }) => getRecoveryCase(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoveryCase>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecoveryCaseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecoveryCase>>
+>;
+export type GetRecoveryCaseQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recovery case detail with steps
+ */
+
+export function useGetRecoveryCase<
+  TData = Awaited<ReturnType<typeof getRecoveryCase>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRecoveryCase>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecoveryCaseQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update recovery case status
+ */
+export const getUpdateRecoveryCaseStatusUrl = (id: number) => {
+  return `/api/recovery/cases/${id}/status`;
+};
+
+export const updateRecoveryCaseStatus = async (
+  id: number,
+  updateRecoveryCaseStatusBody: UpdateRecoveryCaseStatusBody,
+  options?: RequestInit,
+): Promise<RecoveryCase> => {
+  return customFetch<RecoveryCase>(getUpdateRecoveryCaseStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateRecoveryCaseStatusBody),
+  });
+};
+
+export const getUpdateRecoveryCaseStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecoveryCaseStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateRecoveryCaseStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRecoveryCaseStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateRecoveryCaseStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updateRecoveryCaseStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRecoveryCaseStatus>>,
+    { id: number; data: BodyType<UpdateRecoveryCaseStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRecoveryCaseStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRecoveryCaseStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRecoveryCaseStatus>>
+>;
+export type UpdateRecoveryCaseStatusMutationBody =
+  BodyType<UpdateRecoveryCaseStatusBody>;
+export type UpdateRecoveryCaseStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update recovery case status
+ */
+export const useUpdateRecoveryCaseStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecoveryCaseStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateRecoveryCaseStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRecoveryCaseStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateRecoveryCaseStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdateRecoveryCaseStatusMutationOptions(options));
+};
+
+/**
+ * @summary Update recovery step status and notes
+ */
+export const getUpdateRecoveryStepStatusUrl = (id: number) => {
+  return `/api/recovery/steps/${id}/status`;
+};
+
+export const updateRecoveryStepStatus = async (
+  id: number,
+  updateRecoveryStepStatusBody: UpdateRecoveryStepStatusBody,
+  options?: RequestInit,
+): Promise<RecoveryStep> => {
+  return customFetch<RecoveryStep>(getUpdateRecoveryStepStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateRecoveryStepStatusBody),
+  });
+};
+
+export const getUpdateRecoveryStepStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecoveryStepStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateRecoveryStepStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRecoveryStepStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateRecoveryStepStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updateRecoveryStepStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRecoveryStepStatus>>,
+    { id: number; data: BodyType<UpdateRecoveryStepStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRecoveryStepStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRecoveryStepStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRecoveryStepStatus>>
+>;
+export type UpdateRecoveryStepStatusMutationBody =
+  BodyType<UpdateRecoveryStepStatusBody>;
+export type UpdateRecoveryStepStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update recovery step status and notes
+ */
+export const useUpdateRecoveryStepStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecoveryStepStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateRecoveryStepStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRecoveryStepStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateRecoveryStepStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdateRecoveryStepStatusMutationOptions(options));
+};
+
+/**
+ * @summary Mark a recovery case as fully verified and recovered
+ */
+export const getVerifyRecoveryCaseUrl = (id: number) => {
+  return `/api/recovery/cases/${id}/verify`;
+};
+
+export const verifyRecoveryCase = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RecoveryCase> => {
+  return customFetch<RecoveryCase>(getVerifyRecoveryCaseUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getVerifyRecoveryCaseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyRecoveryCase>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyRecoveryCase>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["verifyRecoveryCase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyRecoveryCase>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return verifyRecoveryCase(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyRecoveryCaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyRecoveryCase>>
+>;
+
+export type VerifyRecoveryCaseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a recovery case as fully verified and recovered
+ */
+export const useVerifyRecoveryCase = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyRecoveryCase>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyRecoveryCase>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getVerifyRecoveryCaseMutationOptions(options));
+};
+
+/**
+ * @summary Get chronological recovery timeline across all cases
+ */
+export const getGetRecoveryTimelineUrl = () => {
+  return `/api/recovery/timeline`;
+};
+
+export const getRecoveryTimeline = async (
+  options?: RequestInit,
+): Promise<RecoveryTimeline> => {
+  return customFetch<RecoveryTimeline>(getGetRecoveryTimelineUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecoveryTimelineQueryKey = () => {
+  return [`/api/recovery/timeline`] as const;
+};
+
+export const getGetRecoveryTimelineQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecoveryTimeline>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoveryTimeline>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecoveryTimelineQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRecoveryTimeline>>
+  > = ({ signal }) => getRecoveryTimeline({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoveryTimeline>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecoveryTimelineQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecoveryTimeline>>
+>;
+export type GetRecoveryTimelineQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get chronological recovery timeline across all cases
+ */
+
+export function useGetRecoveryTimeline<
+  TData = Awaited<ReturnType<typeof getRecoveryTimeline>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecoveryTimeline>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecoveryTimelineQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

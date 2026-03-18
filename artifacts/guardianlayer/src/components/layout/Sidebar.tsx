@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw } from "lucide-react";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/integrations", label: "Integrations", icon: Plug2 },
   { href: "/monitoring", label: "Monitoring", icon: Monitor },
   { href: "/dark-web", label: "Dark Web Monitor", icon: Eye },
+  { href: "/recovery", label: "Recovery Center", icon: RefreshCw },
 ];
 
 export function Sidebar() {

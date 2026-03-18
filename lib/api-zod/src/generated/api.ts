@@ -876,3 +876,149 @@ export const GetDarkWebSummaryResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary List all recovery cases
+ */
+export const ListRecoveryCasesResponse = zod.object({
+  cases: zod.array(
+    zod.object({
+      id: zod.number(),
+      assetType: zod.string(),
+      assetIdentifier: zod.string(),
+      compromiseDetails: zod.string(),
+      status: zod.enum(["pending", "in_progress", "verified", "recovered"]),
+      recoveryPercentage: zod.number(),
+      createdAt: zod.date(),
+      updatedAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get recovery summary statistics
+ */
+export const GetRecoverySummaryResponse = zod.object({
+  totalAffected: zod.number(),
+  totalRecovered: zod.number(),
+  inProgress: zod.number(),
+  overallPercentage: zod.number(),
+});
+
+/**
+ * @summary Get recovery case detail with steps
+ */
+export const GetRecoveryCaseParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetRecoveryCaseResponse = zod.object({
+  case: zod.object({
+    id: zod.number(),
+    assetType: zod.string(),
+    assetIdentifier: zod.string(),
+    compromiseDetails: zod.string(),
+    status: zod.enum(["pending", "in_progress", "verified", "recovered"]),
+    recoveryPercentage: zod.number(),
+    createdAt: zod.date(),
+    updatedAt: zod.date(),
+  }),
+  steps: zod.array(
+    zod.object({
+      id: zod.number(),
+      caseId: zod.number(),
+      stepOrder: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      category: zod.string(),
+      status: zod.enum(["not_started", "in_progress", "completed", "verified"]),
+      notes: zod.string().nullish(),
+      startedAt: zod.date().nullish(),
+      completedAt: zod.date().nullish(),
+      verifiedAt: zod.date().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update recovery case status
+ */
+export const UpdateRecoveryCaseStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRecoveryCaseStatusBody = zod.object({
+  status: zod.enum(["pending", "in_progress", "verified", "recovered"]),
+});
+
+export const UpdateRecoveryCaseStatusResponse = zod.object({
+  id: zod.number(),
+  assetType: zod.string(),
+  assetIdentifier: zod.string(),
+  compromiseDetails: zod.string(),
+  status: zod.enum(["pending", "in_progress", "verified", "recovered"]),
+  recoveryPercentage: zod.number(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Update recovery step status and notes
+ */
+export const UpdateRecoveryStepStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRecoveryStepStatusBody = zod.object({
+  status: zod.enum(["not_started", "in_progress", "completed", "verified"]),
+  notes: zod.string().optional(),
+});
+
+export const UpdateRecoveryStepStatusResponse = zod.object({
+  id: zod.number(),
+  caseId: zod.number(),
+  stepOrder: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  category: zod.string(),
+  status: zod.enum(["not_started", "in_progress", "completed", "verified"]),
+  notes: zod.string().nullish(),
+  startedAt: zod.date().nullish(),
+  completedAt: zod.date().nullish(),
+  verifiedAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Mark a recovery case as fully verified and recovered
+ */
+export const VerifyRecoveryCaseParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const VerifyRecoveryCaseResponse = zod.object({
+  id: zod.number(),
+  assetType: zod.string(),
+  assetIdentifier: zod.string(),
+  compromiseDetails: zod.string(),
+  status: zod.enum(["pending", "in_progress", "verified", "recovered"]),
+  recoveryPercentage: zod.number(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Get chronological recovery timeline across all cases
+ */
+export const GetRecoveryTimelineResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      caseId: zod.number(),
+      assetType: zod.string(),
+      stepTitle: zod.string(),
+      action: zod.string(),
+      timestamp: zod.date(),
+    }),
+  ),
+});

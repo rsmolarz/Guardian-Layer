@@ -733,6 +733,81 @@ export interface DarkWebSummary {
   exposuresByType: DarkWebSummaryExposuresByTypeItem[];
 }
 
+export type RecoveryCaseStatus =
+  (typeof RecoveryCaseStatus)[keyof typeof RecoveryCaseStatus];
+
+export const RecoveryCaseStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  verified: "verified",
+  recovered: "recovered",
+} as const;
+
+export interface RecoveryCase {
+  id: number;
+  assetType: string;
+  assetIdentifier: string;
+  compromiseDetails: string;
+  status: RecoveryCaseStatus;
+  recoveryPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RecoveryStepStatus =
+  (typeof RecoveryStepStatus)[keyof typeof RecoveryStepStatus];
+
+export const RecoveryStepStatus = {
+  not_started: "not_started",
+  in_progress: "in_progress",
+  completed: "completed",
+  verified: "verified",
+} as const;
+
+export interface RecoveryStep {
+  id: number;
+  caseId: number;
+  stepOrder: number;
+  title: string;
+  description: string;
+  category: string;
+  status: RecoveryStepStatus;
+  notes?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  verifiedAt?: string | null;
+}
+
+export interface RecoveryCaseList {
+  cases: RecoveryCase[];
+  total: number;
+}
+
+export interface RecoveryCaseDetail {
+  case: RecoveryCase;
+  steps: RecoveryStep[];
+}
+
+export interface RecoverySummary {
+  totalAffected: number;
+  totalRecovered: number;
+  inProgress: number;
+  overallPercentage: number;
+}
+
+export interface RecoveryTimelineEntry {
+  id: number;
+  caseId: number;
+  assetType: string;
+  stepTitle: string;
+  action: string;
+  timestamp: string;
+}
+
+export interface RecoveryTimeline {
+  entries: RecoveryTimelineEntry[];
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;
@@ -979,3 +1054,32 @@ export const ListRecoveryActionsCategory = {
   account_security: "account_security",
   legal_reporting: "legal_reporting",
 } as const;
+
+export type UpdateRecoveryCaseStatusBodyStatus =
+  (typeof UpdateRecoveryCaseStatusBodyStatus)[keyof typeof UpdateRecoveryCaseStatusBodyStatus];
+
+export const UpdateRecoveryCaseStatusBodyStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  verified: "verified",
+  recovered: "recovered",
+} as const;
+
+export type UpdateRecoveryCaseStatusBody = {
+  status: UpdateRecoveryCaseStatusBodyStatus;
+};
+
+export type UpdateRecoveryStepStatusBodyStatus =
+  (typeof UpdateRecoveryStepStatusBodyStatus)[keyof typeof UpdateRecoveryStepStatusBodyStatus];
+
+export const UpdateRecoveryStepStatusBodyStatus = {
+  not_started: "not_started",
+  in_progress: "in_progress",
+  completed: "completed",
+  verified: "verified",
+} as const;
+
+export type UpdateRecoveryStepStatusBody = {
+  status: UpdateRecoveryStepStatusBodyStatus;
+  notes?: string;
+};
