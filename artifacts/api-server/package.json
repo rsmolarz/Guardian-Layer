@@ -16,7 +16,8 @@
     "drizzle-orm": "catalog:",
     "express": "^5",
     "googleapis": "148.0.0",
-    "stripe": "^20.4.1"
+    "stripe": "^20.4.1",
+    "@workspace/integrations-openai-ai-server": "workspace:*"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

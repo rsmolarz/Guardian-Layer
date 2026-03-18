@@ -22,9 +22,12 @@ import ThreatNeutralization from "@/pages/ThreatNeutralization";
 import Glossary from "@/pages/Glossary";
 import Backups from "@/pages/Backups";
 import EmergencyLockdown from "@/pages/EmergencyLockdown";
+import WorkspaceMonitor from "@/pages/WorkspaceMonitor";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
+import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
 import { useLocation } from "wouter";
+import { useState } from "react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +44,8 @@ function QuickHelpWrapper() {
 }
 
 function Router() {
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
     <AppLayout>
       <Switch>
@@ -62,9 +67,12 @@ function Router() {
         <Route path="/glossary" component={Glossary} />
         <Route path="/backups" component={Backups} />
         <Route path="/emergency-lockdown" component={EmergencyLockdown} />
+        <Route path="/workspace-monitor" component={WorkspaceMonitor} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />
+      <ThreatChatButton onClick={() => setChatOpen(true)} />
+      <ThreatChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </AppLayout>
   );
 }

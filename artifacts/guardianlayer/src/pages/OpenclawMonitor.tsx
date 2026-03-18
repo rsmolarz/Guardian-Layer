@@ -46,6 +46,11 @@ import {
   GitCompare,
   FileWarning,
   Hash,
+  Bookmark,
+  Plus,
+  Trash2,
+  Link as LinkIcon,
+  Send,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -74,7 +79,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift";
+type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -107,6 +112,7 @@ export default function OpenclawMonitor() {
           { id: "api-security" as Tab, label: "API Safety Check", icon: ShieldAlert },
           { id: "sessions" as Tab, label: "Active Users", icon: Users },
           { id: "config-drift" as Tab, label: "Config Changes", icon: Scan },
+          { id: "bookmarks" as Tab, label: "Bookmarks", icon: Bookmark },
         ]).map((t) => (
           <button
             key={t.id}
@@ -127,6 +133,7 @@ export default function OpenclawMonitor() {
       {tab === "api-security" && <ApiSecurityPanel />}
       {tab === "sessions" && <UserSessionPanel />}
       {tab === "config-drift" && <ConfigDriftPanel />}
+      {tab === "bookmarks" && <BookmarksPanel />}
     </div>
   );
 }
@@ -1315,6 +1322,207 @@ function ConfigDriftPanel() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+interface BookmarkItem {
+  id: number;
+  url: string;
+  label: string;
+  category: string;
+  status: string;
+  lastChecked: string | null;
+  addedAt: string;
+}
+
+const BOOKMARK_CATEGORIES = [
+  "Financial Platform",
+  "Exchange",
+  "Wallet",
+  "DeFi",
+  "Payment Processor",
+  "Bank Portal",
+  "Trading Platform",
+  "Other",
+];
+
+function BookmarksPanel() {
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newCategory, setNewCategory] = useState("Financial Platform");
+  const [adding, setAdding] = useState(false);
+
+  const loadBookmarks = () => {
+    fetch("/api/openclaw/bookmarks")
+      .then((r) => r.json())
+      .then((d) => { setBookmarks(d.bookmarks || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { loadBookmarks(); }, []);
+
+  const addBookmark = async () => {
+    if (!newUrl.trim() || !newLabel.trim()) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/openclaw/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: newUrl.trim(), label: newLabel.trim(), category: newCategory }),
+      });
+      if (res.ok) {
+        setNewUrl("");
+        setNewLabel("");
+        setShowAddForm(false);
+        loadBookmarks();
+      }
+    } catch {}
+    setAdding(false);
+  };
+
+  const deleteBookmark = async (id: number) => {
+    try {
+      await fetch(`/api/openclaw/bookmarks/${id}`, { method: "DELETE" });
+      loadBookmarks();
+    } catch {}
+  };
+
+  if (loading) return <CyberLoading text="Loading bookmarks..." />;
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Bookmark className="w-5 h-5 text-primary" />
+          <span className="text-sm font-display uppercase tracking-widest text-white">Monitored URLs ({bookmarks.length})</span>
+        </div>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wider bg-primary/20 border border-primary/40 text-primary hover:bg-primary/30 flex items-center gap-2 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add URL
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden mb-6"
+          >
+            <div className="glass-panel p-4 rounded-xl border border-primary/20 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <LinkIcon className="w-4 h-4 text-primary" />
+                <span className="text-xs font-display uppercase tracking-widest text-primary">Add URL to Monitor</span>
+              </div>
+              <input
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="Label (e.g. Coinbase Pro)"
+                className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder-gray-500 focus:border-primary/40 focus:outline-none"
+              />
+              <input
+                type="url"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="URL (e.g. https://pro.coinbase.com)"
+                className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder-gray-500 focus:border-primary/40 focus:outline-none"
+              />
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm text-white focus:border-primary/40 focus:outline-none"
+              >
+                {BOOKMARK_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  onClick={addBookmark}
+                  disabled={!newUrl.trim() || !newLabel.trim() || adding}
+                  className={clsx(
+                    "flex-1 px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wider flex items-center justify-center gap-2 transition-colors",
+                    newUrl.trim() && newLabel.trim() && !adding
+                      ? "bg-primary/20 border border-primary/40 text-primary hover:bg-primary/30"
+                      : "bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed"
+                  )}
+                >
+                  <Plus className="w-4 h-4" /> {adding ? "Adding..." : "Add Bookmark"}
+                </button>
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wider border border-white/10 text-muted-foreground hover:border-white/20 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {bookmarks.length === 0 ? (
+        <div className="text-center py-12">
+          <Bookmark className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground font-display uppercase tracking-wider">No URLs being monitored</p>
+          <p className="text-xs text-muted-foreground mt-1">Add financial platform URLs to monitor for security changes</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {bookmarks.map((bm) => (
+            <motion.div
+              key={bm.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-xl p-4 border border-white/5 hover:border-primary/20 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <LinkIcon className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-sm font-display text-white">{bm.label}</span>
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                      {bm.category}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                      bm.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/10 text-muted-foreground border-white/10"
+                    }`}>
+                      {bm.status}
+                    </span>
+                  </div>
+                  <a href={bm.url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-primary/70 hover:text-primary flex items-center gap-1 truncate">
+                    <ExternalLink className="w-3 h-3 shrink-0" /> {bm.url}
+                  </a>
+                  <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                    <span>Added: {new Date(bm.addedAt).toLocaleDateString()}</span>
+                    {bm.lastChecked && <span>Last checked: {new Date(bm.lastChecked).toLocaleString()}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => deleteBookmark(bm.id)}
+                    className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-colors"
+                    title="Remove bookmark"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

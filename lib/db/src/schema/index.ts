@@ -12,3 +12,6 @@ export * from "./threats";
 export * from "./backups";
 export * from "./lockdown";
 export * from "./disaster-recovery";
+export * from "./conversations";
+export * from "./messages";
+export * from "./monitored-urls";

@@ -17,6 +17,8 @@ import disasterRecoveryRouter from "./disaster-recovery";
 import threatsRouter from "./threats";
 import backupsRouter from "./backups";
 import lockdownRouter from "./lockdown";
+import aiRouter from "./ai";
+import workspaceMonitorRouter from "./workspace-monitor";
 
 const router: IRouter = Router();
 
@@ -38,5 +40,7 @@ router.use(disasterRecoveryRouter);
 router.use(threatsRouter);
 router.use(backupsRouter);
 router.use(lockdownRouter);
+router.use(aiRouter);
+router.use(workspaceMonitorRouter);
 
 export default router;
