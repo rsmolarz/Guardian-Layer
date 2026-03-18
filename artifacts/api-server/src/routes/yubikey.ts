@@ -216,6 +216,190 @@ router.get("/yubikey/lost-stolen", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/yubikey/anomaly-detector", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const anomalies = [
+      {
+        id: "ANM-001",
+        type: "impossible_travel",
+        severity: "critical",
+        status: "active",
+        detectedAt: new Date(now - 1800000).toISOString(),
+        deviceSerial: "YK5-18294731",
+        deviceModel: "YubiKey 5 NFC",
+        user: "James Mitchell",
+        email: "j.mitchell@guardianlayer.io",
+        department: "Engineering",
+        title: "Impossible Travel — Same Key Used in Two Countries",
+        description: "YubiKey YK5-18294731 authenticated from New York, US at 14:32 UTC and from London, UK at 14:47 UTC. Physical travel between locations impossible in 15-minute window.",
+        locations: [
+          { city: "New York", country: "US", ip: "203.0.113.45", timestamp: new Date(now - 2700000).toISOString(), application: "GitHub SSO" },
+          { city: "London", country: "UK", ip: "185.220.101.34", timestamp: new Date(now - 1800000).toISOString(), application: "Corporate VPN" },
+        ],
+        riskScore: 98,
+        aiAnalysis: "High-confidence credential cloning or relay attack. The 15-minute gap between New York and London authentications is physically impossible. The London IP (185.220.101.34) is associated with known Tor exit nodes. Recommend immediate key revocation and session termination.",
+        recommendedActions: ["Revoke key YK5-18294731 immediately", "Terminate all active sessions for James Mitchell", "Block IP 185.220.101.34 at firewall", "Initiate incident response protocol IR-003", "Issue replacement hardware key"],
+        relatedAlerts: ["IDS-2847", "GEO-ANOMALY-091"],
+      },
+      {
+        id: "ANM-002",
+        type: "brute_force",
+        severity: "critical",
+        status: "mitigated",
+        detectedAt: new Date(now - 3600000 * 6).toISOString(),
+        deviceSerial: "YK5-REVOKED-0042",
+        deviceModel: "YubiKey 5 NFC",
+        user: "Unknown Actor",
+        email: "N/A",
+        department: "External",
+        title: "Brute-Force OTP Attack — 47 Failed Attempts in 3 Minutes",
+        description: "Revoked key YK5-REVOKED-0042 (previously assigned to Lisa Wang) used in rapid-fire OTP generation attempts from Moscow IP. 47 attempts in 180 seconds, all rejected due to key revocation status.",
+        locations: [
+          { city: "Moscow", country: "RU", ip: "185.220.101.34", timestamp: new Date(now - 3600000 * 6).toISOString(), application: "Corporate SSO Portal" },
+        ],
+        riskScore: 95,
+        aiAnalysis: "Confirmed brute-force OTP attack using stolen/revoked hardware key. Attack pattern consistent with automated tooling (consistent 3.8s interval between attempts). The key was correctly revoked during incident LSK-001, preventing unauthorized access. Source IP matches known threat actor infrastructure.",
+        recommendedActions: ["IP range 185.220.101.0/24 already blocked", "Monitor for lateral movement attempts", "Verify Lisa Wang's replacement key enrollment", "Update threat intelligence feeds with attack pattern"],
+        relatedAlerts: ["LSK-001", "FW-BLOCK-0042"],
+      },
+      {
+        id: "ANM-003",
+        type: "unusual_hours",
+        severity: "high",
+        status: "investigating",
+        detectedAt: new Date(now - 3600000 * 2).toISOString(),
+        deviceSerial: "YK5-39182734",
+        deviceModel: "YubiKey 5 NFC",
+        user: "Maria Rodriguez",
+        email: "m.rodriguez@guardianlayer.io",
+        department: "Finance",
+        title: "Unusual Hours — Financial System Access at 3:17 AM",
+        description: "Maria Rodriguez authenticated to the Accounting Portal and SAP Financial Gateway at 03:17 AM local time using YubiKey YK5-39182734. This user has no history of after-hours access in the past 90 days. Access originated from residential IP.",
+        locations: [
+          { city: "Chicago", country: "US", ip: "73.162.88.201", timestamp: new Date(now - 3600000 * 2).toISOString(), application: "Accounting Portal" },
+          { city: "Chicago", country: "US", ip: "73.162.88.201", timestamp: new Date(now - 3600000 * 2 + 120000).toISOString(), application: "SAP Financial Gateway" },
+        ],
+        riskScore: 72,
+        aiAnalysis: "Behavioral anomaly detected. Maria Rodriguez typically authenticates between 08:00-18:30 CST on weekdays. This 03:17 AM access deviates significantly from established patterns. The residential IP is consistent with her known home network. Could be legitimate (emergency work) or account compromise. Financial system access at unusual hours is high-risk per SOC 2 controls.",
+        recommendedActions: ["Contact Maria Rodriguez to verify legitimate access", "Review financial transactions during anomalous session", "Enable enhanced monitoring for 48 hours", "Check for data exfiltration indicators"],
+        relatedAlerts: ["BEHAV-1247"],
+      },
+      {
+        id: "ANM-004",
+        type: "concurrent_sessions",
+        severity: "high",
+        status: "active",
+        detectedAt: new Date(now - 900000).toISOString(),
+        deviceSerial: "YK5-28371642",
+        deviceModel: "YubiKey 5 NFC",
+        user: "Sarah Chen",
+        email: "s.chen@guardianlayer.io",
+        department: "Executive",
+        title: "Concurrent Sessions — Key Active on 3 Devices Simultaneously",
+        description: "YubiKey YK5-28371642 (Sarah Chen, CISO) registered active sessions across 3 different devices within a 2-minute window: MacBook Pro (Office), iPad (Conference Room), and Windows Desktop (SOC).",
+        locations: [
+          { city: "Office", country: "US", ip: "10.0.1.45", timestamp: new Date(now - 900000).toISOString(), application: "Corporate VPN" },
+          { city: "Conf Room B", country: "US", ip: "10.0.2.12", timestamp: new Date(now - 840000).toISOString(), application: "Microsoft 365" },
+          { city: "SOC Floor", country: "US", ip: "10.0.3.88", timestamp: new Date(now - 780000).toISOString(), application: "SIEM Dashboard" },
+        ],
+        riskScore: 65,
+        aiAnalysis: "Multiple concurrent sessions from internal IPs within the same building. While NFC-capable YubiKeys can tap across multiple devices quickly, 3 distinct device sessions in 2 minutes is atypical. All IPs are on the internal corporate network (10.0.x.x range), reducing external threat likelihood. However, CISO account is high-value target — verify this is legitimate multi-device workflow.",
+        recommendedActions: ["Verify with Sarah Chen that multi-device usage is intentional", "Review session activity on all three devices", "Consider implementing session binding per device", "No immediate revocation needed — internal network only"],
+        relatedAlerts: ["SESS-0412"],
+      },
+      {
+        id: "ANM-005",
+        type: "unusual_hours",
+        severity: "medium",
+        status: "resolved",
+        detectedAt: new Date(now - 86400000 * 2).toISOString(),
+        deviceSerial: "YK-BIO-62837461",
+        deviceModel: "YubiKey Bio",
+        user: "Priya Sharma",
+        email: "p.sharma@guardianlayer.io",
+        department: "Engineering",
+        title: "Unusual Hours — CI/CD Pipeline Access at 11:52 PM",
+        description: "Priya Sharma authenticated to AWS Console and CI/CD Pipeline at 23:52 local time. While engineers occasionally work late, this access pattern triggered alert due to deployment to production environment.",
+        locations: [
+          { city: "Bangalore", country: "IN", ip: "49.37.142.88", timestamp: new Date(now - 86400000 * 2).toISOString(), application: "AWS Console" },
+          { city: "Bangalore", country: "IN", ip: "49.37.142.88", timestamp: new Date(now - 86400000 * 2 + 300000).toISOString(), application: "CI/CD Pipeline" },
+        ],
+        riskScore: 35,
+        aiAnalysis: "Low-risk behavioral anomaly. Priya Sharma has occasional late-night access history (3 instances in past quarter) correlating with production deployments. The production deployment at 23:52 IST matches a scheduled release window. IP is consistent with known ISP in Bangalore. Resolved as legitimate after confirmation with engineering lead.",
+        recommendedActions: ["No action required — confirmed legitimate deployment", "Added to known late-shift pattern for Priya Sharma", "Production deployment windows documented"],
+        relatedAlerts: [],
+      },
+      {
+        id: "ANM-006",
+        type: "protocol_mismatch",
+        severity: "medium",
+        status: "investigating",
+        detectedAt: new Date(now - 3600000 * 12).toISOString(),
+        deviceSerial: "YK5-47283916",
+        deviceModel: "YubiKey 5 NFC",
+        user: "Alex Thompson",
+        email: "a.thompson@guardianlayer.io",
+        department: "Sales",
+        title: "Protocol Mismatch — U2F Request on FIDO2-Only Configuration",
+        description: "Alex Thompson's YubiKey YK5-47283916 received a U2F authentication request from Salesforce SSO, but the key is configured for FIDO2-only mode. This mismatch could indicate a downgrade attack or misconfigured relying party.",
+        locations: [
+          { city: "Denver", country: "US", ip: "75.84.202.113", timestamp: new Date(now - 3600000 * 12).toISOString(), application: "Salesforce SSO" },
+        ],
+        riskScore: 55,
+        aiAnalysis: "Protocol downgrade anomaly. The Salesforce SSO integration is sending U2F requests instead of FIDO2/WebAuthn. This could be: (1) legitimate Salesforce configuration issue, (2) man-in-the-middle downgrade attack, or (3) outdated Salesforce SSO connector. The user's key correctly rejected the request. Recommend verifying Salesforce SSO configuration.",
+        recommendedActions: ["Verify Salesforce SSO connector version and WebAuthn support", "Check for MITM indicators on the network path", "Update Salesforce integration to enforce FIDO2", "Monitor for additional protocol mismatch events"],
+        relatedAlerts: ["PROTO-0088"],
+      },
+      {
+        id: "ANM-007",
+        type: "rapid_auth",
+        severity: "low",
+        status: "resolved",
+        detectedAt: new Date(now - 86400000 * 5).toISOString(),
+        deviceSerial: "YK-HSM-001",
+        deviceModel: "YubiKey HSM 2",
+        user: "svc-ci-pipeline",
+        email: "svc-ci@guardianlayer.io",
+        department: "Engineering",
+        title: "Rapid Authentication — 142 Sign Operations in 10 Minutes",
+        description: "Service account svc-ci-pipeline performed 142 PKCS#11 signing operations in a 10-minute window using YubiKey HSM YK-HSM-001. This exceeded the baseline threshold of 50 operations per 10-minute window.",
+        locations: [
+          { city: "CI Runner Pool", country: "US", ip: "10.0.10.50", timestamp: new Date(now - 86400000 * 5).toISOString(), application: "CI/CD Code Signing" },
+        ],
+        riskScore: 25,
+        aiAnalysis: "Elevated but expected activity. The spike corresponds to a major release pipeline that triggered 142 parallel code-signing operations. Historical analysis shows similar spikes during quarterly releases. All operations were from the authorized CI runner pool (10.0.10.x). Baseline threshold adjusted to 200 for release days.",
+        recommendedActions: ["Baseline threshold updated to 200 for release windows", "No security action required", "Added to known release-day patterns"],
+        relatedAlerts: [],
+      },
+    ];
+
+    const anomalySummary = {
+      totalAnomalies: anomalies.length,
+      active: anomalies.filter((a) => a.status === "active").length,
+      investigating: anomalies.filter((a) => a.status === "investigating").length,
+      mitigated: anomalies.filter((a) => a.status === "mitigated").length,
+      resolved: anomalies.filter((a) => a.status === "resolved").length,
+      critical: anomalies.filter((a) => a.severity === "critical").length,
+      high: anomalies.filter((a) => a.severity === "high").length,
+      avgRiskScore: Math.round(anomalies.reduce((a, x) => a + x.riskScore, 0) / anomalies.length),
+      typeBreakdown: {
+        impossible_travel: anomalies.filter((a) => a.type === "impossible_travel").length,
+        brute_force: anomalies.filter((a) => a.type === "brute_force").length,
+        unusual_hours: anomalies.filter((a) => a.type === "unusual_hours").length,
+        concurrent_sessions: anomalies.filter((a) => a.type === "concurrent_sessions").length,
+        protocol_mismatch: anomalies.filter((a) => a.type === "protocol_mismatch").length,
+        rapid_auth: anomalies.filter((a) => a.type === "rapid_auth").length,
+      },
+    };
+
+    res.json({ anomalies, summary: anomalySummary });
+  } catch (err: any) {
+    console.error("[yubikey] GET /anomaly-detector failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve anomaly data." });
+  }
+});
+
 router.get("/yubikey/mfa-compliance", async (_req, res): Promise<void> => {
   try {
     const users = [

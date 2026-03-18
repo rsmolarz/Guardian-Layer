@@ -44,6 +44,10 @@ import {
   Smartphone,
   MessageSquare,
   CircleSlash,
+  Zap,
+  Navigation,
+  Timer,
+  Layers,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -63,7 +67,7 @@ const EVENT_BADGE: Record<string, string> = {
   key_revoked: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen" | "mfa-compliance";
+type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen" | "mfa-compliance" | "anomaly-detector";
 type StatusFilter = "active" | "suspended" | "revoked" | "unassigned" | undefined;
 type EventFilter = "auth_success" | "auth_failure" | "key_enrolled" | "key_revoked" | undefined;
 
@@ -120,6 +124,7 @@ export default function YubikeySecurity() {
           { id: "policies" as Tab, label: "Policies", icon: BookOpen },
           { id: "lost-stolen" as Tab, label: "Lost/Stolen", icon: ShieldAlert },
           { id: "mfa-compliance" as Tab, label: "MFA Compliance", icon: ShieldCheck },
+          { id: "anomaly-detector" as Tab, label: "Anomaly Detector", icon: Brain },
         ]).map((t) => (
           <button
             key={t.id}
@@ -142,6 +147,7 @@ export default function YubikeySecurity() {
       {tab === "policies" && <PoliciesPanel />}
       {tab === "lost-stolen" && <LostStolenPanel />}
       {tab === "mfa-compliance" && <MfaCompliancePanel />}
+      {tab === "anomaly-detector" && <AnomalyDetectorPanel />}
     </div>
   );
 }
@@ -1501,6 +1507,251 @@ function MfaCompliancePanel() {
             <p className="font-display text-sm uppercase tracking-wider">
               {showNonCompliantOnly ? "All visible users are compliant" : "No users match this filter"}
             </p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+const ANOMALY_TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  impossible_travel: { label: "Impossible Travel", color: "text-red-400", icon: <Navigation className="w-5 h-5" /> },
+  brute_force: { label: "Brute Force", color: "text-red-400", icon: <Zap className="w-5 h-5" /> },
+  unusual_hours: { label: "Unusual Hours", color: "text-yellow-400", icon: <Timer className="w-5 h-5" /> },
+  concurrent_sessions: { label: "Concurrent Sessions", color: "text-orange-400", icon: <Layers className="w-5 h-5" /> },
+  protocol_mismatch: { label: "Protocol Mismatch", color: "text-yellow-400", icon: <AlertTriangle className="w-5 h-5" /> },
+  rapid_auth: { label: "Rapid Auth", color: "text-blue-400", icon: <Zap className="w-5 h-5" /> },
+};
+
+const ANOMALY_STATUS_BADGE: Record<string, string> = {
+  active: "bg-red-500/20 text-red-400 border-red-500/30",
+  investigating: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  mitigated: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  resolved: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+};
+
+function AnomalyDetectorPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/yubikey/anomaly-detector")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="SCANNING FOR ANOMALIES..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load anomaly data.</div>;
+
+  const { anomalies, summary } = data;
+  let filtered = typeFilter ? anomalies.filter((a: any) => a.type === typeFilter) : anomalies;
+  if (statusFilter) filtered = filtered.filter((a: any) => a.status === statusFilter);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: "Total Anomalies", value: summary.totalAnomalies, icon: Brain, color: "text-primary" },
+          { label: "Active", value: summary.active, icon: Siren, color: "text-red-400" },
+          { label: "Investigating", value: summary.investigating, icon: AlertTriangle, color: "text-yellow-400" },
+          { label: "Mitigated", value: summary.mitigated, icon: Shield, color: "text-blue-400" },
+          { label: "Avg Risk Score", value: summary.avgRiskScore, icon: BarChart3, color: "text-primary" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground border-r border-white/10 pr-2 mr-1">Type</span>
+        {[undefined, "impossible_travel", "brute_force", "unusual_hours", "concurrent_sessions", "protocol_mismatch", "rapid_auth"].map((t) => (
+          <button
+            key={t ?? "all"}
+            onClick={() => setTypeFilter(t)}
+            className={clsx(
+              "px-2.5 py-1 rounded-lg text-[11px] font-display uppercase tracking-wider border transition-colors",
+              typeFilter === t ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {t?.replace(/_/g, " ") ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap items-center">
+        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground border-r border-white/10 pr-2 mr-1">Status</span>
+        {[undefined, "active", "investigating", "mitigated", "resolved"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setStatusFilter(s)}
+            className={clsx(
+              "px-2.5 py-1 rounded-lg text-[11px] font-display uppercase tracking-wider border transition-colors",
+              statusFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((anomaly: any) => {
+          const isExpanded = expandedId === anomaly.id;
+          const typeCfg = ANOMALY_TYPE_CONFIG[anomaly.type] || ANOMALY_TYPE_CONFIG.brute_force;
+
+          return (
+            <motion.div
+              key={anomaly.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                anomaly.severity === "critical" ? "border-red-500" :
+                anomaly.severity === "high" ? "border-orange-500" :
+                anomaly.severity === "medium" ? "border-yellow-500" : "border-blue-500"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : anomaly.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-lg bg-black/40 ${typeCfg.color}`}>
+                  {typeCfg.icon}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-mono text-muted-foreground">{anomaly.id}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${SEVERITY_BADGE[anomaly.severity] || ""}`}>
+                      {anomaly.severity}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${ANOMALY_STATUS_BADGE[anomaly.status] || ""}`}>
+                      {anomaly.status}
+                    </span>
+                    <span className={`text-[10px] font-display uppercase px-2 py-0.5 rounded bg-white/5 border border-white/10 ${typeCfg.color}`}>
+                      {typeCfg.label}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white font-display mb-1">{anomaly.title}</p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="font-mono">{anomaly.user}</span>
+                    <span>{anomaly.department}</span>
+                    <span className="font-mono">Key: {anomaly.deviceSerial}</span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-1 justify-end mb-1">
+                    <span className="text-[10px] text-muted-foreground">Risk:</span>
+                    <span className={`text-lg font-mono font-bold ${
+                      anomaly.riskScore >= 80 ? "text-red-400" :
+                      anomaly.riskScore >= 50 ? "text-yellow-400" : "text-emerald-400"
+                    }`}>
+                      {anomaly.riskScore}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(anomaly.detectedAt), "MMM d, HH:mm")}
+                  </p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1">Description</span>
+                    <p className="text-sm text-gray-300">{anomaly.description}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-display uppercase tracking-widest text-primary">Locations</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {anomaly.locations.map((loc: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-lg bg-black/20 border border-white/5">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Globe className="w-3 h-3 text-primary" />
+                            <span className="text-xs font-mono text-white">{loc.city}, {loc.country}</span>
+                          </div>
+                          <p className="text-[10px] font-mono text-muted-foreground">{loc.ip}</p>
+                          <p className="text-[10px] text-muted-foreground">{loc.application}</p>
+                          <p className="text-[10px] text-muted-foreground">{format(new Date(loc.timestamp), "HH:mm:ss")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-display uppercase tracking-widest text-primary">AI Analysis</span>
+                    </div>
+                    <p className="text-sm text-gray-300">{anomaly.aiAnalysis}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-display uppercase tracking-widest text-emerald-400">Recommended Actions</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {anomaly.recommendedActions.map((action: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-black/20 border border-white/5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                          <span className="text-xs text-gray-300">{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {anomaly.relatedAlerts.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">Related Alerts:</span>
+                      {anomaly.relatedAlerts.map((alert: string) => (
+                        <span key={alert} className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">{alert}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Device</span>
+                      <span className="text-xs font-mono text-white">{anomaly.deviceModel}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Serial</span>
+                      <span className="text-xs font-mono text-white">{anomaly.deviceSerial}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Email</span>
+                      <span className="text-xs font-mono text-white">{anomaly.email}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Detected</span>
+                      <span className="text-xs font-mono text-white">{format(new Date(anomaly.detectedAt), "MMM d, HH:mm:ss")}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Brain className="w-8 h-8 mx-auto mb-3 text-primary" />
+            <p className="font-display text-sm uppercase tracking-wider">No anomalies match this filter</p>
           </div>
         )}
       </div>
