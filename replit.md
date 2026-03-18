@@ -64,7 +64,12 @@ artifacts-monorepo/
    - **DNS Security** - Monitor DNS queries for malicious domains, DNS tunneling, fast-flux domains, C2 beacons, DGA domains, suspicious nameservers with resolved IPs, TTL analysis, query counts, threat intel sources, IOC tags, confidence scores, and threat type filtering
    - **VPN & Zero-Trust** - Active VPN sessions with WireGuard/OpenVPN/IPSec protocols, zero-trust policy compliance per user (device posture, MFA, OS patches, geo-location, DLP), trust scores, geo-anomaly detection (impossible travel with distance/time analysis), bandwidth tracking, session risk levels, and compliance filtering
    - **Firewall Analyzer** - AI analysis of 8 firewall rules across 7 categories (web services, misconfiguration, access control, shadow IT, baseline, malicious, legacy) with per-rule risk levels, detected issues (overly permissive, stale rules, insecure protocols, shadow IT, crypto mining, brute force risk, lateral movement), AI analysis descriptions, actionable recommendations, hit counts, creation dates, and risk-level filtering
-8. **YubiKey MFA** - Hardware key management with key inventory, authentication event tracking, enrollment management, failed auth monitoring, and policy management
+8. **YubiKey & Hardware MFA** - Five-tab hardware security key management page:
+   - **Key Inventory** - Device fleet with serial numbers, models, firmware versions, assigned users, departments, auth success/fail counts, protocol support, status filtering (active/suspended/revoked/unassigned)
+   - **Auth Events** - Real-time authentication event stream with success/failure/enrollment/revocation tracking, user details, key serials, locations, IP addresses, protocol info, and event type filtering
+   - **Enrollment** - Key provisioning lifecycle with 6 enrollment requests across 5 statuses (pending/approved/shipped/completed/rejected), justifications, approvers, shipping addresses, tracking numbers, activation dates, rejection reasons, and priority levels
+   - **Failed Auth** - 5 failure incidents with risk analysis: brute force detection (47 automated OTP attempts from Moscow), HMAC mismatch/counter desync patterns, rate limiting on CI pipelines, protocol mismatches, account lockout tracking, source IP/geo analysis, failure breakdowns with counts, and remediation recommendations
+   - **Policies** - 5 MFA policies with compliance tracking: Hardware MFA Required (org-wide), Account Lockout (10 fails/24h, 5 fails/1h), Privileged Access Dual Key (admin users), Key Lifecycle Management (annual re-attestation), Contractor Temporary Keys (90-day expiry); overall 83.1% compliance rate, enforcement levels, rule listings, compliance progress bars
 9. **OpenClaw Monitor** - AI contract monitoring with clause risk analysis, compliance tracking, anomaly detection, document scanning, and regulatory alerts
 10. **External Linkages (Integrations)** - Shows status of connected services (Stripe, Plaid, Cloudflare, Gmail, Twilio, Google Workspace Protection) plus pending integrations with configuration UI
 11. **System Monitoring** - Five-tab monitoring page:
@@ -145,6 +150,9 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/yubikey/devices` - List YubiKey devices
 - `GET /api/yubikey/auth-events` - List YubiKey auth events
 - `GET /api/yubikey/stats` - YubiKey statistics
+- `GET /api/yubikey/enrollment` - Key enrollment lifecycle with provisioning requests and approval tracking
+- `GET /api/yubikey/failed-auth` - Failed authentication incidents with brute force detection and risk analysis
+- `GET /api/yubikey/policies` - MFA policy configurations with compliance tracking and enforcement rules
 - `GET /api/openclaw` - List OpenClaw contracts
 - `GET /api/openclaw/stats` - OpenClaw statistics
 
