@@ -203,7 +203,7 @@ router.get("/integrations/stripe/status", async (_req, res): Promise<void> => {
 
   try {
     const stripe = getStripeClient();
-    const apiKey = process.env.SLACK_TEST_API_KEY || "";
+    const apiKey = process.env.STRIPE_TEST_API_KEY || "";
     const isLive = apiKey.includes("_live_");
     const mode = isLive ? "live" as const : "test" as const;
 
@@ -235,13 +235,24 @@ router.get("/integrations/stripe/status", async (_req, res): Promise<void> => {
 router.post("/integrations/stripe/sync", async (_req, res): Promise<void> => {
   try {
     const result = await syncStripeTransactions();
+    const permissionErrors = result.errors.filter(e => e.includes("permission"));
+    const realErrors = result.errors.filter(e => !e.includes("permission"));
+    
+    let message: string;
+    if (result.synced > 0) {
+      message = `Successfully synced ${result.synced} transaction${result.synced !== 1 ? "s" : ""} from Stripe`;
+      if (permissionErrors.length > 0) message += ` (some sources skipped due to permissions)`;
+    } else if (realErrors.length > 0) {
+      message = `Sync error: ${realErrors[0]}`;
+    } else if (permissionErrors.length > 0) {
+      message = `No charges found. Note: ${permissionErrors.length} source${permissionErrors.length !== 1 ? "s" : ""} skipped due to key permissions`;
+    } else {
+      message = "No transactions found in Stripe";
+    }
+
     res.json(SyncStripeTransactionsResponse.parse({
       ...result,
-      message: result.synced > 0
-        ? `Successfully synced ${result.synced} transactions from Stripe`
-        : result.errors.length > 0
-        ? `Sync failed: ${result.errors[0]}`
-        : "No new transactions found in Stripe",
+      message,
     }));
   } catch (err: any) {
     res.status(500).json({ error: err.message });

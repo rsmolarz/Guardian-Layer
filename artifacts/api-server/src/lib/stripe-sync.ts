@@ -119,48 +119,56 @@ export async function syncStripeTransactions(): Promise<{
       }
     }
 
-    const paymentIntents = await stripe.paymentIntents.list({ limit: 100 });
+    try {
+      const paymentIntents = await stripe.paymentIntents.list({ limit: 100 });
 
-    for (const pi of paymentIntents.data) {
-      if (pi.status !== "succeeded") {
-        skipped++;
-        continue;
+      for (const pi of paymentIntents.data) {
+        if (pi.status !== "succeeded") {
+          skipped++;
+          continue;
+        }
+
+        const hasCharge = pi.latest_charge != null;
+        if (hasCharge) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          const amountInDollars = pi.amount / 100;
+          const currency = (pi.currency || "usd").toUpperCase();
+          const category = categorizeCharge(pi.description, (pi.metadata || {}) as Record<string, string>);
+
+          const source = pi.customer?.toString() || `stripe_pi_${pi.id.slice(-8)}`;
+          const destination = pi.description || `Payment Intent ${pi.id.slice(-8)}`;
+
+          const { score } = predictRisk({ amount: amountInDollars, category, country: null });
+          const status = getStatus(score);
+
+          await db.insert(transactionsTable).values({
+            source,
+            destination,
+            amount: amountInDollars,
+            currency,
+            riskScore: score,
+            status,
+            category,
+            ipAddress: null,
+            country: null,
+            createdAt: new Date(pi.created * 1000),
+          });
+
+          synced++;
+        } catch (err: any) {
+          errors.push(`PaymentIntent ${pi.id}: ${err.message}`);
+          skipped++;
+        }
       }
-
-      const hasCharge = pi.latest_charge != null;
-      if (hasCharge) {
-        skipped++;
-        continue;
-      }
-
-      try {
-        const amountInDollars = pi.amount / 100;
-        const currency = (pi.currency || "usd").toUpperCase();
-        const category = categorizeCharge(pi.description, (pi.metadata || {}) as Record<string, string>);
-
-        const source = pi.customer?.toString() || `stripe_pi_${pi.id.slice(-8)}`;
-        const destination = pi.description || `Payment Intent ${pi.id.slice(-8)}`;
-
-        const { score } = predictRisk({ amount: amountInDollars, category, country: null });
-        const status = getStatus(score);
-
-        await db.insert(transactionsTable).values({
-          source,
-          destination,
-          amount: amountInDollars,
-          currency,
-          riskScore: score,
-          status,
-          category,
-          ipAddress: null,
-          country: null,
-          createdAt: new Date(pi.created * 1000),
-        });
-
-        synced++;
-      } catch (err: any) {
-        errors.push(`PaymentIntent ${pi.id}: ${err.message}`);
-        skipped++;
+    } catch (err: any) {
+      if (err.message?.includes("permission")) {
+        errors.push("Payment Intents: insufficient permissions (rak_payment_intent_read required) — skipped");
+      } else {
+        errors.push(`Payment Intents API error: ${err.message}`);
       }
     }
   } catch (err: any) {
