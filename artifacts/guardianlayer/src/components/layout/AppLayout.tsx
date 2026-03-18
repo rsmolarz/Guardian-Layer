@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { GlobalJargonProvider } from "@/components/clarity/JargonTranslator";
+import { LockdownBanner } from "./LockdownBanner";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
@@ -12,11 +13,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </div>
       
       <Sidebar />
-      <main className="flex-1 ml-64 p-8 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <GlobalJargonProvider>
-            {children}
-          </GlobalJargonProvider>
+      <main className="flex-1 ml-64 min-h-screen">
+        <LockdownBanner />
+        <div className="p-8">
+          <div className="max-w-7xl mx-auto">
+            <GlobalJargonProvider>
+              {children}
+            </GlobalJargonProvider>
+          </div>
         </div>
       </main>
     </div>

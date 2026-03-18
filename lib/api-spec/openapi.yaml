@@ -29,6 +29,8 @@ tags:
     description: Threat neutralization operations
   - name: backups
     description: Automated backup operations
+  - name: lockdown
+    description: Emergency lockdown operations
 paths:
   /healthz:
     get:
@@ -1209,6 +1211,83 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NeutralizationStepItem"
+
+  /lockdown/status:
+    get:
+      operationId: getLockdownStatus
+      tags: [lockdown]
+      summary: Get current lockdown status
+      responses:
+        "200":
+          description: Lockdown status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockdownStatusResponse"
+
+  /lockdown/activate:
+    post:
+      operationId: activateLockdown
+      tags: [lockdown]
+      summary: Activate emergency lockdown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivateLockdownRequest"
+      responses:
+        "200":
+          description: Lockdown activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockdownSessionDetail"
+
+  /lockdown/lift:
+    post:
+      operationId: liftLockdown
+      tags: [lockdown]
+      summary: Lift active lockdown
+      responses:
+        "200":
+          description: Lockdown lifted with summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiftLockdownResponse"
+
+  /lockdown/actions/{actionId}/toggle:
+    post:
+      operationId: toggleLockdownAction
+      tags: [lockdown]
+      summary: Toggle a lockdown containment action
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockdownActionItem"
+
+  /lockdown/history:
+    get:
+      operationId: getLockdownHistory
+      tags: [lockdown]
+      summary: Get lockdown activity log
+      responses:
+        "200":
+          description: Lockdown history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockdownHistoryResponse"
 
 components:
   schemas:
@@ -2839,6 +2918,7 @@ components:
         - executedAt
 
     BackupItem:
+    LockdownActionItem:
       type: object
       properties:
         id:
@@ -3021,3 +3101,127 @@ components:
         - message
         - restoredComponents
         - restorePath
+        sessionId:
+          type: integer
+        actionType:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, lifted, pending]
+        activatedAt:
+          type: string
+          format: date-time
+        liftedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - sessionId
+        - actionType
+        - label
+        - description
+        - status
+        - activatedAt
+
+    LockdownSessionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [active, lifted]
+        reason:
+          type: string
+        activatedAt:
+          type: string
+          format: date-time
+        deactivatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        summaryReport:
+          type: string
+          nullable: true
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/LockdownActionItem"
+      required:
+        - id
+        - status
+        - reason
+        - activatedAt
+        - actions
+
+    LockdownStatusResponse:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+        session:
+          $ref: "#/components/schemas/LockdownSessionDetail"
+          nullable: true
+      required:
+        - isActive
+
+    ActivateLockdownRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+
+    LiftLockdownResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        session:
+          $ref: "#/components/schemas/LockdownSessionDetail"
+        summary:
+          type: string
+        duration:
+          type: string
+      required:
+        - success
+        - session
+        - summary
+        - duration
+
+    LockdownHistoryResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/LockdownLogEntry"
+      required:
+        - logs
+
+    LockdownLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        detail:
+          type: string
+        severity:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - action
+        - detail
+        - severity
+        - createdAt

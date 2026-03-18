@@ -6,6 +6,7 @@ import { seedEndpoints } from "./seed-endpoints";
 import { seedNetworkEvents } from "./seed-network";
 import { seedYubikey } from "./seed-yubikey";
 import { seedOpenclawContracts } from "./seed-openclaw";
+import { seedLockdown } from "./seed-lockdown";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -135,6 +136,7 @@ export async function seedAllModules() {
   await seedNetworkEvents();
   await seedYubikey();
   await seedOpenclawContracts();
+  await seedLockdown();
 }
 
 async function seedRecoveryData() {

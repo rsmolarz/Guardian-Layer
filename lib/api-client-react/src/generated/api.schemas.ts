@@ -1022,6 +1022,72 @@ export interface BackupRestoreResult {
   restorePath: string;
 }
 
+export type LockdownActionItemStatus =
+  (typeof LockdownActionItemStatus)[keyof typeof LockdownActionItemStatus];
+
+export const LockdownActionItemStatus = {
+  active: "active",
+  lifted: "lifted",
+  pending: "pending",
+} as const;
+
+export interface LockdownActionItem {
+  id: number;
+  sessionId: number;
+  actionType: string;
+  label: string;
+  description: string;
+  status: LockdownActionItemStatus;
+  activatedAt: string;
+  liftedAt?: string | null;
+}
+
+export type LockdownSessionDetailStatus =
+  (typeof LockdownSessionDetailStatus)[keyof typeof LockdownSessionDetailStatus];
+
+export const LockdownSessionDetailStatus = {
+  active: "active",
+  lifted: "lifted",
+} as const;
+
+export interface LockdownSessionDetail {
+  id: number;
+  status: LockdownSessionDetailStatus;
+  reason: string;
+  activatedAt: string;
+  deactivatedAt?: string | null;
+  summaryReport?: string | null;
+  actions: LockdownActionItem[];
+}
+
+export interface LockdownStatusResponse {
+  isActive: boolean;
+  session?: LockdownSessionDetail | null;
+}
+
+export interface ActivateLockdownRequest {
+  reason: string;
+}
+
+export interface LiftLockdownResponse {
+  success: boolean;
+  session: LockdownSessionDetail;
+  summary: string;
+  duration: string;
+}
+
+export interface LockdownLogEntry {
+  id: number;
+  action: string;
+  detail: string;
+  severity: string;
+  createdAt: string;
+}
+
+export interface LockdownHistoryResponse {
+  logs: LockdownLogEntry[];
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;

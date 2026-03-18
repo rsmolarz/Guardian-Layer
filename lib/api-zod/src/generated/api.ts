@@ -1305,3 +1305,122 @@ export const CompleteNeutralizationStepResponse = zod.object({
   startedAt: zod.date().nullish(),
   completedAt: zod.date().nullish(),
 });
+
+/**
+ * @summary Get current lockdown status
+ */
+export const GetLockdownStatusResponse = zod.object({
+  isActive: zod.boolean(),
+  session: zod
+    .object({
+      id: zod.number(),
+      status: zod.enum(["active", "lifted"]),
+      reason: zod.string(),
+      activatedAt: zod.date(),
+      deactivatedAt: zod.date().nullish(),
+      summaryReport: zod.string().nullish(),
+      actions: zod.array(
+        zod.object({
+          id: zod.number(),
+          sessionId: zod.number(),
+          actionType: zod.string(),
+          label: zod.string(),
+          description: zod.string(),
+          status: zod.enum(["active", "lifted", "pending"]),
+          activatedAt: zod.date(),
+          liftedAt: zod.date().nullish(),
+        }),
+      ),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary Activate emergency lockdown
+ */
+export const ActivateLockdownBody = zod.object({
+  reason: zod.string(),
+});
+
+export const ActivateLockdownResponse = zod.object({
+  id: zod.number(),
+  status: zod.enum(["active", "lifted"]),
+  reason: zod.string(),
+  activatedAt: zod.date(),
+  deactivatedAt: zod.date().nullish(),
+  summaryReport: zod.string().nullish(),
+  actions: zod.array(
+    zod.object({
+      id: zod.number(),
+      sessionId: zod.number(),
+      actionType: zod.string(),
+      label: zod.string(),
+      description: zod.string(),
+      status: zod.enum(["active", "lifted", "pending"]),
+      activatedAt: zod.date(),
+      liftedAt: zod.date().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Lift active lockdown
+ */
+export const LiftLockdownResponse = zod.object({
+  success: zod.boolean(),
+  session: zod.object({
+    id: zod.number(),
+    status: zod.enum(["active", "lifted"]),
+    reason: zod.string(),
+    activatedAt: zod.date(),
+    deactivatedAt: zod.date().nullish(),
+    summaryReport: zod.string().nullish(),
+    actions: zod.array(
+      zod.object({
+        id: zod.number(),
+        sessionId: zod.number(),
+        actionType: zod.string(),
+        label: zod.string(),
+        description: zod.string(),
+        status: zod.enum(["active", "lifted", "pending"]),
+        activatedAt: zod.date(),
+        liftedAt: zod.date().nullish(),
+      }),
+    ),
+  }),
+  summary: zod.string(),
+  duration: zod.string(),
+});
+
+/**
+ * @summary Toggle a lockdown containment action
+ */
+export const ToggleLockdownActionParams = zod.object({
+  actionId: zod.coerce.number(),
+});
+
+export const ToggleLockdownActionResponse = zod.object({
+  id: zod.number(),
+  sessionId: zod.number(),
+  actionType: zod.string(),
+  label: zod.string(),
+  description: zod.string(),
+  status: zod.enum(["active", "lifted", "pending"]),
+  activatedAt: zod.date(),
+  liftedAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Get lockdown activity log
+ */
+export const GetLockdownHistoryResponse = zod.object({
+  logs: zod.array(
+    zod.object({
+      id: zod.number(),
+      action: zod.string(),
+      detail: zod.string(),
+      severity: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+});

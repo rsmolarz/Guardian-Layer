@@ -30,6 +30,7 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **Recovery Center:** Full asset & data recovery system for compromised assets (passport, email, credit card, SSN). Features recovery dashboard with stats/progress bar, expandable case cards with step-by-step workflows, step status tracking with notes, verification checks, and chronological timeline view.
 *   **Threat Neutralization:** Active threat containment system with summary stats (active/contained/neutralized/avg containment time), threats grouped by severity, expandable threat cards with isolation actions (freeze credit, lock cards, secure email, invalidate credentials, flag passport), multi-step neutralization workflows with progress tracking, and threat timeline view.
 *   **Backup Center:** Automated iDrive-style backup system with dual-redundancy storage (Google Drive + local VPS). Features manual and scheduled backups of database (pg_dump), source code archives, and package manifests. SHA-256 checksum verification, backup history with size/status/integrity indicators, storage usage tracking, configurable intervals/retention/max backups, download capability, and Google Drive organized folder structure (GuardianLayer-Backups/YYYY-MM-DD/).
+*   **Emergency Lockdown:** Global "big red button" for coordinated containment across all security domains. Activates all containment actions simultaneously (freeze credit, lock cards, secure email, invalidate credentials, isolate endpoints). Features lockdown dashboard with status/duration/action counts, containment action checklist with individual lift/reactivate controls, lift-lockdown flow with summary report, activity log, global lockdown banner on all pages, and sidebar status indicator change from "SYSTEM SECURE" to "LOCKDOWN ACTIVE".
 
 ## External Dependencies
 
@@ -57,6 +58,8 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **neutralization_steps** - Multi-step neutralization workflows per threat with threat_id, step_order, title, description, category, status (pending/in_progress/completed), started_at, completed_at
 *   **backups** - Backup records with name, status (pending/in_progress/completed/failed), type (manual/scheduled), size_bytes, checksum (SHA-256), checksum_verified, local_path, drive_file_id, drive_folder_id, includes_database, includes_source_code, includes_packages, error_message, completed_at
 *   **backup_settings** - Backup configuration with interval_hours, retention_days, max_backups, auto_backup_enabled, last_auto_backup_at
+*   **lockdown_sessions** - Emergency lockdown sessions with status (active/lifted), reason, activated_at, deactivated_at, summary_report
+*   **lockdown_actions** - Individual containment actions per lockdown session with session_id (FK), action_type, label, description, status (active/lifted/pending), activated_at, lifted_at
 
 ## ML Risk Scoring
 
@@ -113,6 +116,11 @@ The risk scoring engine evaluates transactions based on:
 - `POST /api/backups/:id/restore` - Restore from backup (auth + X-Confirm-Restore header required)
 - `GET /api/backups/:id/download` - Download backup archive (auth required)
 - Auth: Set BACKUP_ADMIN_KEY env var for persistent key; ephemeral key generated if unset
+- `GET /api/lockdown/status` - Get current lockdown status (active/inactive with session details)
+- `POST /api/lockdown/activate` - Activate emergency lockdown (requires reason)
+- `POST /api/lockdown/lift` - Lift active lockdown (generates summary report)
+- `POST /api/lockdown/actions/:actionId/toggle` - Toggle individual containment action (lift/reactivate)
+- `GET /api/lockdown/history` - Get lockdown activity log
 
 ## Key Commands
 

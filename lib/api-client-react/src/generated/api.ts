@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActivateLockdownRequest,
   ActivityLogList,
   Alert,
   AlertList,
@@ -46,6 +47,7 @@ import type {
   IntegrationList,
   IsolationActionRequest,
   IsolationActionResult,
+  LiftLockdownResponse,
   ListAlertsParams,
   ListBackupsParams,
   ListDarkWebExposuresParams,
@@ -58,6 +60,10 @@ import type {
   ListTransactionsParams,
   ListYubikeyDevicesParams,
   ListYubikeyEventsParams,
+  LockdownActionItem,
+  LockdownHistoryResponse,
+  LockdownSessionDetail,
+  LockdownStatusResponse,
   NetworkEventList,
   NetworkStats,
   NeutralizationStepItem,
@@ -5190,3 +5196,404 @@ export const useCompleteNeutralizationStep = <
 > => {
   return useMutation(getCompleteNeutralizationStepMutationOptions(options));
 };
+
+/**
+ * @summary Get current lockdown status
+ */
+export const getGetLockdownStatusUrl = () => {
+  return `/api/lockdown/status`;
+};
+
+export const getLockdownStatus = async (
+  options?: RequestInit,
+): Promise<LockdownStatusResponse> => {
+  return customFetch<LockdownStatusResponse>(getGetLockdownStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLockdownStatusQueryKey = () => {
+  return [`/api/lockdown/status`] as const;
+};
+
+export const getGetLockdownStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLockdownStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLockdownStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLockdownStatus>>
+  > = ({ signal }) => getLockdownStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLockdownStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLockdownStatus>>
+>;
+export type GetLockdownStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current lockdown status
+ */
+
+export function useGetLockdownStatus<
+  TData = Awaited<ReturnType<typeof getLockdownStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLockdownStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Activate emergency lockdown
+ */
+export const getActivateLockdownUrl = () => {
+  return `/api/lockdown/activate`;
+};
+
+export const activateLockdown = async (
+  activateLockdownRequest: ActivateLockdownRequest,
+  options?: RequestInit,
+): Promise<LockdownSessionDetail> => {
+  return customFetch<LockdownSessionDetail>(getActivateLockdownUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(activateLockdownRequest),
+  });
+};
+
+export const getActivateLockdownMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateLockdown>>,
+    TError,
+    { data: BodyType<ActivateLockdownRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof activateLockdown>>,
+  TError,
+  { data: BodyType<ActivateLockdownRequest> },
+  TContext
+> => {
+  const mutationKey = ["activateLockdown"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof activateLockdown>>,
+    { data: BodyType<ActivateLockdownRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return activateLockdown(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActivateLockdownMutationResult = NonNullable<
+  Awaited<ReturnType<typeof activateLockdown>>
+>;
+export type ActivateLockdownMutationBody = BodyType<ActivateLockdownRequest>;
+export type ActivateLockdownMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Activate emergency lockdown
+ */
+export const useActivateLockdown = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateLockdown>>,
+    TError,
+    { data: BodyType<ActivateLockdownRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof activateLockdown>>,
+  TError,
+  { data: BodyType<ActivateLockdownRequest> },
+  TContext
+> => {
+  return useMutation(getActivateLockdownMutationOptions(options));
+};
+
+/**
+ * @summary Lift active lockdown
+ */
+export const getLiftLockdownUrl = () => {
+  return `/api/lockdown/lift`;
+};
+
+export const liftLockdown = async (
+  options?: RequestInit,
+): Promise<LiftLockdownResponse> => {
+  return customFetch<LiftLockdownResponse>(getLiftLockdownUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLiftLockdownMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liftLockdown>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liftLockdown>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["liftLockdown"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liftLockdown>>,
+    void
+  > = () => {
+    return liftLockdown(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiftLockdownMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liftLockdown>>
+>;
+
+export type LiftLockdownMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Lift active lockdown
+ */
+export const useLiftLockdown = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liftLockdown>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof liftLockdown>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLiftLockdownMutationOptions(options));
+};
+
+/**
+ * @summary Toggle a lockdown containment action
+ */
+export const getToggleLockdownActionUrl = (actionId: number) => {
+  return `/api/lockdown/actions/${actionId}/toggle`;
+};
+
+export const toggleLockdownAction = async (
+  actionId: number,
+  options?: RequestInit,
+): Promise<LockdownActionItem> => {
+  return customFetch<LockdownActionItem>(getToggleLockdownActionUrl(actionId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getToggleLockdownActionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleLockdownAction>>,
+    TError,
+    { actionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleLockdownAction>>,
+  TError,
+  { actionId: number },
+  TContext
+> => {
+  const mutationKey = ["toggleLockdownAction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleLockdownAction>>,
+    { actionId: number }
+  > = (props) => {
+    const { actionId } = props ?? {};
+
+    return toggleLockdownAction(actionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleLockdownActionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleLockdownAction>>
+>;
+
+export type ToggleLockdownActionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Toggle a lockdown containment action
+ */
+export const useToggleLockdownAction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleLockdownAction>>,
+    TError,
+    { actionId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleLockdownAction>>,
+  TError,
+  { actionId: number },
+  TContext
+> => {
+  return useMutation(getToggleLockdownActionMutationOptions(options));
+};
+
+/**
+ * @summary Get lockdown activity log
+ */
+export const getGetLockdownHistoryUrl = () => {
+  return `/api/lockdown/history`;
+};
+
+export const getLockdownHistory = async (
+  options?: RequestInit,
+): Promise<LockdownHistoryResponse> => {
+  return customFetch<LockdownHistoryResponse>(getGetLockdownHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLockdownHistoryQueryKey = () => {
+  return [`/api/lockdown/history`] as const;
+};
+
+export const getGetLockdownHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLockdownHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLockdownHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLockdownHistory>>
+  > = ({ signal }) => getLockdownHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLockdownHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLockdownHistory>>
+>;
+export type GetLockdownHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get lockdown activity log
+ */
+
+export function useGetLockdownHistory<
+  TData = Awaited<ReturnType<typeof getLockdownHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLockdownHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLockdownHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

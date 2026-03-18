@@ -20,6 +20,7 @@ import Recovery from "@/pages/Recovery";
 import ThreatNeutralization from "@/pages/ThreatNeutralization";
 import Glossary from "@/pages/Glossary";
 import Backups from "@/pages/Backups";
+import EmergencyLockdown from "@/pages/EmergencyLockdown";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { useLocation } from "wouter";
@@ -58,6 +59,7 @@ function Router() {
         <Route path="/threat-neutralization" component={ThreatNeutralization} />
         <Route path="/glossary" component={Glossary} />
         <Route path="/backups" component={Backups} />
+        <Route path="/emergency-lockdown" component={EmergencyLockdown} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />

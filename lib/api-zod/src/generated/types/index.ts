@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./activateLockdownRequest";
 export * from "./activityLogEntry";
 export * from "./activityLogEntrySeverity";
 export * from "./activityLogList";
@@ -60,6 +61,7 @@ export * from "./integrationStatus";
 export * from "./isolationActionRequest";
 export * from "./isolationActionRequestAction";
 export * from "./isolationActionResult";
+export * from "./liftLockdownResponse";
 export * from "./listAlertsParams";
 export * from "./listAlertsSeverity";
 export * from "./listBackupsParams";
@@ -89,6 +91,13 @@ export * from "./listYubikeyDevicesParams";
 export * from "./listYubikeyDevicesStatus";
 export * from "./listYubikeyEventsEventType";
 export * from "./listYubikeyEventsParams";
+export * from "./lockdownActionItem";
+export * from "./lockdownActionItemStatus";
+export * from "./lockdownHistoryResponse";
+export * from "./lockdownLogEntry";
+export * from "./lockdownSessionDetail";
+export * from "./lockdownSessionDetailStatus";
+export * from "./lockdownStatusResponse";
 export * from "./networkEvent";
 export * from "./networkEventEventType";
 export * from "./networkEventList";

@@ -15,6 +15,7 @@ import openclawRouter from "./openclaw";
 import recoveryRouter from "./recovery";
 import threatsRouter from "./threats";
 import backupsRouter from "./backups";
+import lockdownRouter from "./lockdown";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(openclawRouter);
 router.use(recoveryRouter);
 router.use(threatsRouter);
 router.use(backupsRouter);
+router.use(lockdownRouter);
 
 export default router;
