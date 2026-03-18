@@ -58,7 +58,9 @@ artifacts-monorepo/
    - **Patch Compliance** - Track missing OS and software patches per device with CVE IDs, CVSS scores, severity levels, days overdue, auto-update status, last reboot dates, and compliance filtering
    - **Behavioral Analytics** - AI behavioral baseline per device tracking deviations: unusual process execution, privilege escalation, lateral movement, data staging/exfiltration, off-hours activity, persistence; shows confidence scores, baseline vs current frequency, and per-device deviation percentages
    - **USB Monitor** - Track all USB device insertions across fleet with vendor/product IDs, serial numbers, authorization status, data transfer tracking, files accessed counts, policy violation detection (NO_REMOVABLE_MEDIA, DATA_EXFILTRATION, BADUSB_ATTACK, SERVER_USB_PROHIBITED, UNAUTHORIZED_NETWORK), and status filtering (blocked/exfiltration/flagged/allowed)
-7. **Network Security** - Real-time network monitoring with firewall events, IDS/IPS alerts, traffic anomaly detection, port scanning detection, DDoS monitoring, and attack source country mapping
+7. **Network Security** - Two-tab page:
+   - **Events Monitor** - Real-time network monitoring with firewall events, IDS/IPS alerts, traffic anomaly detection, port scanning detection, DDoS monitoring, and attack source country mapping
+   - **Intrusion Detection** - AI-powered IDS showing 8 detected intrusion attempts across 6 attack categories (web attack, brute force, malware C2, exfiltration, reconnaissance, zero-day) with attack signatures, signature IDs, source/destination IPs, payload inspection, matched OWASP/ET rules, confidence scores, packets inspected, sessions affected, related CVEs, and severity filtering
 8. **YubiKey MFA** - Hardware key management with key inventory, authentication event tracking, enrollment management, failed auth monitoring, and policy management
 9. **OpenClaw Monitor** - AI contract monitoring with clause risk analysis, compliance tracking, anomaly detection, document scanning, and regulatory alerts
 10. **External Linkages (Integrations)** - Shows status of connected services (Stripe, Plaid, Cloudflare, Gmail, Twilio, Google Workspace Protection) plus pending integrations with configuration UI
@@ -133,6 +135,7 @@ The risk scoring engine evaluates transactions based on:
 - `GET /api/endpoints/usb-monitor` - USB/removable media monitoring with policy violations and exfiltration tracking
 - `GET /api/network` - List network events
 - `GET /api/network/stats` - Network security statistics
+- `GET /api/network/ids` - AI-powered intrusion detection with attack signatures and payload inspection
 - `GET /api/yubikey/devices` - List YubiKey devices
 - `GET /api/yubikey/auth-events` - List YubiKey auth events
 - `GET /api/yubikey/stats` - YubiKey statistics
