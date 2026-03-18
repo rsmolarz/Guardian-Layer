@@ -48,6 +48,12 @@ import {
   KeyRound,
   Share2,
   Users,
+  Target,
+  Link2,
+  AtSign,
+  Crosshair,
+  ShieldOff,
+  Eye,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -80,7 +86,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 type ThreatFilter = "phishing" | "malware" | "spoofing" | "bec" | "spam" | undefined;
 type StatusFilter = "detected" | "quarantined" | "released" | "blocked" | undefined;
-type Tab = "threats" | "auth-monitor" | "attachments" | "compromise";
+type Tab = "threats" | "auth-monitor" | "attachments" | "compromise" | "phishing";
 
 export default function EmailSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("threats");
@@ -90,6 +96,7 @@ export default function EmailSecurity() {
     { id: "auth-monitor", label: "Auth Monitor", icon: Key },
     { id: "attachments", label: "Attachment Analyzer", icon: Paperclip },
     { id: "compromise", label: "Compromise Detector", icon: UserX },
+    { id: "phishing", label: "Phishing Campaigns", icon: Target },
   ];
 
   return (
@@ -121,6 +128,7 @@ export default function EmailSecurity() {
       {activeTab === "auth-monitor" && <AuthMonitorPanel />}
       {activeTab === "attachments" && <AttachmentAnalyzerPanel />}
       {activeTab === "compromise" && <CompromiseDetectorPanel />}
+      {activeTab === "phishing" && <PhishingCampaignPanel />}
     </div>
   );
 }
@@ -1087,6 +1095,280 @@ function CompromiseDetectorPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <UserCheck className="w-8 h-8 mx-auto mb-3 text-green-400" />
             <p className="font-display text-sm uppercase tracking-wider">No accounts match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface PhishingDomain {
+  domain: string;
+  registeredDate: string;
+  registrar: string;
+  hosting: string;
+  sslIssued: boolean;
+  status: string;
+}
+
+interface SpoofedSender {
+  address: string;
+  displayName: string;
+  timesUsed: number;
+}
+
+interface PhishingCampaign {
+  id: number;
+  name: string;
+  status: string;
+  severity: string;
+  firstSeen: string;
+  lastActivity: string;
+  targetedUsers: number;
+  emailsBlocked: number;
+  emailsDelivered: number;
+  clickRate: number;
+  lookalikedomains: PhishingDomain[];
+  spoofedSenders: SpoofedSender[];
+  techniques: string[];
+  sampleSubjects: string[];
+}
+
+interface PhishingData {
+  campaigns: PhishingCampaign[];
+  summary: { totalCampaigns: number; activeCampaigns: number; totalBlocked: number; totalLookalikes: number };
+}
+
+function PhishingCampaignPanel() {
+  const [data, setData] = useState<PhishingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetch("/api/email-security/phishing-campaigns")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load phishing campaign data.</div>;
+
+  const { campaigns, summary } = data;
+
+  const filtered = filter === "all" ? campaigns : campaigns.filter((c) => c.status === filter);
+
+  const severityColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      active: "bg-red-500/20 text-red-400 border-red-500/30",
+      monitoring: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      neutralized: "bg-green-500/20 text-green-400 border-green-500/30",
+    };
+    return colors[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
+  };
+
+  const summaryCards = [
+    { label: "Total Campaigns", value: summary.totalCampaigns, icon: Crosshair, color: "text-primary" },
+    { label: "Active Campaigns", value: summary.activeCampaigns, icon: Target, color: "text-red-400" },
+    { label: "Emails Blocked", value: summary.totalBlocked, icon: Ban, color: "text-orange-400" },
+    { label: "Lookalike Domains", value: summary.totalLookalikes, icon: Link2, color: "text-yellow-400" },
+  ];
+
+  const filterButtons = [
+    { label: "All", value: "all" },
+    { label: "Active", value: "active" },
+    { label: "Monitoring", value: "monitoring" },
+    { label: "Neutralized", value: "neutralized" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground self-center mr-2">Status</span>
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.value}
+            onClick={() => setFilter(btn.value)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider transition-all",
+              filter === btn.value
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-white hover:bg-white/5 border border-transparent"
+            )}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((campaign) => {
+          const isExpanded = expandedId === campaign.id;
+
+          return (
+            <motion.div
+              key={campaign.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : campaign.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${campaign.status === "active" ? "bg-red-500/15" : campaign.status === "monitoring" ? "bg-yellow-500/10" : "bg-green-500/10"}`}>
+                  <Target className={`w-5 h-5 ${campaign.status === "active" ? "text-red-400" : campaign.status === "monitoring" ? "text-yellow-400" : "text-green-400"}`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white">{campaign.name}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${statusBadge(campaign.status)}`}>
+                      {campaign.status}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${severityColor(campaign.severity)} border-current/30`}>
+                      {campaign.severity}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {campaign.targetedUsers} targeted users
+                    <span className="mx-2">|</span>
+                    {campaign.emailsBlocked} blocked
+                    <span className="mx-2">|</span>
+                    {campaign.lookalikedomains.length} lookalike domain{campaign.lookalikedomains.length !== 1 ? "s" : ""}
+                    <span className="mx-2">|</span>
+                    Last: {format(new Date(campaign.lastActivity), "MMM d, HH:mm")}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Click Rate</span>
+                    <span className={`text-lg font-mono font-bold ${campaign.clickRate > 0.01 ? "text-red-400" : campaign.clickRate > 0 ? "text-yellow-400" : "text-green-400"}`}>
+                      {(campaign.clickRate * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Targeted</span>
+                      <span className="text-lg font-mono font-bold text-primary">{campaign.targetedUsers}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Blocked</span>
+                      <span className="text-lg font-mono font-bold text-green-400">{campaign.emailsBlocked}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Delivered</span>
+                      <span className={`text-lg font-mono font-bold ${campaign.emailsDelivered > 0 ? "text-red-400" : "text-green-400"}`}>{campaign.emailsDelivered}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">First Seen</span>
+                      <span className="text-sm font-mono text-muted-foreground">{format(new Date(campaign.firstSeen), "MMM d")}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                      <Link2 className="w-3 h-3" /> Lookalike Domains
+                    </h4>
+                    <div className="space-y-2">
+                      {campaign.lookalikedomains.map((d, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-black/20 border border-white/5">
+                          <Globe className={`w-4 h-4 flex-shrink-0 ${d.status === "active" ? "text-red-400" : d.status === "suspended" ? "text-green-400" : "text-yellow-400"}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-mono text-red-300 font-bold">{d.domain}</span>
+                            <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
+                              <span>Registrar: {d.registrar}</span>
+                              <span>Host: {d.hosting}</span>
+                              <span>SSL: {d.sslIssued ? <span className="text-red-400">Yes</span> : "No"}</span>
+                              <span className={`uppercase font-bold ${d.status === "active" ? "text-red-400" : d.status === "suspended" ? "text-green-400" : "text-yellow-400"}`}>{d.status}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                      <AtSign className="w-3 h-3" /> Spoofed Sender Addresses
+                    </h4>
+                    <div className="space-y-2">
+                      {campaign.spoofedSenders.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-black/20 border border-white/5">
+                          <div>
+                            <span className="text-xs font-mono text-orange-300">{s.address}</span>
+                            <span className="text-[10px] text-muted-foreground ml-2">as &ldquo;{s.displayName}&rdquo;</span>
+                          </div>
+                          <span className="text-xs font-mono text-muted-foreground">{s.timesUsed}x used</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                      <ShieldOff className="w-3 h-3" /> Attack Techniques
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.techniques.map((t) => (
+                        <span key={t} className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-300 border border-red-500/20 font-mono">
+                          {t.replace(/-/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                      <Eye className="w-3 h-3" /> Sample Subject Lines
+                    </h4>
+                    <div className="space-y-1">
+                      {campaign.sampleSubjects.map((subj, i) => (
+                        <div key={i} className="text-xs text-gray-300 p-2 rounded bg-black/30 border border-white/5 font-mono">
+                          &ldquo;{subj}&rdquo;
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <CheckCircle className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No campaigns match this filter</p>
           </div>
         )}
       </div>

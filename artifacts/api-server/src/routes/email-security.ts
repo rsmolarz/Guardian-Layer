@@ -431,4 +431,153 @@ router.get("/email-security/account-compromise", async (_req, res): Promise<void
   }
 });
 
+router.get("/email-security/phishing-campaigns", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const campaigns = [
+      {
+        id: 1,
+        name: "Operation PayDay",
+        status: "active",
+        severity: "critical",
+        firstSeen: new Date(now - 86400000 * 2).toISOString(),
+        lastActivity: new Date(now - 1800000).toISOString(),
+        targetedUsers: 47,
+        emailsBlocked: 312,
+        emailsDelivered: 3,
+        clickRate: 0.02,
+        lookalikedomains: [
+          { domain: "c0rp-payroll.com", registeredDate: new Date(now - 86400000 * 5).toISOString(), registrar: "NameCheap", hosting: "Cloudflare", sslIssued: true, status: "active" },
+          { domain: "corp-payroIl.com", registeredDate: new Date(now - 86400000 * 4).toISOString(), registrar: "GoDaddy", hosting: "AWS", sslIssued: true, status: "active" },
+        ],
+        spoofedSenders: [
+          { address: "payroll@c0rp-payroll.com", displayName: "HR Payroll Team", timesUsed: 156 },
+          { address: "benefits@corp-payroIl.com", displayName: "Employee Benefits", timesUsed: 89 },
+          { address: "cfo@c0rp-payroll.com", displayName: "CFO Office", timesUsed: 67 },
+        ],
+        techniques: ["credential-harvesting", "urgency-social-engineering", "ssl-certificate-abuse", "display-name-spoofing"],
+        sampleSubjects: [
+          "URGENT: Your direct deposit has been suspended",
+          "Action Required: Verify your payroll information",
+          "Tax Document W-2 Ready for Review",
+        ],
+      },
+      {
+        id: 2,
+        name: "Vendor Invoice Scam",
+        status: "active",
+        severity: "high",
+        firstSeen: new Date(now - 86400000 * 7).toISOString(),
+        lastActivity: new Date(now - 3600000 * 4).toISOString(),
+        targetedUsers: 12,
+        emailsBlocked: 89,
+        emailsDelivered: 1,
+        clickRate: 0.01,
+        lookalikedomains: [
+          { domain: "partner-firrn.com", registeredDate: new Date(now - 86400000 * 10).toISOString(), registrar: "Namecheap", hosting: "DigitalOcean", sslIssued: true, status: "active" },
+        ],
+        spoofedSenders: [
+          { address: "accounting@partner-firrn.com", displayName: "Partner Firm Billing", timesUsed: 52 },
+          { address: "invoices@partner-firrn.com", displayName: "Accounts Payable", timesUsed: 37 },
+        ],
+        techniques: ["bec-invoice-fraud", "attachment-malware", "reply-chain-hijacking"],
+        sampleSubjects: [
+          "RE: Outstanding Invoice #INV-2847 - Payment Overdue",
+          "Updated Banking Details - Please Process",
+          "Fw: Signed Contract - Final Version Attached",
+        ],
+      },
+      {
+        id: 3,
+        name: "IT Support Impersonation",
+        status: "monitoring",
+        severity: "medium",
+        firstSeen: new Date(now - 86400000 * 14).toISOString(),
+        lastActivity: new Date(now - 86400000 * 3).toISOString(),
+        targetedUsers: 8,
+        emailsBlocked: 34,
+        emailsDelivered: 0,
+        clickRate: 0,
+        lookalikedomains: [
+          { domain: "corp-itsupport.net", registeredDate: new Date(now - 86400000 * 20).toISOString(), registrar: "Tucows", hosting: "Hetzner", sslIssued: false, status: "parked" },
+        ],
+        spoofedSenders: [
+          { address: "helpdesk@corp-itsupport.net", displayName: "IT Help Desk", timesUsed: 34 },
+        ],
+        techniques: ["credential-harvesting", "fake-password-reset", "mfa-fatigue"],
+        sampleSubjects: [
+          "Your password expires in 24 hours - Reset Now",
+          "Microsoft 365 Account Verification Required",
+          "VPN Access Update - Action Needed",
+        ],
+      },
+      {
+        id: 4,
+        name: "Executive Whaling Attack",
+        status: "neutralized",
+        severity: "critical",
+        firstSeen: new Date(now - 86400000 * 30).toISOString(),
+        lastActivity: new Date(now - 86400000 * 10).toISOString(),
+        targetedUsers: 3,
+        emailsBlocked: 18,
+        emailsDelivered: 0,
+        clickRate: 0,
+        lookalikedomains: [
+          { domain: "corp-board.com", registeredDate: new Date(now - 86400000 * 35).toISOString(), registrar: "Porkbun", hosting: "Vultr", sslIssued: true, status: "suspended" },
+          { domain: "corp-lega1.com", registeredDate: new Date(now - 86400000 * 33).toISOString(), registrar: "GoDaddy", hosting: "AWS", sslIssued: true, status: "suspended" },
+        ],
+        spoofedSenders: [
+          { address: "chairman@corp-board.com", displayName: "Board Chairman", timesUsed: 12 },
+          { address: "counsel@corp-lega1.com", displayName: "General Counsel", timesUsed: 6 },
+        ],
+        techniques: ["spear-phishing", "ceo-fraud", "wire-transfer-request", "urgency-social-engineering"],
+        sampleSubjects: [
+          "Confidential: Urgent Wire Transfer Required",
+          "Board Resolution - Immediate Action",
+          "Legal Matter - Do Not Forward",
+        ],
+      },
+      {
+        id: 5,
+        name: "Cloud Storage Credential Theft",
+        status: "active",
+        severity: "high",
+        firstSeen: new Date(now - 86400000 * 4).toISOString(),
+        lastActivity: new Date(now - 7200000).toISOString(),
+        targetedUsers: 23,
+        emailsBlocked: 145,
+        emailsDelivered: 2,
+        clickRate: 0.03,
+        lookalikedomains: [
+          { domain: "sharepoint-corp.cloud", registeredDate: new Date(now - 86400000 * 6).toISOString(), registrar: "Namecheap", hosting: "Cloudflare", sslIssued: true, status: "active" },
+          { domain: "onedrive-corp.cloud", registeredDate: new Date(now - 86400000 * 6).toISOString(), registrar: "Namecheap", hosting: "Cloudflare", sslIssued: true, status: "active" },
+        ],
+        spoofedSenders: [
+          { address: "noreply@sharepoint-corp.cloud", displayName: "SharePoint Notification", timesUsed: 87 },
+          { address: "sharing@onedrive-corp.cloud", displayName: "OneDrive File Share", timesUsed: 58 },
+        ],
+        techniques: ["credential-harvesting", "oauth-consent-phishing", "fake-file-share", "branded-phishing-kit"],
+        sampleSubjects: [
+          "Someone shared a document with you",
+          "You have new files in your OneDrive",
+          "Action required: Review shared folder access",
+        ],
+      },
+    ];
+
+    const totalCampaigns = campaigns.length;
+    const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
+    const totalBlocked = campaigns.reduce((s, c) => s + c.emailsBlocked, 0);
+    const totalLookalikes = campaigns.reduce((s, c) => s + c.lookalikedomains.length, 0);
+
+    res.json({
+      campaigns,
+      summary: { totalCampaigns, activeCampaigns, totalBlocked, totalLookalikes },
+    });
+  } catch (err: any) {
+    console.error("[email-security] GET /phishing-campaigns failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve phishing campaign data." });
+  }
+});
+
 export default router;
