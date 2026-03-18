@@ -53,6 +53,34 @@ function getStatus(riskScore: number): string {
   return "ALLOWED";
 }
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 200): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const isRetryable =
+        err.code === "ECONNREFUSED" ||
+        err.code === "ECONNRESET" ||
+        err.code === "ETIMEDOUT" ||
+        err.code === "57P01" ||
+        err.code === "57P03" ||
+        err.code === "08006" ||
+        err.code === "08001" ||
+        err.code === "08004" ||
+        err.message?.includes("connection") ||
+        err.message?.includes("pool") ||
+        err.message?.includes("timeout");
+
+      if (isRetryable && attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Unreachable");
+}
+
 router.get("/transactions", async (req, res): Promise<void> => {
   const query = ListTransactionsQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -62,25 +90,34 @@ router.get("/transactions", async (req, res): Promise<void> => {
 
   const { status, limit = 50, offset = 0 } = query.data;
 
-  let baseQuery = db.select().from(transactionsTable);
+  try {
+    const [transactions, [countResult]] = await withRetry(async () => {
+      let baseQuery = db.select().from(transactionsTable);
 
-  if (status) {
-    baseQuery = baseQuery.where(eq(transactionsTable.status, status)) as typeof baseQuery;
+      if (status) {
+        baseQuery = baseQuery.where(eq(transactionsTable.status, status)) as typeof baseQuery;
+      }
+
+      const txns = await baseQuery
+        .orderBy(desc(transactionsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const count = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(transactionsTable);
+
+      return [txns, count] as const;
+    });
+
+    res.json(ListTransactionsResponse.parse({
+      transactions,
+      total: countResult?.count ?? 0,
+    }));
+  } catch (err: any) {
+    console.error("[transactions] GET /transactions failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve transactions. Please try again." });
   }
-
-  const transactions = await baseQuery
-    .orderBy(desc(transactionsTable.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(transactionsTable);
-
-  res.json(ListTransactionsResponse.parse({
-    transactions,
-    total: countResult?.count ?? 0,
-  }));
 });
 
 router.post("/transactions/scan", async (req, res): Promise<void> => {
@@ -93,22 +130,29 @@ router.post("/transactions/scan", async (req, res): Promise<void> => {
   const { score, factors } = predictRisk(parsed.data);
   const status = getStatus(score);
 
-  const [transaction] = await db.insert(transactionsTable).values({
-    source: parsed.data.source,
-    destination: parsed.data.destination,
-    amount: parsed.data.amount,
-    currency: parsed.data.currency,
-    riskScore: score,
-    status,
-    category: parsed.data.category || "general",
-    ipAddress: parsed.data.ipAddress || null,
-    country: parsed.data.country || null,
-  }).returning();
+  try {
+    const [transaction] = await withRetry(() =>
+      db.insert(transactionsTable).values({
+        source: parsed.data.source,
+        destination: parsed.data.destination,
+        amount: parsed.data.amount,
+        currency: parsed.data.currency,
+        riskScore: score,
+        status,
+        category: parsed.data.category || "general",
+        ipAddress: parsed.data.ipAddress || null,
+        country: parsed.data.country || null,
+      }).returning()
+    );
 
-  res.json(ScanTransactionResponse.parse({
-    transaction,
-    riskFactors: factors,
-  }));
+    res.json(ScanTransactionResponse.parse({
+      transaction,
+      riskFactors: factors,
+    }));
+  } catch (err: any) {
+    console.error("[transactions] POST /transactions/scan failed:", err.message);
+    res.status(500).json({ error: "Failed to process transaction scan. Please try again." });
+  }
 });
 
 router.get("/transactions/:id", async (req, res): Promise<void> => {
@@ -118,14 +162,21 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [transaction] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id));
+  try {
+    const [transaction] = await withRetry(() =>
+      db.select().from(transactionsTable).where(eq(transactionsTable.id, params.data.id))
+    );
 
-  if (!transaction) {
-    res.status(404).json({ error: "Transaction not found" });
-    return;
+    if (!transaction) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+
+    res.json(GetTransactionResponse.parse(transaction));
+  } catch (err: any) {
+    console.error("[transactions] GET /transactions/:id failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve transaction. Please try again." });
   }
-
-  res.json(GetTransactionResponse.parse(transaction));
 });
 
 export default router;
