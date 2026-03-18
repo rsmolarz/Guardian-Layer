@@ -27,6 +27,7 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **System Monitoring:** Comprehensive monitoring of System Health (req/min, avg response, error rate, connections, memory, CPU), Activity Logs (audit trail by category and severity), Threat Intelligence (geographic map, risk distribution, category analysis), Throughput (volume summary and time-series charts), and multi-framework Compliance Reporting (SOC 2, GDPR, PCI DSS, ISO 27001, HIPAA).
 *   **Dark Web Monitor:** Tracks compromised data (SSN, email, credentials, financial accounts, phone numbers) and offers recovery actions (Credit Protection, Account Security, Legal & Reporting).
 *   **Recovery Center:** Full asset & data recovery system for compromised assets (passport, email, credit card, SSN). Features recovery dashboard with stats/progress bar, expandable case cards with step-by-step workflows, step status tracking with notes, verification checks, and chronological timeline view.
+*   **Threat Neutralization:** Active threat containment system with summary stats (active/contained/neutralized/avg containment time), threats grouped by severity, expandable threat cards with isolation actions (freeze credit, lock cards, secure email, invalidate credentials, flag passport), multi-step neutralization workflows with progress tracking, and threat timeline view.
 
 ## External Dependencies
 
@@ -50,6 +51,8 @@ The project is structured as a pnpm monorepo using TypeScript. The frontend is b
 *   **recovery_actions** - Recovery action checklists linked to exposures (FK to dark_web_exposures) with title, description, category, completed, priority
 *   **recovery_cases** - Compromised asset recovery tracking with asset_type, asset_identifier, compromise_details, status (pending/in_progress/verified/recovered), recovery_percentage
 *   **recovery_steps** - Individual recovery steps per case with step_order, title, description, category, status (not_started/in_progress/completed/verified), notes, timestamps (started_at, completed_at, verified_at). FK to recovery_cases
+*   **threats** - Active threats with type, severity, status (detected/isolating/contained/neutralized), affected_assets, detection_source, description, detected_at, contained_at, neutralized_at
+*   **neutralization_steps** - Multi-step neutralization workflows per threat with threat_id, step_order, title, description, category, status (pending/in_progress/completed), started_at, completed_at
 
 ## ML Risk Scoring
 
@@ -91,6 +94,12 @@ The risk scoring engine evaluates transactions based on:
 - `PATCH /api/recovery/steps/:id/status` - Update step status/notes
 - `POST /api/recovery/cases/:id/verify` - Mark case as fully recovered (requires all steps completed)
 - `GET /api/recovery/timeline` - Chronological recovery timeline
+- `GET /api/threats` - List threats (filterable by status, severity)
+- `GET /api/threats/summary` - Threat neutralization summary stats
+- `GET /api/threats/:id` - Get threat detail with neutralization steps and timeline
+- `POST /api/threats/:id/status` - Update threat status
+- `POST /api/threats/:id/isolate` - Execute isolation action (freeze_credit, lock_cards, secure_email, invalidate_credentials, flag_passport)
+- `POST /api/threats/:threatId/steps/:stepId/complete` - Complete a neutralization step
 
 ## Key Commands
 

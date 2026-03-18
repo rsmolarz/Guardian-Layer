@@ -1,4 +1,4 @@
-import { db, transactionsTable, alertsTable, recoveryCasesTable, recoveryStepsTable } from "@workspace/db";
+import { db, transactionsTable, alertsTable, recoveryCasesTable, recoveryStepsTable, threatsTable, neutralizationStepsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { seedDarkWebData } from "../routes/dark-web";
 import { seedEmailThreats } from "./seed-email-security";
@@ -12,23 +12,7 @@ export async function seedIfEmpty() {
     .select({ count: sql<number>`count(*)::int` })
     .from(transactionsTable);
 
-  const hasTransactions = (countResult?.count ?? 0) > 0;
-
-  const [recoveryCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(recoveryCasesTable);
-
-  const hasRecovery = (recoveryCount?.count ?? 0) > 0;
-
-  if (hasTransactions && hasRecovery) return;
-
-  if (hasTransactions && !hasRecovery) {
-    console.log("Seeding recovery data...");
-    await seedRecoveryData();
-    console.log("Recovery seed complete.");
-    return;
-  }
-
+  if ((countResult?.count ?? 0) === 0) {
   console.log("Seeding database with sample data...");
 
   await db.insert(transactionsTable).values([
@@ -60,8 +44,85 @@ export async function seedIfEmpty() {
     { title: "Rate Limit Approaching", message: "API rate limit at 85% capacity. Consider upgrading plan or optimizing request patterns.", severity: "low", dismissed: false },
     { title: "Failed Authentication Attempts", message: "Multiple failed login attempts detected from IP 89.44.33.22. Account temporarily locked.", severity: "critical", dismissed: false },
   ]);
+  }
 
-  await seedRecoveryData();
+  const [threatCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(threatsTable);
+
+  if ((threatCount?.count ?? 0) === 0) {
+    const now = new Date();
+    const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600000);
+    const minutesAgo = (m: number) => new Date(now.getTime() - m * 60000);
+
+    const [ssnThreat] = await db.insert(threatsTable).values([
+      {
+        type: "SSN Exposure",
+        severity: "critical",
+        status: "isolating",
+        affectedAssets: "SSN (***-**-4829), Identity Documents, Tax Records",
+        detectionSource: "Dark Web Monitor",
+        description: "Social Security Number detected for sale on dark web marketplace 'ShadowMarket'. Listed alongside full name, date of birth, and mother's maiden name. Price: $45 USD. Multiple buyers detected.",
+        detectedAt: hoursAgo(6),
+      },
+    ]).returning();
+
+    const [cardThreat] = await db.insert(threatsTable).values([
+      {
+        type: "Credit Card Compromise",
+        severity: "critical",
+        status: "detected",
+        affectedAssets: "Visa ****4521, Mastercard ****8877, Amex ****3312",
+        detectionSource: "Financial Intelligence Network",
+        description: "Three credit cards linked to the account detected in a bulk data dump containing 50,000+ card numbers. Cards have been used for 12 unauthorized test transactions in the last 2 hours.",
+        detectedAt: hoursAgo(3),
+      },
+    ]).returning();
+
+    const [emailThreat] = await db.insert(threatsTable).values([
+      {
+        type: "Email Account Breach",
+        severity: "high",
+        status: "isolating",
+        affectedAssets: "primary@email.com, work@company.com",
+        detectionSource: "Breach Intelligence Feed",
+        description: "Email credentials found in a data breach affecting 2.1M accounts from a compromised third-party service. Unauthorized login attempts detected from IP 89.44.33.22 (Moscow, RU).",
+        detectedAt: hoursAgo(8),
+      },
+    ]).returning();
+
+    await db.insert(neutralizationStepsTable).values([
+      { threatId: ssnThreat.id, stepOrder: 1, title: "Place Fraud Alerts", description: "Contact all three credit bureaus to place initial fraud alerts on your credit file", category: "credit_protection", status: "completed", startedAt: hoursAgo(5), completedAt: hoursAgo(4.5) },
+      { threatId: ssnThreat.id, stepOrder: 2, title: "Freeze Credit Bureaus", description: "Freeze credit at Equifax, Experian, and TransUnion to prevent new accounts", category: "credit_protection", status: "in_progress", startedAt: hoursAgo(4) },
+      { threatId: ssnThreat.id, stepOrder: 3, title: "File Identity Theft Report", description: "File an identity theft report with the FTC at IdentityTheft.gov", category: "legal", status: "pending" },
+      { threatId: ssnThreat.id, stepOrder: 4, title: "Notify Financial Institutions", description: "Contact all banks and financial institutions to flag the account for fraud monitoring", category: "financial", status: "pending" },
+      { threatId: ssnThreat.id, stepOrder: 5, title: "Request New SSN Review", description: "Submit request to SSA for SSN review if ongoing fraud cannot be stopped", category: "government", status: "pending" },
+    ]);
+
+    await db.insert(neutralizationStepsTable).values([
+      { threatId: cardThreat.id, stepOrder: 1, title: "Lock All Compromised Cards", description: "Immediately lock Visa ****4521, Mastercard ****8877, and Amex ****3312", category: "financial", status: "pending" },
+      { threatId: cardThreat.id, stepOrder: 2, title: "Dispute Unauthorized Charges", description: "File disputes for all 12 unauthorized test transactions", category: "financial", status: "pending" },
+      { threatId: cardThreat.id, stepOrder: 3, title: "Request Card Replacements", description: "Request new card numbers from all issuers with expedited delivery", category: "financial", status: "pending" },
+      { threatId: cardThreat.id, stepOrder: 4, title: "Update Auto-Pay Services", description: "Update all recurring payment services with new card numbers", category: "account_security", status: "pending" },
+      { threatId: cardThreat.id, stepOrder: 5, title: "Enable Transaction Alerts", description: "Set up real-time transaction alerts on all new cards", category: "monitoring", status: "pending" },
+    ]);
+
+    await db.insert(neutralizationStepsTable).values([
+      { threatId: emailThreat.id, stepOrder: 1, title: "Force Password Reset", description: "Immediately change passwords on both compromised email accounts", category: "account_security", status: "completed", startedAt: hoursAgo(7), completedAt: hoursAgo(6.5) },
+      { threatId: emailThreat.id, stepOrder: 2, title: "Enable 2FA", description: "Enable two-factor authentication on all email accounts", category: "account_security", status: "in_progress", startedAt: hoursAgo(6) },
+      { threatId: emailThreat.id, stepOrder: 3, title: "Review Connected Apps", description: "Audit and revoke access for all third-party apps connected to email", category: "account_security", status: "pending" },
+      { threatId: emailThreat.id, stepOrder: 4, title: "Check Email Forwarding Rules", description: "Verify no malicious forwarding rules have been set up", category: "account_security", status: "pending" },
+      { threatId: emailThreat.id, stepOrder: 5, title: "Scan for Phishing Sent from Account", description: "Check sent folder for any phishing emails sent while account was compromised", category: "investigation", status: "pending" },
+    ]);
+  }
+
+  const [recoveryCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(recoveryCasesTable);
+
+  if ((recoveryCount?.count ?? 0) === 0) {
+    await seedRecoveryData();
+  }
 
   console.log("Seed complete.");
 }

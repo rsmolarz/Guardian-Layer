@@ -1022,3 +1022,158 @@ export const GetRecoveryTimelineResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary List all active threats
+ */
+export const ListThreatsQueryParams = zod.object({
+  status: zod
+    .enum(["detected", "isolating", "contained", "neutralized"])
+    .optional(),
+  severity: zod.enum(["critical", "high", "medium"]).optional(),
+});
+
+export const ListThreatsResponse = zod.object({
+  threats: zod.array(
+    zod.object({
+      id: zod.number(),
+      type: zod.string(),
+      severity: zod.enum(["critical", "high", "medium"]),
+      status: zod.enum(["detected", "isolating", "contained", "neutralized"]),
+      affectedAssets: zod.string(),
+      detectionSource: zod.string(),
+      description: zod.string(),
+      detectedAt: zod.date(),
+      containedAt: zod.date().nullish(),
+      neutralizedAt: zod.date().nullish(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get threat neutralization summary stats
+ */
+export const GetThreatSummaryResponse = zod.object({
+  totalActive: zod.number(),
+  threatsContained: zod.number(),
+  threatsNeutralized: zod.number(),
+  avgContainmentMinutes: zod.number(),
+});
+
+/**
+ * @summary Get threat detail with neutralization steps
+ */
+export const GetThreatDetailParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetThreatDetailResponse = zod.object({
+  threat: zod.object({
+    id: zod.number(),
+    type: zod.string(),
+    severity: zod.enum(["critical", "high", "medium"]),
+    status: zod.enum(["detected", "isolating", "contained", "neutralized"]),
+    affectedAssets: zod.string(),
+    detectionSource: zod.string(),
+    description: zod.string(),
+    detectedAt: zod.date(),
+    containedAt: zod.date().nullish(),
+    neutralizedAt: zod.date().nullish(),
+  }),
+  steps: zod.array(
+    zod.object({
+      id: zod.number(),
+      threatId: zod.number(),
+      stepOrder: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      category: zod.string(),
+      status: zod.enum(["pending", "in_progress", "completed"]),
+      startedAt: zod.date().nullish(),
+      completedAt: zod.date().nullish(),
+    }),
+  ),
+  timeline: zod.array(
+    zod.object({
+      timestamp: zod.date(),
+      action: zod.string(),
+      detail: zod.string(),
+      type: zod.enum([
+        "detection",
+        "isolation",
+        "step_complete",
+        "containment",
+        "neutralization",
+      ]),
+    }),
+  ),
+});
+
+/**
+ * @summary Update threat status
+ */
+export const UpdateThreatStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateThreatStatusBody = zod.object({
+  status: zod.enum(["detected", "isolating", "contained", "neutralized"]),
+});
+
+export const UpdateThreatStatusResponse = zod.object({
+  id: zod.number(),
+  type: zod.string(),
+  severity: zod.enum(["critical", "high", "medium"]),
+  status: zod.enum(["detected", "isolating", "contained", "neutralized"]),
+  affectedAssets: zod.string(),
+  detectionSource: zod.string(),
+  description: zod.string(),
+  detectedAt: zod.date(),
+  containedAt: zod.date().nullish(),
+  neutralizedAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Execute an isolation action on a threat
+ */
+export const ExecuteIsolationActionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ExecuteIsolationActionBody = zod.object({
+  action: zod.enum([
+    "freeze_credit",
+    "lock_cards",
+    "secure_email",
+    "invalidate_credentials",
+    "flag_passport",
+  ]),
+});
+
+export const ExecuteIsolationActionResponse = zod.object({
+  success: zod.boolean(),
+  action: zod.string(),
+  message: zod.string(),
+  executedAt: zod.date(),
+});
+
+/**
+ * @summary Mark a neutralization step as complete
+ */
+export const CompleteNeutralizationStepParams = zod.object({
+  threatId: zod.coerce.number(),
+  stepId: zod.coerce.number(),
+});
+
+export const CompleteNeutralizationStepResponse = zod.object({
+  id: zod.number(),
+  threatId: zod.number(),
+  stepOrder: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  category: zod.string(),
+  status: zod.enum(["pending", "in_progress", "completed"]),
+  startedAt: zod.date().nullish(),
+  completedAt: zod.date().nullish(),
+});

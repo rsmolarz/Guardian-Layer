@@ -38,6 +38,8 @@ import type {
   GoogleWorkspaceStatus,
   HealthStatus,
   IntegrationList,
+  IsolationActionRequest,
+  IsolationActionResult,
   ListAlertsParams,
   ListDarkWebExposuresParams,
   ListEmailThreatsParams,
@@ -45,11 +47,13 @@ import type {
   ListNetworkEventsParams,
   ListOpenclawContractsParams,
   ListRecoveryActionsParams,
+  ListThreatsParams,
   ListTransactionsParams,
   ListYubikeyDevicesParams,
   ListYubikeyEventsParams,
   NetworkEventList,
   NetworkStats,
+  NeutralizationStepItem,
   OpenclawContractList,
   OpenclawStats,
   RecoveryAction,
@@ -65,7 +69,11 @@ import type {
   StripeConnectionStatus,
   StripeSyncResult,
   SystemHealth,
+  ThreatDetail,
+  ThreatItem,
+  ThreatList,
   ThreatMapData,
+  ThreatSummary,
   ThroughputData,
   TopThreats,
   Transaction,
@@ -74,6 +82,7 @@ import type {
   TransactionScanResult,
   UpdateRecoveryCaseStatusBody,
   UpdateRecoveryStepStatusBody,
+  UpdateThreatStatusRequest,
   YubikeyDeviceList,
   YubikeyEventList,
   YubikeyStats,
@@ -3983,3 +3992,526 @@ export function useGetRecoveryTimeline<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all active threats
+ */
+export const getListThreatsUrl = (params?: ListThreatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/threats?${stringifiedParams}`
+    : `/api/threats`;
+};
+
+export const listThreats = async (
+  params?: ListThreatsParams,
+  options?: RequestInit,
+): Promise<ThreatList> => {
+  return customFetch<ThreatList>(getListThreatsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListThreatsQueryKey = (params?: ListThreatsParams) => {
+  return [`/api/threats`, ...(params ? [params] : [])] as const;
+};
+
+export const getListThreatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListThreatsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listThreats>>> = ({
+    signal,
+  }) => listThreats(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listThreats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListThreatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listThreats>>
+>;
+export type ListThreatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all active threats
+ */
+
+export function useListThreats<
+  TData = Awaited<ReturnType<typeof listThreats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListThreatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listThreats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListThreatsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get threat neutralization summary stats
+ */
+export const getGetThreatSummaryUrl = () => {
+  return `/api/threats/summary`;
+};
+
+export const getThreatSummary = async (
+  options?: RequestInit,
+): Promise<ThreatSummary> => {
+  return customFetch<ThreatSummary>(getGetThreatSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThreatSummaryQueryKey = () => {
+  return [`/api/threats/summary`] as const;
+};
+
+export const getGetThreatSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThreatSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThreatSummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getThreatSummary>>
+  > = ({ signal }) => getThreatSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThreatSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThreatSummary>>
+>;
+export type GetThreatSummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get threat neutralization summary stats
+ */
+
+export function useGetThreatSummary<
+  TData = Awaited<ReturnType<typeof getThreatSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThreatSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get threat detail with neutralization steps
+ */
+export const getGetThreatDetailUrl = (id: number) => {
+  return `/api/threats/${id}`;
+};
+
+export const getThreatDetail = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ThreatDetail> => {
+  return customFetch<ThreatDetail>(getGetThreatDetailUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetThreatDetailQueryKey = (id: number) => {
+  return [`/api/threats/${id}`] as const;
+};
+
+export const getGetThreatDetailQueryOptions = <
+  TData = Awaited<ReturnType<typeof getThreatDetail>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreatDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetThreatDetailQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getThreatDetail>>> = ({
+    signal,
+  }) => getThreatDetail(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getThreatDetail>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetThreatDetailQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getThreatDetail>>
+>;
+export type GetThreatDetailQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get threat detail with neutralization steps
+ */
+
+export function useGetThreatDetail<
+  TData = Awaited<ReturnType<typeof getThreatDetail>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getThreatDetail>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetThreatDetailQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update threat status
+ */
+export const getUpdateThreatStatusUrl = (id: number) => {
+  return `/api/threats/${id}/status`;
+};
+
+export const updateThreatStatus = async (
+  id: number,
+  updateThreatStatusRequest: UpdateThreatStatusRequest,
+  options?: RequestInit,
+): Promise<ThreatItem> => {
+  return customFetch<ThreatItem>(getUpdateThreatStatusUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateThreatStatusRequest),
+  });
+};
+
+export const getUpdateThreatStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateThreatStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateThreatStatusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateThreatStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateThreatStatusRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateThreatStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateThreatStatus>>,
+    { id: number; data: BodyType<UpdateThreatStatusRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateThreatStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateThreatStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateThreatStatus>>
+>;
+export type UpdateThreatStatusMutationBody =
+  BodyType<UpdateThreatStatusRequest>;
+export type UpdateThreatStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update threat status
+ */
+export const useUpdateThreatStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateThreatStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateThreatStatusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateThreatStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateThreatStatusRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateThreatStatusMutationOptions(options));
+};
+
+/**
+ * @summary Execute an isolation action on a threat
+ */
+export const getExecuteIsolationActionUrl = (id: number) => {
+  return `/api/threats/${id}/isolate`;
+};
+
+export const executeIsolationAction = async (
+  id: number,
+  isolationActionRequest: IsolationActionRequest,
+  options?: RequestInit,
+): Promise<IsolationActionResult> => {
+  return customFetch<IsolationActionResult>(getExecuteIsolationActionUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(isolationActionRequest),
+  });
+};
+
+export const getExecuteIsolationActionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeIsolationAction>>,
+    TError,
+    { id: number; data: BodyType<IsolationActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof executeIsolationAction>>,
+  TError,
+  { id: number; data: BodyType<IsolationActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["executeIsolationAction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof executeIsolationAction>>,
+    { id: number; data: BodyType<IsolationActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return executeIsolationAction(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExecuteIsolationActionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeIsolationAction>>
+>;
+export type ExecuteIsolationActionMutationBody =
+  BodyType<IsolationActionRequest>;
+export type ExecuteIsolationActionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Execute an isolation action on a threat
+ */
+export const useExecuteIsolationAction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeIsolationAction>>,
+    TError,
+    { id: number; data: BodyType<IsolationActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof executeIsolationAction>>,
+  TError,
+  { id: number; data: BodyType<IsolationActionRequest> },
+  TContext
+> => {
+  return useMutation(getExecuteIsolationActionMutationOptions(options));
+};
+
+/**
+ * @summary Mark a neutralization step as complete
+ */
+export const getCompleteNeutralizationStepUrl = (
+  threatId: number,
+  stepId: number,
+) => {
+  return `/api/threats/${threatId}/steps/${stepId}/complete`;
+};
+
+export const completeNeutralizationStep = async (
+  threatId: number,
+  stepId: number,
+  options?: RequestInit,
+): Promise<NeutralizationStepItem> => {
+  return customFetch<NeutralizationStepItem>(
+    getCompleteNeutralizationStepUrl(threatId, stepId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getCompleteNeutralizationStepMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeNeutralizationStep>>,
+    TError,
+    { threatId: number; stepId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeNeutralizationStep>>,
+  TError,
+  { threatId: number; stepId: number },
+  TContext
+> => {
+  const mutationKey = ["completeNeutralizationStep"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeNeutralizationStep>>,
+    { threatId: number; stepId: number }
+  > = (props) => {
+    const { threatId, stepId } = props ?? {};
+
+    return completeNeutralizationStep(threatId, stepId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteNeutralizationStepMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeNeutralizationStep>>
+>;
+
+export type CompleteNeutralizationStepMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a neutralization step as complete
+ */
+export const useCompleteNeutralizationStep = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeNeutralizationStep>>,
+    TError,
+    { threatId: number; stepId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeNeutralizationStep>>,
+  TError,
+  { threatId: number; stepId: number },
+  TContext
+> => {
+  return useMutation(getCompleteNeutralizationStepMutationOptions(options));
+};

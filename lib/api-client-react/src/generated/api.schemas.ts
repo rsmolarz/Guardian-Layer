@@ -808,6 +808,131 @@ export interface RecoveryTimeline {
   entries: RecoveryTimelineEntry[];
 }
 
+export type ThreatItemSeverity =
+  (typeof ThreatItemSeverity)[keyof typeof ThreatItemSeverity];
+
+export const ThreatItemSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+} as const;
+
+export type ThreatItemStatus =
+  (typeof ThreatItemStatus)[keyof typeof ThreatItemStatus];
+
+export const ThreatItemStatus = {
+  detected: "detected",
+  isolating: "isolating",
+  contained: "contained",
+  neutralized: "neutralized",
+} as const;
+
+export interface ThreatItem {
+  id: number;
+  type: string;
+  severity: ThreatItemSeverity;
+  status: ThreatItemStatus;
+  affectedAssets: string;
+  detectionSource: string;
+  description: string;
+  detectedAt: string;
+  containedAt?: string | null;
+  neutralizedAt?: string | null;
+}
+
+export interface ThreatList {
+  threats: ThreatItem[];
+  total: number;
+}
+
+export interface ThreatSummary {
+  totalActive: number;
+  threatsContained: number;
+  threatsNeutralized: number;
+  avgContainmentMinutes: number;
+}
+
+export type NeutralizationStepItemStatus =
+  (typeof NeutralizationStepItemStatus)[keyof typeof NeutralizationStepItemStatus];
+
+export const NeutralizationStepItemStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  completed: "completed",
+} as const;
+
+export interface NeutralizationStepItem {
+  id: number;
+  threatId: number;
+  stepOrder: number;
+  title: string;
+  description: string;
+  category: string;
+  status: NeutralizationStepItemStatus;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export type ThreatTimelineEntryType =
+  (typeof ThreatTimelineEntryType)[keyof typeof ThreatTimelineEntryType];
+
+export const ThreatTimelineEntryType = {
+  detection: "detection",
+  isolation: "isolation",
+  step_complete: "step_complete",
+  containment: "containment",
+  neutralization: "neutralization",
+} as const;
+
+export interface ThreatTimelineEntry {
+  timestamp: string;
+  action: string;
+  detail: string;
+  type: ThreatTimelineEntryType;
+}
+
+export interface ThreatDetail {
+  threat: ThreatItem;
+  steps: NeutralizationStepItem[];
+  timeline: ThreatTimelineEntry[];
+}
+
+export type UpdateThreatStatusRequestStatus =
+  (typeof UpdateThreatStatusRequestStatus)[keyof typeof UpdateThreatStatusRequestStatus];
+
+export const UpdateThreatStatusRequestStatus = {
+  detected: "detected",
+  isolating: "isolating",
+  contained: "contained",
+  neutralized: "neutralized",
+} as const;
+
+export interface UpdateThreatStatusRequest {
+  status: UpdateThreatStatusRequestStatus;
+}
+
+export type IsolationActionRequestAction =
+  (typeof IsolationActionRequestAction)[keyof typeof IsolationActionRequestAction];
+
+export const IsolationActionRequestAction = {
+  freeze_credit: "freeze_credit",
+  lock_cards: "lock_cards",
+  secure_email: "secure_email",
+  invalidate_credentials: "invalidate_credentials",
+  flag_passport: "flag_passport",
+} as const;
+
+export interface IsolationActionRequest {
+  action: IsolationActionRequestAction;
+}
+
+export interface IsolationActionResult {
+  success: boolean;
+  action: string;
+  message: string;
+  executedAt: string;
+}
+
 export type ListTransactionsParams = {
   status?: ListTransactionsStatus;
   limit?: number;
@@ -1083,3 +1208,27 @@ export type UpdateRecoveryStepStatusBody = {
   status: UpdateRecoveryStepStatusBodyStatus;
   notes?: string;
 };
+
+export type ListThreatsParams = {
+  status?: ListThreatsStatus;
+  severity?: ListThreatsSeverity;
+};
+
+export type ListThreatsStatus =
+  (typeof ListThreatsStatus)[keyof typeof ListThreatsStatus];
+
+export const ListThreatsStatus = {
+  detected: "detected",
+  isolating: "isolating",
+  contained: "contained",
+  neutralized: "neutralized",
+} as const;
+
+export type ListThreatsSeverity =
+  (typeof ListThreatsSeverity)[keyof typeof ListThreatsSeverity];
+
+export const ListThreatsSeverity = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+} as const;

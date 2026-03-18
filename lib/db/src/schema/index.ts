@@ -8,3 +8,4 @@ export * from "./network-security";
 export * from "./yubikey";
 export * from "./openclaw";
 export * from "./recovery";
+export * from "./threats";

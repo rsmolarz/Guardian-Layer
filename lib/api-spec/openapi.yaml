@@ -25,6 +25,8 @@ tags:
     description: Dark web monitoring and recovery operations
   - name: recovery
     description: Asset & data recovery operations
+  - name: threats
+    description: Threat neutralization operations
 paths:
   /healthz:
     get:
@@ -937,6 +939,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecoveryTimeline"
+
+  /threats:
+    get:
+      operationId: listThreats
+      tags: [threats]
+      summary: List all active threats
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [detected, isolating, contained, neutralized]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium]
+      responses:
+        "200":
+          description: Threat list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreatList"
+
+  /threats/summary:
+    get:
+      operationId: getThreatSummary
+      tags: [threats]
+      summary: Get threat neutralization summary stats
+      responses:
+        "200":
+          description: Threat summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreatSummary"
+
+  /threats/{id}:
+    get:
+      operationId: getThreatDetail
+      tags: [threats]
+      summary: Get threat detail with neutralization steps
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Threat detail with steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreatDetail"
+
+  /threats/{id}/status:
+    post:
+      operationId: updateThreatStatus
+      tags: [threats]
+      summary: Update threat status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateThreatStatusRequest"
+      responses:
+        "200":
+          description: Updated threat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreatItem"
+
+  /threats/{id}/isolate:
+    post:
+      operationId: executeIsolationAction
+      tags: [threats]
+      summary: Execute an isolation action on a threat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IsolationActionRequest"
+      responses:
+        "200":
+          description: Isolation action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IsolationActionResult"
+
+  /threats/{threatId}/steps/{stepId}/complete:
+    post:
+      operationId: completeNeutralizationStep
+      tags: [threats]
+      summary: Mark a neutralization step as complete
+      parameters:
+        - name: threatId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: stepId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NeutralizationStepItem"
 
 components:
   schemas:
@@ -2387,3 +2519,181 @@ components:
             $ref: "#/components/schemas/RecoveryTimelineEntry"
       required:
         - entries
+
+    ThreatItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium]
+        status:
+          type: string
+          enum: [detected, isolating, contained, neutralized]
+        affectedAssets:
+          type: string
+        detectionSource:
+          type: string
+        description:
+          type: string
+        detectedAt:
+          type: string
+          format: date-time
+        containedAt:
+          type: string
+          format: date-time
+          nullable: true
+        neutralizedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - type
+        - severity
+        - status
+        - affectedAssets
+        - detectionSource
+        - description
+        - detectedAt
+
+    ThreatList:
+      type: object
+      properties:
+        threats:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreatItem"
+        total:
+          type: integer
+      required:
+        - threats
+        - total
+
+    ThreatSummary:
+      type: object
+      properties:
+        totalActive:
+          type: integer
+        threatsContained:
+          type: integer
+        threatsNeutralized:
+          type: integer
+        avgContainmentMinutes:
+          type: number
+      required:
+        - totalActive
+        - threatsContained
+        - threatsNeutralized
+        - avgContainmentMinutes
+
+    NeutralizationStepItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        threatId:
+          type: integer
+        stepOrder:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - threatId
+        - stepOrder
+        - title
+        - description
+        - category
+        - status
+
+    ThreatDetail:
+      type: object
+      properties:
+        threat:
+          $ref: "#/components/schemas/ThreatItem"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/NeutralizationStepItem"
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreatTimelineEntry"
+      required:
+        - threat
+        - steps
+        - timeline
+
+    ThreatTimelineEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        action:
+          type: string
+        detail:
+          type: string
+        type:
+          type: string
+          enum: [detection, isolation, step_complete, containment, neutralization]
+      required:
+        - timestamp
+        - action
+        - detail
+        - type
+
+    UpdateThreatStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [detected, isolating, contained, neutralized]
+      required:
+        - status
+
+    IsolationActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [freeze_credit, lock_cards, secure_email, invalidate_credentials, flag_passport]
+      required:
+        - action
+
+    IsolationActionResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        action:
+          type: string
+        message:
+          type: string
+        executedAt:
+          type: string
+          format: date-time
+      required:
+        - success
+        - action
+        - message
+        - executedAt
