@@ -13,4 +13,5 @@ export const IntegrationStatus = {
   online: "online",
   offline: "offline",
   degraded: "degraded",
+  pending: "pending",
 } as const;

@@ -42,7 +42,7 @@ artifacts-monorepo/
 2. **Transaction Ledger** - Lists all transactions with filtering by status (ALLOWED, HELD, BLOCKED, APPROVED, REJECTED). Includes "Scan Payload" button for submitting new transactions for ML risk analysis
 3. **Manual Override Queue (Approvals)** - Shows HELD transactions for manual review with Approve/Reject actions
 4. **Security Advisories (Alerts)** - Security alerts with severity levels (low, medium, high, critical) and dismiss functionality
-5. **External Linkages (Integrations)** - Shows status of connected services: Stripe, Plaid, Cloudflare, Gmail, Twilio
+5. **External Linkages (Integrations)** - Shows status of connected services (Stripe, Plaid, Cloudflare, Gmail, Twilio) plus 4 pending identity protection/privacy integrations (AVG, Incognito, DeleteMe, IdentityForce) with configuration UI. Each integration shows category badge, description, and status
 6. **System Monitoring** - Four-tab monitoring page:
    - **System Health** - Overall status, 6 metrics (req/min, avg response, error rate, connections, memory, CPU), service health matrix with 5 services
    - **Activity Log** - Filterable audit trail by category and severity, with pagination

@@ -22,6 +22,7 @@ export * from "./getRiskTimelineParams";
 export * from "./getThroughputParams";
 export * from "./healthStatus";
 export * from "./integration";
+export * from "./integrationCategory";
 export * from "./integrationList";
 export * from "./integrationStatus";
 export * from "./listAlertsParams";

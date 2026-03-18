@@ -120,6 +120,20 @@ export const IntegrationStatus = {
   online: "online",
   offline: "offline",
   degraded: "degraded",
+  pending: "pending",
+} as const;
+
+export type IntegrationCategory =
+  (typeof IntegrationCategory)[keyof typeof IntegrationCategory];
+
+export const IntegrationCategory = {
+  payments: "payments",
+  banking: "banking",
+  security: "security",
+  notifications: "notifications",
+  sms: "sms",
+  identity_protection: "identity_protection",
+  privacy: "privacy",
 } as const;
 
 export interface Integration {
@@ -127,6 +141,8 @@ export interface Integration {
   name: string;
   provider: string;
   status: IntegrationStatus;
+  category: IntegrationCategory;
+  description: string;
   lastChecked: string;
 }
 

@@ -5,6 +5,7 @@
  * GuardianLayer Enterprise API
  * OpenAPI spec version: 0.1.0
  */
+import type { IntegrationCategory } from "./integrationCategory";
 import type { IntegrationStatus } from "./integrationStatus";
 
 export interface Integration {
@@ -12,5 +13,7 @@ export interface Integration {
   name: string;
   provider: string;
   status: IntegrationStatus;
+  category: IntegrationCategory;
+  description: string;
   lastChecked: Date;
 }

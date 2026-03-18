@@ -549,7 +549,12 @@ components:
           type: string
         status:
           type: string
-          enum: [online, offline, degraded]
+          enum: [online, offline, degraded, pending]
+        category:
+          type: string
+          enum: [payments, banking, security, notifications, sms, identity_protection, privacy]
+        description:
+          type: string
         lastChecked:
           type: string
           format: date-time
@@ -558,6 +563,8 @@ components:
         - name
         - provider
         - status
+        - category
+        - description
         - lastChecked
 
     IntegrationList:
