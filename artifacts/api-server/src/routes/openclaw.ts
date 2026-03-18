@@ -59,6 +59,134 @@ router.get("/openclaw/stats", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/openclaw/api-security", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const endpoints = [
+      {
+        id: "EP-001",
+        method: "POST",
+        path: "/api/v2/contracts/upload",
+        service: "Contract Analysis API",
+        lastScanned: new Date(now - 300000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "critical",
+        vulnerabilities: [
+          { id: "VULN-001", type: "injection", severity: "critical", title: "SQL Injection via Contract Title Parameter", description: "The `title` field in the contract upload payload is concatenated directly into a SQL query without parameterization. An attacker can inject arbitrary SQL through crafted contract titles.", cweId: "CWE-89", owaspCategory: "A03:2021 Injection", cvssScore: 9.8, detectedAt: new Date(now - 86400000 * 2).toISOString(), status: "open", proof: "Input: `'; DROP TABLE contracts; --` in title field bypasses input validation and executes arbitrary SQL.", remediation: "Use parameterized queries or ORM methods. Replace raw SQL concatenation in ContractUploadService.ts:L142 with prepared statements." },
+          { id: "VULN-002", type: "file_upload", severity: "high", title: "Unrestricted File Upload — No MIME Type Validation", description: "The upload endpoint accepts any file type without validating MIME type or file extension. Attackers can upload executable files disguised as PDFs.", cweId: "CWE-434", owaspCategory: "A04:2021 Insecure Design", cvssScore: 8.1, detectedAt: new Date(now - 86400000 * 5).toISOString(), status: "in_progress", proof: "Uploaded `malicious.php` with Content-Type: application/pdf — file accepted and stored in S3 bucket.", remediation: "Implement server-side MIME type validation, file extension allowlist (pdf, docx, doc), and magic byte verification." },
+        ],
+      },
+      {
+        id: "EP-002",
+        method: "GET",
+        path: "/api/v2/contracts/:id",
+        service: "Contract Analysis API",
+        lastScanned: new Date(now - 600000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "high",
+        vulnerabilities: [
+          { id: "VULN-003", type: "idor", severity: "high", title: "Insecure Direct Object Reference — Contract Access Without Authorization", description: "Any authenticated user can access any contract by ID regardless of organization or role. No ownership or RBAC check is performed on the contract resource.", cweId: "CWE-639", owaspCategory: "A01:2021 Broken Access Control", cvssScore: 7.5, detectedAt: new Date(now - 86400000 * 8).toISOString(), status: "open", proof: "User with role 'viewer' in Org A successfully retrieved contract belonging to Org B using sequential ID enumeration (contract_id=1 through 847).", remediation: "Add organization-scoped authorization middleware. Verify req.user.orgId matches contract.orgId before returning data. Use UUIDs instead of sequential IDs." },
+        ],
+      },
+      {
+        id: "EP-003",
+        method: "POST",
+        path: "/api/v2/auth/login",
+        service: "Authentication Service",
+        lastScanned: new Date(now - 120000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "high",
+        vulnerabilities: [
+          { id: "VULN-004", type: "auth_bypass", severity: "high", title: "Authentication Bypass via JWT Algorithm Confusion", description: "The JWT verification accepts both HS256 and RS256 algorithms. An attacker can forge tokens by signing with the public key using HS256 algorithm, bypassing RS256 signature verification.", cweId: "CWE-287", owaspCategory: "A07:2021 Identification and Authentication Failures", cvssScore: 8.6, detectedAt: new Date(now - 86400000 * 1).toISOString(), status: "open", proof: "Forged JWT using HS256 with leaked public key accepted by /api/v2/contracts endpoint. Full API access granted with fabricated admin claims.", remediation: "Pin JWT algorithm to RS256 only. Set `algorithms: ['RS256']` in jwt.verify() options. Reject HS256 tokens explicitly." },
+          { id: "VULN-005", type: "brute_force", severity: "medium", title: "No Rate Limiting on Login Endpoint", description: "The login endpoint has no rate limiting, allowing unlimited authentication attempts. Susceptible to credential stuffing and brute-force attacks.", cweId: "CWE-307", owaspCategory: "A07:2021 Identification and Authentication Failures", cvssScore: 5.3, detectedAt: new Date(now - 86400000 * 15).toISOString(), status: "remediated", proof: "Successfully executed 10,000 login attempts in 45 seconds without triggering any rate limit or account lockout.", remediation: "Implement rate limiting (max 5 attempts per minute per IP/account). Add progressive delays and CAPTCHA after 3 failures." },
+        ],
+      },
+      {
+        id: "EP-004",
+        method: "GET",
+        path: "/api/v2/reports/export",
+        service: "Compliance Reporting Engine",
+        lastScanned: new Date(now - 900000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "medium",
+        vulnerabilities: [
+          { id: "VULN-006", type: "ssrf", severity: "medium", title: "Server-Side Request Forgery via Report Template URL", description: "The export endpoint accepts a `templateUrl` parameter that fetches remote templates without validating the URL scheme or destination. An attacker can use this to probe internal services.", cweId: "CWE-918", owaspCategory: "A10:2021 Server-Side Request Forgery", cvssScore: 6.5, detectedAt: new Date(now - 86400000 * 3).toISOString(), status: "open", proof: "Request with templateUrl=http://169.254.169.254/latest/meta-data/ returned AWS instance metadata including IAM role credentials.", remediation: "Validate templateUrl against allowlist of trusted domains. Block private IP ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x). Use URL parsing library to prevent bypass." },
+        ],
+      },
+      {
+        id: "EP-005",
+        method: "PUT",
+        path: "/api/v2/users/:id/role",
+        service: "User Management API",
+        lastScanned: new Date(now - 180000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "critical",
+        vulnerabilities: [
+          { id: "VULN-007", type: "privilege_escalation", severity: "critical", title: "Privilege Escalation — Users Can Modify Own Role", description: "The role update endpoint only checks if the user is authenticated, not if they have admin privileges. Any user can escalate their own role to 'admin' by sending a PUT request with their own user ID.", cweId: "CWE-269", owaspCategory: "A01:2021 Broken Access Control", cvssScore: 9.1, detectedAt: new Date(now - 3600000 * 4).toISOString(), status: "open", proof: "Standard user (role: viewer) successfully changed own role to admin via PUT /api/v2/users/USR-006/role with body {role: 'admin'}. Full admin access confirmed.", remediation: "Add RBAC middleware requiring admin role for role modifications. Prevent self-role-modification. Log all role change attempts." },
+        ],
+      },
+      {
+        id: "EP-006",
+        method: "GET",
+        path: "/api/v2/clauses/search",
+        service: "AI Clause Scanner",
+        lastScanned: new Date(now - 240000).toISOString(),
+        status: "secure",
+        riskLevel: "low",
+        vulnerabilities: [
+          { id: "VULN-008", type: "information_disclosure", severity: "low", title: "Verbose Error Messages Expose Stack Traces", description: "When an invalid query parameter is provided, the API returns full stack traces including file paths, dependency versions, and database connection strings in the error response.", cweId: "CWE-209", owaspCategory: "A09:2021 Security Logging and Monitoring Failures", cvssScore: 3.1, detectedAt: new Date(now - 86400000 * 20).toISOString(), status: "remediated", proof: "Request with malformed `q` parameter returned Node.js stack trace revealing internal file structure and pg connection string.", remediation: "Replace detailed error responses with generic messages in production. Use error middleware that strips sensitive information. Already remediated — generic error handler deployed in v2.8.2." },
+        ],
+      },
+      {
+        id: "EP-007",
+        method: "DELETE",
+        path: "/api/v2/contracts/:id",
+        service: "Contract Analysis API",
+        lastScanned: new Date(now - 450000).toISOString(),
+        status: "secure",
+        riskLevel: "low",
+        vulnerabilities: [],
+      },
+      {
+        id: "EP-008",
+        method: "POST",
+        path: "/api/v2/notifications/webhook",
+        service: "Notification Service",
+        lastScanned: new Date(now - 360000).toISOString(),
+        status: "vulnerable",
+        riskLevel: "medium",
+        vulnerabilities: [
+          { id: "VULN-009", type: "injection", severity: "medium", title: "Template Injection via Webhook Payload", description: "The notification service renders webhook payloads using a template engine without sanitizing user input. Attackers can inject template directives to execute server-side code.", cweId: "CWE-94", owaspCategory: "A03:2021 Injection", cvssScore: 6.8, detectedAt: new Date(now - 86400000 * 7).toISOString(), status: "in_progress", proof: "Payload with {{constructor.constructor('return process.env')()}} in message field returned all environment variables including API keys.", remediation: "Sanitize all user input before template rendering. Use logic-less templates (e.g., Mustache) or sandbox the template engine. Strip {{}} patterns from user input." },
+        ],
+      },
+    ];
+
+    const totalVulns = endpoints.reduce((a, e) => a + e.vulnerabilities.length, 0);
+    const openVulns = endpoints.reduce((a, e) => a + e.vulnerabilities.filter((v: any) => v.status === "open").length, 0);
+    const criticalVulns = endpoints.reduce((a, e) => a + e.vulnerabilities.filter((v: any) => v.severity === "critical").length, 0);
+    const highVulns = endpoints.reduce((a, e) => a + e.vulnerabilities.filter((v: any) => v.severity === "high").length, 0);
+    const remediatedVulns = endpoints.reduce((a, e) => a + e.vulnerabilities.filter((v: any) => v.status === "remediated").length, 0);
+
+    const scanSummary = {
+      totalEndpoints: endpoints.length,
+      secureEndpoints: endpoints.filter((e) => e.status === "secure").length,
+      vulnerableEndpoints: endpoints.filter((e) => e.status === "vulnerable").length,
+      totalVulnerabilities: totalVulns,
+      openVulnerabilities: openVulns,
+      criticalVulnerabilities: criticalVulns,
+      highVulnerabilities: highVulns,
+      remediatedVulnerabilities: remediatedVulns,
+      lastFullScan: new Date(now - 300000).toISOString(),
+      avgCvssScore: Math.round(endpoints.flatMap((e) => e.vulnerabilities.map((v: any) => v.cvssScore)).reduce((a: number, b: number) => a + b, 0) / totalVulns * 10) / 10,
+    };
+
+    res.json({ endpoints, summary: scanSummary });
+  } catch (err: any) {
+    console.error("[openclaw] GET /api-security failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve API security data." });
+  }
+});
+
 router.get("/openclaw/health", async (_req, res): Promise<void> => {
   try {
     const now = Date.now();

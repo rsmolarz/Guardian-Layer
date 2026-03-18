@@ -32,6 +32,11 @@ import {
   CheckCircle,
   XCircle,
   Brain,
+  Bug,
+  Lock,
+  Unlock,
+  FileCode,
+  ExternalLink,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -57,7 +62,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health";
+type Tab = "contracts" | "health" | "api-security";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -75,6 +80,7 @@ export default function OpenclawMonitor() {
         {([
           { id: "contracts" as Tab, label: "Contracts", icon: Scale },
           { id: "health" as Tab, label: "UI Health Monitor", icon: Activity },
+          { id: "api-security" as Tab, label: "API Security Scanner", icon: ShieldAlert },
         ]).map((t) => (
           <button
             key={t.id}
@@ -92,6 +98,7 @@ export default function OpenclawMonitor() {
 
       {tab === "contracts" && <ContractsPanel />}
       {tab === "health" && <HealthMonitorPanel />}
+      {tab === "api-security" && <ApiSecurityPanel />}
     </div>
   );
 }
@@ -543,6 +550,239 @@ function HealthMonitorPanel() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+const VULN_SEVERITY_BADGE: Record<string, string> = {
+  critical: "bg-red-500/20 text-red-400 border-red-500/30",
+  high: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  low: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+};
+
+const VULN_STATUS_BADGE: Record<string, string> = {
+  open: "bg-red-500/20 text-red-400 border-red-500/30",
+  in_progress: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  remediated: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+};
+
+const METHOD_COLOR: Record<string, string> = {
+  GET: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+  POST: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+  PUT: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
+  DELETE: "text-red-400 bg-red-500/10 border-red-500/30",
+};
+
+function ApiSecurityPanel() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/openclaw/api-security")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="SCANNING API ENDPOINTS..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load security scan data.</div>;
+
+  const { endpoints, summary } = data;
+  const filtered = severityFilter
+    ? endpoints.filter((e: any) => e.riskLevel === severityFilter)
+    : endpoints;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        {[
+          { label: "Total Endpoints", value: summary.totalEndpoints, icon: FileCode, color: "text-primary" },
+          { label: "Vulnerable", value: summary.vulnerableEndpoints, icon: Unlock, color: "text-red-400" },
+          { label: "Secure", value: summary.secureEndpoints, icon: Lock, color: "text-emerald-400" },
+          { label: "Open Vulns", value: summary.openVulnerabilities, icon: Bug, color: "text-red-400" },
+          { label: "Avg CVSS", value: summary.avgCvssScore, icon: AlertTriangle, color: summary.avgCvssScore >= 7 ? "text-red-400" : "text-yellow-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {summary.criticalVulnerabilities > 0 && (
+        <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
+            <span className="text-xs font-display uppercase tracking-widest text-red-400">Critical Vulnerabilities Detected</span>
+          </div>
+          <p className="text-sm text-gray-300">
+            <span className="text-red-400 font-mono">{summary.criticalVulnerabilities} critical</span> and{" "}
+            <span className="text-orange-400 font-mono">{summary.highVulnerabilities} high</span> severity vulnerabilities require immediate attention.{" "}
+            <span className="text-muted-foreground">{summary.remediatedVulnerabilities} vulnerabilities have been remediated.</span>
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[undefined, "critical", "high", "medium", "low"].map((s) => (
+          <button
+            key={s ?? "all"}
+            onClick={() => setSeverityFilter(s)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              severityFilter === s ? "bg-primary/20 border-primary/50 text-primary" : "border-white/10 text-muted-foreground hover:border-white/20"
+            )}
+          >
+            {s ?? "All"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((endpoint: any) => {
+          const isExpanded = expandedId === endpoint.id;
+          const vulnCount = endpoint.vulnerabilities.length;
+
+          return (
+            <motion.div
+              key={endpoint.id}
+              layout
+              className={`glass-panel rounded-xl border-l-4 overflow-hidden ${
+                endpoint.riskLevel === "critical" ? "border-red-500" :
+                endpoint.riskLevel === "high" ? "border-orange-500" :
+                endpoint.riskLevel === "medium" ? "border-yellow-500" : "border-emerald-500"
+              }`}
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : endpoint.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2 rounded-lg bg-black/40 ${
+                  endpoint.status === "vulnerable" ? "text-red-400" : "text-emerald-400"
+                }`}>
+                  {endpoint.status === "vulnerable" ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${METHOD_COLOR[endpoint.method] || ""}`}>
+                      {endpoint.method}
+                    </span>
+                    <span className="text-sm font-mono text-white">{endpoint.path}</span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${VULN_SEVERITY_BADGE[endpoint.riskLevel] || ""}`}>
+                      {endpoint.riskLevel}
+                    </span>
+                    <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                      endpoint.status === "vulnerable" ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    }`}>
+                      {endpoint.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{endpoint.service}</span>
+                    {vulnCount > 0 && (
+                      <span className="text-red-400 font-mono">{vulnCount} vuln{vulnCount !== 1 ? "s" : ""}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 text-xs text-muted-foreground">
+                  <p>Scanned: {format(new Date(endpoint.lastScanned), "HH:mm:ss")}</p>
+                </div>
+
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
+                  {endpoint.vulnerabilities.length === 0 ? (
+                    <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-center">
+                      <CheckCircle className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                      <p className="text-sm text-emerald-400 font-display uppercase">No vulnerabilities detected</p>
+                    </div>
+                  ) : (
+                    endpoint.vulnerabilities.map((vuln: any) => (
+                      <div key={vuln.id} className={`p-4 rounded-lg border ${
+                        vuln.severity === "critical" ? "bg-red-500/5 border-red-500/20" :
+                        vuln.severity === "high" ? "bg-orange-500/5 border-orange-500/20" :
+                        vuln.severity === "medium" ? "bg-yellow-500/5 border-yellow-500/20" :
+                        "bg-white/[0.02] border-white/5"
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-xs font-mono text-muted-foreground">{vuln.id}</span>
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${VULN_SEVERITY_BADGE[vuln.severity] || ""}`}>
+                            {vuln.severity}
+                          </span>
+                          <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${VULN_STATUS_BADGE[vuln.status] || ""}`}>
+                            {vuln.status.replace(/_/g, " ")}
+                          </span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                            {vuln.type.replace(/_/g, " ")}
+                          </span>
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                            vuln.cvssScore >= 9 ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                            vuln.cvssScore >= 7 ? "bg-orange-500/20 text-orange-400 border-orange-500/30" :
+                            "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                          }`}>
+                            CVSS {vuln.cvssScore}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm text-white font-display mb-2">{vuln.title}</h4>
+                        <p className="text-xs text-gray-300 mb-3">{vuln.description}</p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                          <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                            <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">CWE</span>
+                            <span className="text-xs font-mono text-white">{vuln.cweId}</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-black/20 border border-white/5">
+                            <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">OWASP</span>
+                            <span className="text-xs font-mono text-white">{vuln.owaspCategory}</span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-black/30 border border-white/5 mb-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Bug className="w-3 h-3 text-red-400" />
+                            <span className="text-[10px] font-display uppercase tracking-widest text-red-400">Proof of Concept</span>
+                          </div>
+                          <p className="text-xs font-mono text-gray-300">{vuln.proof}</p>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[10px] font-display uppercase tracking-widest text-emerald-400">Remediation</span>
+                          </div>
+                          <p className="text-xs text-gray-300">{vuln.remediation}</p>
+                        </div>
+
+                        <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+                          <span>Detected: {format(new Date(vuln.detectedAt), "MMM d, yyyy")}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-emerald-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No endpoints match this filter</p>
+          </div>
+        )}
+      </div>
     </>
   );
 }
