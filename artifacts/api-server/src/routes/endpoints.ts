@@ -171,4 +171,130 @@ router.get("/endpoints/malware-scans", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/endpoints/patch-compliance", async (_req, res): Promise<void> => {
+  try {
+    const now = Date.now();
+    const devices = [
+      {
+        id: 1,
+        hostname: "WS-FIN-001",
+        deviceType: "workstation",
+        os: "Windows 11",
+        osVersion: "23H2",
+        lastPatchCheck: new Date(now - 3600000).toISOString(),
+        complianceStatus: "non_compliant",
+        missingPatches: [
+          { id: "KB5034765", title: "2024-02 Cumulative Update for Windows 11", severity: "critical", cveScore: 9.8, cveId: "CVE-2024-21351", category: "Security Update", releaseDate: "2024-02-13", daysOverdue: 32 },
+          { id: "KB5034204", title: "2024-01 .NET Framework Security Update", severity: "high", cveScore: 8.1, cveId: "CVE-2024-0056", category: "Security Update", releaseDate: "2024-01-09", daysOverdue: 67 },
+          { id: "KB5033375", title: "2023-12 Cumulative Update for Windows 11", severity: "critical", cveScore: 9.1, cveId: "CVE-2023-36025", category: "Security Update", releaseDate: "2023-12-12", daysOverdue: 95 },
+        ],
+        totalMissing: 3,
+        criticalMissing: 2,
+        highMissing: 1,
+        lastReboot: new Date(now - 86400000 * 45).toISOString(),
+        autoUpdateEnabled: false,
+      },
+      {
+        id: 2,
+        hostname: "LT-ENG-042",
+        deviceType: "laptop",
+        os: "macOS",
+        osVersion: "Sonoma 14.3",
+        lastPatchCheck: new Date(now - 7200000).toISOString(),
+        complianceStatus: "at_risk",
+        missingPatches: [
+          { id: "macOS-14.3.1", title: "macOS Sonoma 14.3.1 Security Update", severity: "high", cveScore: 7.8, cveId: "CVE-2024-23222", category: "OS Update", releaseDate: "2024-01-22", daysOverdue: 54 },
+        ],
+        totalMissing: 1,
+        criticalMissing: 0,
+        highMissing: 1,
+        lastReboot: new Date(now - 86400000 * 12).toISOString(),
+        autoUpdateEnabled: true,
+      },
+      {
+        id: 3,
+        hostname: "SRV-DB-PRIMARY",
+        deviceType: "server",
+        os: "Ubuntu",
+        osVersion: "22.04 LTS",
+        lastPatchCheck: new Date(now - 1800000).toISOString(),
+        complianceStatus: "compliant",
+        missingPatches: [],
+        totalMissing: 0,
+        criticalMissing: 0,
+        highMissing: 0,
+        lastReboot: new Date(now - 86400000 * 7).toISOString(),
+        autoUpdateEnabled: true,
+      },
+      {
+        id: 4,
+        hostname: "LT-SALES-019",
+        deviceType: "laptop",
+        os: "Windows 10",
+        osVersion: "22H2",
+        lastPatchCheck: new Date(now - 14400000).toISOString(),
+        complianceStatus: "non_compliant",
+        missingPatches: [
+          { id: "KB5034763", title: "2024-02 Cumulative Update for Windows 10", severity: "critical", cveScore: 9.8, cveId: "CVE-2024-21412", category: "Security Update", releaseDate: "2024-02-13", daysOverdue: 32 },
+          { id: "KB5034122", title: "2024-01 Servicing Stack Update", severity: "medium", cveScore: 5.5, cveId: "CVE-2024-20683", category: "Servicing Stack", releaseDate: "2024-01-09", daysOverdue: 67 },
+          { id: "KB5033372", title: "2023-12 Cumulative Security Update", severity: "critical", cveScore: 9.6, cveId: "CVE-2023-36397", category: "Security Update", releaseDate: "2023-12-12", daysOverdue: 95 },
+          { id: "KB5032278", title: "2023-11 Out-of-Band Security Update", severity: "high", cveScore: 8.8, cveId: "CVE-2023-36033", category: "Security Update", releaseDate: "2023-11-14", daysOverdue: 123 },
+        ],
+        totalMissing: 4,
+        criticalMissing: 2,
+        highMissing: 1,
+        lastReboot: new Date(now - 86400000 * 60).toISOString(),
+        autoUpdateEnabled: false,
+      },
+      {
+        id: 5,
+        hostname: "SRV-WEB-003",
+        deviceType: "server",
+        os: "RHEL",
+        osVersion: "9.3",
+        lastPatchCheck: new Date(now - 3600000 * 3).toISOString(),
+        complianceStatus: "at_risk",
+        missingPatches: [
+          { id: "RHSA-2024:0897", title: "Important: kernel security update", severity: "high", cveScore: 7.8, cveId: "CVE-2024-1086", category: "Kernel", releaseDate: "2024-02-20", daysOverdue: 25 },
+          { id: "RHSA-2024:0811", title: "Important: sudo security update", severity: "high", cveScore: 7.8, cveId: "CVE-2023-42465", category: "Security Fix", releaseDate: "2024-02-14", daysOverdue: 31 },
+        ],
+        totalMissing: 2,
+        criticalMissing: 0,
+        highMissing: 2,
+        lastReboot: new Date(now - 86400000 * 90).toISOString(),
+        autoUpdateEnabled: false,
+      },
+      {
+        id: 6,
+        hostname: "WS-HR-007",
+        deviceType: "workstation",
+        os: "Windows 11",
+        osVersion: "23H2",
+        lastPatchCheck: new Date(now - 5400000).toISOString(),
+        complianceStatus: "compliant",
+        missingPatches: [],
+        totalMissing: 0,
+        criticalMissing: 0,
+        highMissing: 0,
+        lastReboot: new Date(now - 86400000 * 3).toISOString(),
+        autoUpdateEnabled: true,
+      },
+    ];
+
+    const totalDevices = devices.length;
+    const compliant = devices.filter((d) => d.complianceStatus === "compliant").length;
+    const nonCompliant = devices.filter((d) => d.complianceStatus === "non_compliant").length;
+    const totalMissingPatches = devices.reduce((s, d) => s + d.totalMissing, 0);
+    const criticalPatches = devices.reduce((s, d) => s + d.criticalMissing, 0);
+
+    res.json({
+      devices,
+      summary: { totalDevices, compliant, nonCompliant, totalMissingPatches, criticalPatches },
+    });
+  } catch (err: any) {
+    console.error("[endpoints] GET /patch-compliance failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve patch compliance data." });
+  }
+});
+
 export default router;

@@ -30,6 +30,10 @@ import {
   Cpu,
   Activity,
   CheckCircle,
+  ClipboardCheck,
+  Clock,
+  RefreshCw,
+  Download,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -57,7 +61,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
 
 type StatusFilter = "online" | "offline" | "degraded" | undefined;
 type ComplianceFilter = "compliant" | "non_compliant" | "at_risk" | undefined;
-type Tab = "fleet" | "malware";
+type Tab = "fleet" | "malware" | "patches";
 
 export default function EndpointSecurity() {
   const [activeTab, setActiveTab] = useState<Tab>("fleet");
@@ -65,6 +69,7 @@ export default function EndpointSecurity() {
   const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
     { id: "fleet", label: "Device Fleet", icon: Monitor },
     { id: "malware", label: "Malware Detection", icon: Bug },
+    { id: "patches", label: "Patch Compliance", icon: ClipboardCheck },
   ];
 
   return (
@@ -94,6 +99,7 @@ export default function EndpointSecurity() {
 
       {activeTab === "fleet" && <DeviceFleetPanel />}
       {activeTab === "malware" && <MalwareDetectionPanel />}
+      {activeTab === "patches" && <PatchCompliancePanel />}
     </div>
   );
 }
@@ -461,6 +467,253 @@ function MalwareDetectionPanel() {
             </motion.div>
           );
         })}
+      </div>
+    </>
+  );
+}
+
+interface MissingPatch {
+  id: string;
+  title: string;
+  severity: string;
+  cveScore: number;
+  cveId: string;
+  category: string;
+  releaseDate: string;
+  daysOverdue: number;
+}
+
+interface PatchDevice {
+  id: number;
+  hostname: string;
+  deviceType: string;
+  os: string;
+  osVersion: string;
+  lastPatchCheck: string;
+  complianceStatus: string;
+  missingPatches: MissingPatch[];
+  totalMissing: number;
+  criticalMissing: number;
+  highMissing: number;
+  lastReboot: string;
+  autoUpdateEnabled: boolean;
+}
+
+interface PatchData {
+  devices: PatchDevice[];
+  summary: { totalDevices: number; compliant: number; nonCompliant: number; totalMissingPatches: number; criticalPatches: number };
+}
+
+function PatchCompliancePanel() {
+  const [data, setData] = useState<PatchData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetch("/api/endpoints/patch-compliance")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading text="CHECKING PATCH STATUS..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Failed to load patch compliance data.</div>;
+
+  const { devices, summary } = data;
+
+  const filtered = filter === "all" ? devices : devices.filter((d) => d.complianceStatus === filter);
+
+  const severityColor = (level: string) => {
+    switch (level) {
+      case "critical": return "text-red-400";
+      case "high": return "text-orange-400";
+      case "medium": return "text-yellow-400";
+      case "low": return "text-green-400";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const cveColor = (score: number) => {
+    if (score >= 9.0) return "text-red-400";
+    if (score >= 7.0) return "text-orange-400";
+    if (score >= 4.0) return "text-yellow-400";
+    return "text-green-400";
+  };
+
+  const summaryCards = [
+    { label: "Total Devices", value: summary.totalDevices, icon: Monitor, color: "text-primary" },
+    { label: "Compliant", value: summary.compliant, icon: ShieldCheck, color: "text-green-400" },
+    { label: "Non-Compliant", value: summary.nonCompliant, icon: ShieldX, color: "text-red-400" },
+    { label: "Missing Patches", value: summary.totalMissingPatches, icon: Download, color: "text-orange-400" },
+    { label: "Critical Patches", value: summary.criticalPatches, icon: AlertTriangle, color: "text-red-400" },
+  ];
+
+  const filterButtons = [
+    { label: "All", value: "all" },
+    { label: "Compliant", value: "compliant" },
+    { label: "At Risk", value: "at_risk" },
+    { label: "Non-Compliant", value: "non_compliant" },
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
+        {summaryCards.map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground self-center mr-2">Status</span>
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.value}
+            onClick={() => setFilter(btn.value)}
+            className={clsx(
+              "px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider transition-all",
+              filter === btn.value
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-white hover:bg-white/5 border border-transparent"
+            )}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((device) => {
+          const isExpanded = expandedId === device.id;
+          const DeviceIcon = DEVICE_ICONS[device.deviceType] || Monitor;
+
+          return (
+            <motion.div
+              key={device.id}
+              layout
+              className="glass-panel rounded-xl border border-white/5 overflow-hidden"
+            >
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : device.id)}
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-white/[0.02] transition-colors"
+              >
+                <div className={`p-2.5 rounded-xl ${
+                  device.complianceStatus === "non_compliant" ? "bg-red-500/15" :
+                  device.complianceStatus === "at_risk" ? "bg-yellow-500/10" : "bg-green-500/10"
+                }`}>
+                  <DeviceIcon className={`w-5 h-5 ${
+                    device.complianceStatus === "non_compliant" ? "text-red-400" :
+                    device.complianceStatus === "at_risk" ? "text-yellow-400" : "text-green-400"
+                  }`} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-bold text-white">{device.hostname}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-display uppercase ${
+                      device.complianceStatus === "non_compliant" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                      device.complianceStatus === "at_risk" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                      "bg-green-500/20 text-green-400 border-green-500/30"
+                    }`}>
+                      {device.complianceStatus.replace("_", " ")}
+                    </span>
+                    {!device.autoUpdateEnabled && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/20 font-display uppercase">
+                        Auto-update off
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {device.os} {device.osVersion}
+                    <span className="mx-2">|</span>
+                    {device.totalMissing} missing patch{device.totalMissing !== 1 ? "es" : ""}
+                    {device.criticalMissing > 0 && (
+                      <><span className="mx-1">—</span><span className="text-red-400">{device.criticalMissing} critical</span></>
+                    )}
+                    <span className="mx-2">|</span>
+                    Checked: {format(new Date(device.lastPatchCheck), "MMM d, HH:mm")}
+                  </p>
+                </div>
+
+                <div className="text-right flex items-center gap-3">
+                  {device.totalMissing > 0 ? (
+                    <div>
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Missing</span>
+                      <span className={`text-lg font-mono font-bold ${device.criticalMissing > 0 ? "text-red-400" : "text-yellow-400"}`}>
+                        {device.totalMissing}
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Status</span>
+                      <CheckCircle className="w-5 h-5 text-green-400 mx-auto" />
+                    </div>
+                  )}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-4">
+                  <div className="flex items-center gap-6 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Last reboot: <span className="text-white font-mono">{format(new Date(device.lastReboot), "MMM d, yyyy")}</span></span>
+                    <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Auto-update: <span className={device.autoUpdateEnabled ? "text-green-400" : "text-red-400"}>{device.autoUpdateEnabled ? "Enabled" : "Disabled"}</span></span>
+                  </div>
+
+                  {device.missingPatches.length > 0 ? (
+                    <div>
+                      <h4 className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                        <Download className="w-3 h-3" /> Missing Patches
+                      </h4>
+                      <div className="space-y-2">
+                        {device.missingPatches.map((patch) => (
+                          <div key={patch.id} className="p-3 rounded-lg bg-black/20 border border-white/5">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-mono text-white font-bold">{patch.id}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-display uppercase font-bold ${severityColor(patch.severity)}`}>{patch.severity}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 text-muted-foreground font-mono">{patch.category}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`text-sm font-mono font-bold ${cveColor(patch.cveScore)}`}>CVSS {patch.cveScore}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-300 mb-1">{patch.title}</p>
+                            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                              <span className="font-mono text-primary/70">{patch.cveId}</span>
+                              <span>Released: {patch.releaseDate}</span>
+                              <span className={patch.daysOverdue > 60 ? "text-red-400 font-bold" : patch.daysOverdue > 30 ? "text-orange-400" : "text-yellow-400"}>
+                                {patch.daysOverdue} days overdue
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-400" />
+                      <p className="text-xs font-display uppercase tracking-wider">All patches up to date</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <CheckCircle className="w-8 h-8 mx-auto mb-3 text-green-400" />
+            <p className="font-display text-sm uppercase tracking-wider">No devices match this filter</p>
+          </div>
+        )}
       </div>
     </>
   );
