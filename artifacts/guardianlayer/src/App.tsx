@@ -23,6 +23,7 @@ import Glossary from "@/pages/Glossary";
 import Backups from "@/pages/Backups";
 import EmergencyLockdown from "@/pages/EmergencyLockdown";
 import WorkspaceMonitor from "@/pages/WorkspaceMonitor";
+import ThreatIntel from "@/pages/ThreatIntel";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -68,6 +69,7 @@ function Router() {
         <Route path="/backups" component={Backups} />
         <Route path="/emergency-lockdown" component={EmergencyLockdown} />
         <Route path="/workspace-monitor" component={WorkspaceMonitor} />
+        <Route path="/threat-intel" component={ThreatIntel} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />

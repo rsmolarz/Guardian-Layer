@@ -19,6 +19,7 @@ import backupsRouter from "./backups";
 import lockdownRouter from "./lockdown";
 import aiRouter from "./ai";
 import workspaceMonitorRouter from "./workspace-monitor";
+import threatIntelRouter from "./threat-intel";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(backupsRouter);
 router.use(lockdownRouter);
 router.use(aiRouter);
 router.use(workspaceMonitorRouter);
+router.use(threatIntelRouter);
 
 export default router;

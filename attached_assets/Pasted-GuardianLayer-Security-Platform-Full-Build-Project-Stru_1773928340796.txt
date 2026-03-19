@@ -1,0 +1,932 @@
+GuardianLayer Security Platform — Full Build
+📁 Project Structure
+guardianlayer-platform/
+├── api-server/
+│   ├── src/
+│   │   ├── middleware/
+│   │   │   ├── auth.js
+│   │   │   ├── logger.js
+│   │   │   ├── rateLimiter.js
+│   │   │   └── anomaly.js
+│   │   ├── routes/
+│   │   │   ├── health.js
+│   │   │   └── logs.js
+│   │   ├── db/
+│   │   │   └── index.js
+│   │   └── app.js
+│   ├── package.json
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── ApiLogs.jsx
+│   │   │   └── SystemHealth.jsx
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── StatusBadge.jsx
+│   │   │   └── MetricCard.jsx
+│   │   ├── lib/
+│   │   │   ├── keycloak.js
+│   │   │   └── api.js
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── gateway/
+│   └── krakend.json
+├── nginx-waf/
+│   ├── nginx.conf
+│   ├── modsecurity.conf
+│   └── owasp-crs.conf
+├── keycloak/
+│   └── realm-export.json
+├── monitoring/
+│   ├── prometheus.yml
+│   └── grafana-dashboard.json
+├── docker/
+│   └── docker-compose.yml
+└── .env
+
+1. 📦 docker/docker-compose.yml
+yamlversion: "3.9"
+
+networks:
+  guardianlayer:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  keycloak_data:
+
+services:
+
+  # ─────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: gl_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-guardianlayer}
+      POSTGRES_USER: ${POSTGRES_USER:-gluser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-glpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - guardianlayer
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gluser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Keycloak Identity Provider
+  # ─────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: gl_keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-guardianlayer}
+      KC_DB_USERNAME: ${POSTGRES_USER:-gluser}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-glpassword}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-localhost}
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_LOG_LEVEL: info
+      KC_METRICS_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ../keycloak:/opt/keycloak/data/import
+      - keycloak_data:/opt/keycloak/data
+    ports:
+      - "8080:8080"
+    networks:
+      - guardianlayer
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────
+  # Node.js API Server
+  # ─────────────────────────────────────────
+  api-server:
+    build:
+      context: ../api-server
+      dockerfile: Dockerfile
+    container_name: gl_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_CONNECTION_STRING: postgresql://${POSTGRES_USER:-gluser}:${POSTGRES_PASSWORD:-glpassword}@postgres:5432/${POSTGRES_DB:-guardianlayer}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: medinvest
+      KEYCLOAK_CLIENT_ID: api-platform
+      JWT_SECRET: ${JWT_SECRET:-fallback-secret-change-me}
+      ANOMALY_THRESHOLD_RPM: ${ANOMALY_THRESHOLD_RPM:-100}
+    ports:
+      - "3000:3000"
+    networks:
+      - guardianlayer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  # ─────────────────────────────────────────
+  # KrakenD API Gateway
+  # ─────────────────────────────────────────
+  krakend:
+    image: devopsfaith/krakend:2.6
+    container_name: gl_krakend
+    restart: unless-stopped
+    volumes:
+      - ../gateway/krakend.json:/etc/krakend/krakend.json
+    ports:
+      - "8090:8090"
+    networks:
+      - guardianlayer
+    depends_on:
+      - api-server
+    command: run -c /etc/krakend/krakend.json
+
+  # ─────────────────────────────────────────
+  # NGINX + ModSecurity WAF
+  # ─────────────────────────────────────────
+  nginx-waf:
+    image: owasp/modsecurity-crs:nginx-alpine
+    container_name: gl_nginx_waf
+    restart: unless-stopped
+    volumes:
+      - ../nginx-waf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx-waf/modsecurity.conf:/etc/modsecurity.d/modsecurity-override.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - guardianlayer
+    depends_on:
+      - krakend
+
+  # ─────────────────────────────────────────
+  # Prometheus Metrics
+  # ─────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: gl_prometheus
+    restart: unless-stopped
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - guardianlayer
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+
+  # ─────────────────────────────────────────
+  # Grafana Dashboard
+  # ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: gl_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-guardianlayer}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/guardianlayer.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/guardianlayer.json:ro
+      - ../monitoring/grafana-provisioning.yml:/etc/grafana/provisioning/dashboards/default.yml:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - guardianlayer
+    depends_on:
+      - prometheus
+
+  # ─────────────────────────────────────────
+  # Frontend (React/Vite) — built as static
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: gl_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    networks:
+      - guardianlayer
+    depends_on:
+      - api-server
+      - keycloak
+
+2. 🌐 .env (Root — copy to project root)
+env# ── Database ──────────────────────────────
+POSTGRES_DB=guardianlayer
+POSTGRES_USER=gluser
+POSTGRES_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+
+# ── Keycloak ──────────────────────────────
+KEYCLOAK_HOSTNAME=localhost
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_ADMIN_PASSWORD
+
+# ── API Server ────────────────────────────
+JWT_SECRET=CHANGE_ME_JWT_SECRET_MIN_32_CHARS
+ANOMALY_THRESHOLD_RPM=100
+
+# ── Grafana ───────────────────────────────
+GRAFANA_ADMIN=admin
+GRAFANA_PASSWORD=CHANGE_ME_GRAFANA_PASSWORD
+
+# ── Twilio (placeholder — not active yet) ─
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+15550000000
+
+# ── App ───────────────────────────────────
+DB_CONNECTION_STRING=postgresql://gluser:CHANGE_ME_STRONG_PASSWORD@postgres:5432/guardianlayer
+KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_REALM=medinvest
+KEYCLOAK_CLIENT_ID=api-platform
+VITE_KEYCLOAK_URL=http://localhost:8080
+VITE_KEYCLOAK_REALM=medinvest
+VITE_KEYCLOAK_CLIENT_ID=api-platform
+VITE_API_BASE_URL=http://localhost:8090
+
+3. ⚙️ gateway/krakend.json
+json{
+  "$schema": "https://www.krakend.io/schema/v2.6/config.json",
+  "version": 3,
+  "name": "GuardianLayer API Gateway",
+  "port": 8090,
+  "cache_ttl": "3600s",
+  "timeout": "3000ms",
+  "extra_config": {
+    "security/cors": {
+      "allow_origins": ["http://localhost:5173", "http://localhost:80"],
+      "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allow_headers": ["Origin", "Authorization", "Content-Type", "X-API-Key"],
+      "expose_headers": ["Content-Length"],
+      "allow_credentials": true,
+      "max_age": "12h"
+    },
+    "telemetry/metrics": {
+      "collection_time": "60s",
+      "proxy_disabled": false,
+      "router_disabled": false,
+      "backend_disabled": false,
+      "endpoint_disabled": false,
+      "listen_address": ":8091"
+    },
+    "telemetry/logging": {
+      "level": "INFO",
+      "prefix": "[KRAKEND]",
+      "syslog": false,
+      "stdout": true
+    },
+    "router": {
+      "logger_skip_paths": ["/health"]
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/health",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "qos/ratelimit/router": {
+          "max_rate": 60,
+          "client_max_rate": 20,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/logs",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/logs",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["api-user", "admin"],
+          "operation_debug": false
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 200,
+          "client_max_rate": 50,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/logs/auth",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/logs/auth",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["admin"]
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 100,
+          "client_max_rate": 20,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/health/services",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/health/services",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["api-user", "admin"]
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 60,
+          "client_max_rate": 10,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/metrics/summary",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/metrics/summary",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["api-user", "admin"]
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 60,
+          "client_max_rate": 10,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/anomalies",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/anomalies",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["admin"]
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 60,
+          "client_max_rate": 10,
+          "strategy": "ip"
+        }
+      }
+    },
+    {
+      "endpoint": "/api/logs/export",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/logs/export",
+          "host": ["http://api-server:3000"],
+          "method": "GET"
+        }
+      ],
+      "extra_config": {
+        "auth/validator": {
+          "alg": "RS256",
+          "jwk_url": "http://keycloak:8080/realms/medinvest/protocol/openid-connect/certs",
+          "disable_jwk_security": true,
+          "roles_key": "realm_access.roles",
+          "roles": ["admin"]
+        },
+        "qos/ratelimit/router": {
+          "max_rate": 10,
+          "client_max_rate": 2,
+          "strategy": "ip"
+        }
+      }
+    }
+  ]
+}
+
+4. 🔒 nginx-waf/nginx.conf
+nginxload_module modules/ngx_http_modsecurity_module.so;
+
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    # ── Security Headers ─────────────────────────────────
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8080 http://localhost:8090" always;
+    server_tokens off;
+
+    # ── Logging ──────────────────────────────────────────
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for" '
+                    'rt=$request_time';
+    access_log /var/log/nginx/access.log main;
+
+    # ── Rate Limiting Zones ───────────────────────────────
+    limit_req_zone $binary_remote_addr zone=global:10m rate=100r/m;
+    limit_req_zone $binary_remote_addr zone=api:10m rate=60r/m;
+    limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
+    limit_conn_zone $binary_remote_addr zone=conn_limit:10m;
+
+    # ── Gzip ─────────────────────────────────────────────
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/json application/javascript;
+
+    # ── ModSecurity WAF ──────────────────────────────────
+    modsecurity on;
+    modsecurity_rules_file /etc/modsecurity.d/modsecurity-override.conf;
+
+    # ── Blocked IPs (add to this list as needed) ─────────
+    # geo $blocked_ip {
+    #     default 0;
+    #     185.220.101.34 1;
+    #     103.44.55.66   1;
+    # }
+
+    # ── Upstream: KrakenD Gateway ────────────────────────
+    upstream krakend {
+        server krakend:8090;
+        keepalive 32;
+    }
+
+    # ── Upstream: Frontend ───────────────────────────────
+    upstream frontend {
+        server frontend:80;
+        keepalive 16;
+    }
+
+    # ── Upstream: Keycloak ───────────────────────────────
+    upstream keycloak {
+        server keycloak:8080;
+        keepalive 16;
+    }
+
+    # ── Main Server Block ────────────────────────────────
+    server {
+        listen 80;
+        server_name _;
+
+        # Block common bad bots
+        if ($http_user_agent ~* (masscan|nikto|sqlmap|nmap|zgrab|python-requests/2\.)) {
+            return 444;
+        }
+
+        # Block empty user agents
+        if ($http_user_agent = "") {
+            return 444;
+        }
+
+        limit_conn conn_limit 50;
+
+        # ── Frontend ─────────────────────────────────────
+        location / {
+            limit_req zone=global burst=20 nodelay;
+            proxy_pass http://frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # ── API Gateway ───────────────────────────────────
+        location /api/ {
+            limit_req zone=api burst=30 nodelay;
+
+            # Reject oversized bodies
+            client_max_body_size 1m;
+
+            proxy_pass http://krakend/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 5s;
+            proxy_read_timeout 30s;
+        }
+
+        # ── Health (no auth, no rate limit) ──────────────
+        location /health {
+            proxy_pass http://krakend/health;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        # ── Keycloak Auth ─────────────────────────────────
+        location /auth/ {
+            limit_req zone=auth burst=5 nodelay;
+            proxy_pass http://keycloak/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffer_size 128k;
+            proxy_buffers 4 256k;
+        }
+
+        # ── Block sensitive paths ─────────────────────────
+        location ~* \.(env|git|svn|htaccess|htpasswd|ini|conf|bak|sql|log)$ {
+            deny all;
+            return 404;
+        }
+
+        location ~* /(wp-admin|phpmyadmin|adminer|\.git) {
+            deny all;
+            return 404;
+        }
+    }
+}
+
+5. 🛡️ nginx-waf/modsecurity.conf
+apacheconf# ── GuardianLayer ModSecurity Configuration ──────────────
+SecRuleEngine On
+SecRequestBodyAccess On
+SecResponseBodyAccess Off
+SecRequestBodyLimit 1048576
+SecRequestBodyNoFilesLimit 131072
+SecRequestBodyLimitAction Reject
+
+# ── Logging ───────────────────────────────────────────────
+SecAuditEngine RelevantOnly
+SecAuditLogRelevantStatus "^(?:5|4(?!04))"
+SecAuditLog /var/log/modsecurity/audit.log
+SecAuditLogParts ABIJDEFHZ
+SecAuditLogType Serial
+SecDebugLog /var/log/modsecurity/debug.log
+SecDebugLogLevel 0
+
+# ── Defaults ──────────────────────────────────────────────
+SecDefaultAction "phase:1,log,auditlog,deny,status:403"
+SecDefaultAction "phase:2,log,auditlog,deny,status:403"
+
+# ── Data formats ──────────────────────────────────────────
+SecRule REQUEST_HEADERS:Content-Type "(?:application(?:/soap\+|/)|text/)xml" \
+     "id:200000,phase:1,t:none,t:lowercase,pass,nolog,ctl:requestBodyProcessor=XML"
+SecRule REQUEST_HEADERS:Content-Type "application/json" \
+     "id:200001,phase:1,t:none,t:lowercase,pass,nolog,ctl:requestBodyProcessor=JSON"
+
+# ── CUSTOM RULE: SQL Injection ─────────────────────────────
+SecRule ARGS|REQUEST_BODY "@detectSQLi" \
+    "id:9001,phase:2,deny,status:403,log,msg:'SQL Injection Detected',\
+    logdata:'%{MATCHED_VAR}',tag:'attack-sqli',severity:'CRITICAL'"
+
+# ── CUSTOM RULE: XSS ──────────────────────────────────────
+SecRule ARGS|REQUEST_BODY "@detectXSS" \
+    "id:9002,phase:2,deny,status:403,log,msg:'XSS Attack Detected',\
+    logdata:'%{MATCHED_VAR}',tag:'attack-xss',severity:'CRITICAL'"
+
+# ── CUSTOM RULE: Path Traversal ───────────────────────────
+SecRule REQUEST_URI|ARGS "@rx (?:\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.\./|%2e%2e%5c)" \
+    "id:9003,phase:1,deny,status:403,log,msg:'Path Traversal Attempt',\
+    tag:'attack-lfi',severity:'CRITICAL'"
+
+# ── CUSTOM RULE: Remote File Inclusion ────────────────────
+SecRule ARGS "@rx (?:https?|ftp|php|data)://" \
+    "id:9004,phase:2,deny,status:403,log,msg:'Remote File Inclusion Attempt',\
+    tag:'attack-rfi',severity:'CRITICAL'"
+
+# ── CUSTOM RULE: Shell Injection ──────────────────────────
+SecRule ARGS|REQUEST_BODY "@rx (?:;|\||`|\$\(|&&|\|\|)\s*(?:wget|curl|bash|sh|python|perl|nc|ncat|netcat)" \
+    "id:9005,phase:2,deny,status:403,log,msg:'Command Injection Detected',\
+    tag:'attack-injection',severity:'CRITICAL'"
+
+# ── CUSTOM RULE: Scanner Detection ───────────────────────
+SecRule REQUEST_HEADERS:User-Agent "@rx (?:masscan|nikto|sqlmap|nmap|zgrab|dirbuster|gobuster|wfuzz|nuclei)" \
+    "id:9006,phase:1,deny,status:403,log,msg:'Security Scanner Detected',\
+    tag:'scanner',severity:'WARNING'"
+
+# ── CUSTOM RULE: Block known malicious IPs ────────────────
+# Add IPs from your Network Security alerts here
+SecRule REMOTE_ADDR "@ipMatch 185.220.101.34,103.44.55.66,89.44.33.22,77.88.99.100,5.34.178.99,41.203.67.12" \
+    "id:9007,phase:1,deny,status:403,log,msg:'Blocked IP Address',\
+    tag:'ip-block',severity:'CRITICAL'"
+
+# ── OWASP CRS Include ─────────────────────────────────────
+Include /etc/modsecurity.d/owasp-crs/crs-setup.conf
+Include /etc/modsecurity.d/owasp-crs/rules/*.conf
+
+6. 🔑 keycloak/realm-export.json
+json{
+  "realm": "medinvest",
+  "enabled": true,
+  "displayName": "GuardianLayer",
+  "displayNameHtml": "<b>GuardianLayer</b> Enterprise",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Full administrative access" },
+      { "name": "api-user", "description": "Standard API access" },
+      { "name": "viewer", "description": "Read-only dashboard access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "api-platform",
+      "name": "GuardianLayer API Platform",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:80/*",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:80",
+        "http://localhost"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access"]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "providerId": "webauthn-register",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 70
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@guardianlayer.local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@GuardianLayer1",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin", "api-user"]
+    },
+    {
+      "username": "apiuser",
+      "email": "user@guardianlayer.local",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "User@GuardianLayer1",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["api-user"]
+    }
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "xXSSProtection": "1; mode=block",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername(undefined)"
+}
+
+7. 🖥️ api-server/package.json
+json{
+  "name": "guardianlayer-api",
+  "version": "1.0.0",
+  "description": "GuardianLayer API Server",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "migrate": "node src/db/migrate.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "prom-client": "^15.1.2",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1",
+    "dotenv": "^16.4.5",
+    "axios": "^1.6.8",
+    "json2csv": "^6.0.0-alpha.2",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
+
+8. 🖥️ api-server/Dockerfile
+dockerfileFROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY src/ ./src/
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001 && \
+    chown -R nodeuser:nodejs /app
+
+USER nodeuser
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', r => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+CMD ["node", "src/app.js"]
+
+9. 🖥️ api-server/src/app.js
+javascriptrequire('dotenv').config();
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const { createServer } = require('http');
+const { WebSocketServer } = require('ws');
+const { initDB } = require('./db');
+const { requestLogger } = require('./middleware/logger');
+const { rateLimiter } = require('./middleware/rateLimiter');
+const { anomalyDetector } = require('./middleware/anomaly');
+const { metricsMiddleware, metricsRouter } = require('./middleware/metrics');
+const healthRouter = require('./routes/health');
+const logsRouter = require('./routes/logs');
+const anomalyRouter = require('./routes/anomalies');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ── Security middleware ──────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false, // handled by nginx
+}));
+
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:80', 'http://localhost'],
+  credentials: true,
+}));
+
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ── Observability ────────────────────────────────────────
+app.use(metricsMiddleware);
+app.use(requestLogger);
+
+// ── Rate limiting ────────────────────────────────────────
+app.use(rateLimiter);
+
+// ── Anomaly detection ────────────────────────────────────
+app.use(anomalyDetector);
+
+// ── Routes ───────────────────────────────────────────────
+app.use('/health', healthRouter);
+app.use('/logs', logsRouter);
+app.use('/anomalies', anomalyRouter);
+app.use('/metrics', metricsRouter);
+
+// ── 404 handler ──────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found', path: req.path });
+});
+
+// ── Error handler ──────────────────────
