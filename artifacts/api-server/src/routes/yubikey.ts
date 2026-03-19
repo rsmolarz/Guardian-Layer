@@ -8,6 +8,7 @@ import {
   ListYubikeyEventsResponse,
   GetYubikeyStatsResponse,
 } from "@workspace/api-zod";
+import { getAnomalies, getAnomalySummary } from "../lib/anomaly-engine";
 
 const router: IRouter = Router();
 
@@ -78,7 +79,32 @@ router.get("/yubikey/lost-stolen", async (_req, res): Promise<void> => {
 });
 
 router.get("/yubikey/anomaly-detector", async (_req, res): Promise<void> => {
-  res.json({ anomalies: [], summary: { totalAnomalies: 0, criticalAnomalies: 0, activeAnomalies: 0, resolvedAnomalies: 0, typeBreakdown: {} } });
+  const anomalies = getAnomalies().map((a) => ({
+    id: a.id,
+    type: a.type,
+    severity: a.severity,
+    title: a.title,
+    description: a.description,
+    aiAnalysis: a.aiAnalysis,
+    recommendedActions: a.recommendedActions,
+    source: a.source,
+    sourceIp: a.sourceIp,
+    detectedAt: a.detectedAt,
+    status: a.status,
+    riskScore: a.riskScore,
+    location: a.sourceIp ? { ip: a.sourceIp, city: "Unknown", country: "Unknown" } : undefined,
+  }));
+  const summary = getAnomalySummary();
+  res.json({
+    anomalies,
+    summary: {
+      totalAnomalies: summary.totalAnomalies,
+      criticalAnomalies: summary.criticalAnomalies,
+      activeAnomalies: summary.activeAnomalies,
+      resolvedAnomalies: summary.mitigatedAnomalies,
+      typeBreakdown: summary.typeBreakdown,
+    },
+  });
 });
 
 router.get("/yubikey/mfa-compliance", async (_req, res): Promise<void> => {

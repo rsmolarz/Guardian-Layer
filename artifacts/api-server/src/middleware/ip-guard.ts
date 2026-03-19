@@ -31,7 +31,7 @@ setInterval(() => {
 }, CLEANUP_INTERVAL_MS);
 
 function getClientIP(req: Request): string {
-  return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+  return req.ip || "unknown";
 }
 
 export function ipGuard(req: Request, res: Response, next: NextFunction): void {

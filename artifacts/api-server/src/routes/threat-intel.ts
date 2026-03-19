@@ -5,6 +5,14 @@ const router: IRouter = Router();
 
 router.use("/threat-intel", threatIntelLimiter);
 
+const FETCH_TIMEOUT_MS = 15000;
+
+function timedFetch(url: string, options?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 function getApiKey(name: string): string | undefined {
   return process.env[name];
 }
@@ -48,7 +56,7 @@ router.post("/threat-intel/virustotal/url", async (req, res): Promise<void> => {
   if (!url) { res.status(400).json({ error: "URL is required" }); return; }
 
   try {
-    const submitRes = await fetch("https://www.virustotal.com/api/v3/urls", {
+    const submitRes = await timedFetch("https://www.virustotal.com/api/v3/urls", {
       method: "POST",
       headers: { "x-apikey": key, "Content-Type": "application/x-www-form-urlencoded" },
       body: `url=${encodeURIComponent(url)}`,
@@ -63,11 +71,21 @@ router.post("/threat-intel/virustotal/url", async (req, res): Promise<void> => {
     const submitData = await submitRes.json() as any;
     const analysisId = submitData.data?.id;
 
+    if (!analysisId) {
+      res.status(502).json({ error: "VirusTotal returned no analysis ID" });
+      return;
+    }
+
     await new Promise((r) => setTimeout(r, 3000));
 
-    const resultRes = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+    const resultRes = await timedFetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
       headers: { "x-apikey": key },
     });
+
+    if (!resultRes.ok) {
+      res.status(resultRes.status).json({ error: "VirusTotal analysis retrieval failed" });
+      return;
+    }
 
     const resultData = await resultRes.json() as any;
     const stats = resultData.data?.attributes?.stats || {};
@@ -107,7 +125,7 @@ router.get("/threat-intel/virustotal/domain/:domain", async (req, res): Promise<
   if (!key) { missingKeyResponse(res, "VirusTotal", "VIRUSTOTAL_API_KEY"); return; }
 
   try {
-    const r = await fetch(`https://www.virustotal.com/api/v3/domains/${req.params.domain}`, {
+    const r = await timedFetch(`https://www.virustotal.com/api/v3/domains/${req.params.domain}`, {
       headers: { "x-apikey": key },
     });
 
@@ -144,7 +162,7 @@ router.get("/threat-intel/abuseipdb/check/:ip", async (req, res): Promise<void> 
   if (!key) { missingKeyResponse(res, "AbuseIPDB", "ABUSEIPDB_API_KEY"); return; }
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(req.params.ip)}&maxAgeInDays=90&verbose`,
       { headers: { Key: key, Accept: "application/json" } }
     );
@@ -187,7 +205,7 @@ router.get("/threat-intel/shodan/host/:ip", async (req, res): Promise<void> => {
   if (!key) { missingKeyResponse(res, "Shodan", "SHODAN_API_KEY"); return; }
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://api.shodan.io/shodan/host/${encodeURIComponent(req.params.ip)}?key=${key}`
     );
 
@@ -239,7 +257,7 @@ router.get("/threat-intel/shodan/search", async (req, res): Promise<void> => {
   if (!query) { res.status(400).json({ error: "Search query is required" }); return; }
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://api.shodan.io/shodan/host/search?key=${key}&query=${encodeURIComponent(query as string)}&page=1`
     );
 
@@ -271,7 +289,7 @@ router.get("/threat-intel/hibp/breaches/:email", async (req, res): Promise<void>
   if (!key) { missingKeyResponse(res, "Have I Been Pwned", "HIBP_API_KEY"); return; }
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(req.params.email)}?truncateResponse=false`,
       { headers: { "hibp-api-key": key, "user-agent": "GuardianLayer-Enterprise" } }
     );
@@ -315,7 +333,7 @@ router.get("/threat-intel/hibp/domain/:domain", async (req, res): Promise<void> 
   if (!key) { missingKeyResponse(res, "Have I Been Pwned", "HIBP_API_KEY"); return; }
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://haveibeenpwned.com/api/v3/breaches?domain=${encodeURIComponent(req.params.domain)}`,
       { headers: { "hibp-api-key": key, "user-agent": "GuardianLayer-Enterprise" } }
     );
@@ -348,7 +366,7 @@ router.get("/threat-intel/ssllabs/analyze/:host", async (req, res): Promise<void
   const fromCache = req.query.fromCache !== "false";
 
   try {
-    const r = await fetch(
+    const r = await timedFetch(
       `https://api.ssllabs.com/api/v3/analyze?host=${encodeURIComponent(host)}&fromCache=${fromCache ? "on" : "off"}&all=done`
     );
 

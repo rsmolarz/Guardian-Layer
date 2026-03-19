@@ -1,5 +1,7 @@
 import { db, activityLogsTable } from "@workspace/db";
 import type { Request, Response, NextFunction } from "express";
+import { trackRequest } from "./anomaly-engine";
+import { recordRequest } from "./metrics-collector";
 
 export async function logActivity(params: {
   action: string;
@@ -65,13 +67,18 @@ export function activityLoggerMiddleware(req: Request, res: Response, next: Next
     if (res.statusCode >= 500) severity = "error";
     else if (res.statusCode >= 400) severity = "warning";
 
+    const clientIp = req.ip || "unknown";
+
+    trackRequest(clientIp, path, res.statusCode, duration);
+    recordRequest(req.method, path, res.statusCode, duration);
+
     logActivity({
       action,
       category,
       source: `${req.method} ${path}`,
       detail: `${req.method} ${path} → ${res.statusCode} (${duration}ms)`,
       severity,
-      ipAddress: (req.headers["x-forwarded-for"] as string) || req.ip || "unknown",
+      ipAddress: clientIp,
       responseTimeMs: duration,
     });
   });

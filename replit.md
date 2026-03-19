@@ -39,8 +39,11 @@ The project is built as a pnpm monorepo using TypeScript for scalability and mai
 
 *   **Security Hardening Middleware:** Three-layer request protection stack in `artifacts/api-server/src/app.ts`:
     *   **Helmet** — Sets 7+ security headers (HSTS, X-Frame-Options, X-Content-Type-Options, X-DNS-Prefetch-Control, X-Download-Options, X-Permitted-Cross-Domain-Policies, X-XSS-Protection). CSP disabled (handled by frontend proxy).
-    *   **Rate Limiting** (`artifacts/api-server/src/middleware/rate-limiter.ts`) — Four tiers: global (300/15min), auth (20/15min), threat-intel (30/min), AI analysis (10/min). Returns standard `RateLimit-*` headers.
-    *   **IP Guard** (`artifacts/api-server/src/middleware/ip-guard.ts`) — Tracks request counts per IP, auto-blocks IPs exceeding 100 requests/5min for 30 minutes. Supports manual block/unblock via API. Management endpoints at `/api/security/ip-stats`, `/api/security/blocked-ips`, `/api/security/block-ip`, `/api/security/unblock-ip`.
+    *   **Rate Limiting** (`artifacts/api-server/src/middleware/rate-limiter.ts`) — Four tiers: global (300/15min), auth (20/15min), threat-intel (30/min), AI analysis (10/min). Returns standard `RateLimit-*` headers. Uses default `req.ip` key generation with `trust proxy` set to 1.
+    *   **IP Guard** (`artifacts/api-server/src/middleware/ip-guard.ts`) — Tracks request counts per IP via `req.ip` (consistent with trust proxy), auto-blocks IPs exceeding 100 requests/5min for 30 minutes. Supports manual block/unblock via API. Management endpoints at `/api/security/ip-stats`, `/api/security/blocked-ips`, `/api/security/block-ip`, `/api/security/unblock-ip`.
+    *   **Anomaly Detection Engine** (`artifacts/api-server/src/lib/anomaly-engine.ts`) — Real-time detection of rapid requests, error spikes, path scanning, brute-force auth, slow responses, and DB-level threat clusters. In-memory store (200 max), auto-cleans every 60s, DB checks every 2min.
+    *   **Prometheus Metrics** (`artifacts/api-server/src/lib/metrics-collector.ts`) — `/metrics` endpoint in Prometheus format tracking RPM, response time, error rate, memory, CPU.
+    *   **Threat Intel Fetch Hardening** — All external API calls use 15-second abort timeouts, response status validation, and payload field validation (e.g., VirusTotal `analysisId`).
 
 ## Data Strategy
 

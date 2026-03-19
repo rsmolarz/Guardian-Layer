@@ -1,6 +1,7 @@
 import app from "./app";
 import { seedAllModules } from "./lib/seed";
 import { startBackupScheduler } from "./routes/backups";
+import { startAnomalyEngine } from "./lib/anomaly-engine";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, async () => {
     console.error("Seed error:", err);
   }
   startBackupScheduler();
+  startAnomalyEngine();
 });
