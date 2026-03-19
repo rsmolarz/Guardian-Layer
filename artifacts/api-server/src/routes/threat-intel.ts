@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
+import { threatIntelLimiter } from "../middleware/rate-limiter";
 
 const router: IRouter = Router();
+
+router.use("/threat-intel", threatIntelLimiter);
 
 function getApiKey(name: string): string | undefined {
   return process.env[name];

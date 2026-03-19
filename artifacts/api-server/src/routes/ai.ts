@@ -2,8 +2,11 @@ import { Router, type IRouter } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, conversations as conversationsTable, messages as messagesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { aiLimiter } from "../middleware/rate-limiter";
 
 const router: IRouter = Router();
+
+router.use("/ai", aiLimiter);
 
 const THREAT_ANALYSIS_SYSTEM_PROMPT = `You are GuardianLayer AI — a senior cybersecurity analyst specializing in threat intelligence, incident response, and digital forensics. When analyzing a threat or security alert, provide a comprehensive analysis covering:
 
