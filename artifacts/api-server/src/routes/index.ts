@@ -22,6 +22,7 @@ import workspaceMonitorRouter from "./workspace-monitor";
 import threatIntelRouter from "./threat-intel";
 import ipManagementRouter from "./ip-management";
 import breachRouter from "./breach";
+import gatewayRouter from "./gateway";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(workspaceMonitorRouter);
 router.use(threatIntelRouter);
 router.use(ipManagementRouter);
 router.use(breachRouter);
+router.use(gatewayRouter);
 
 export default router;

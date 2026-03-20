@@ -2,6 +2,7 @@ import app from "./app";
 import { seedAllModules } from "./lib/seed";
 import { startBackupScheduler } from "./routes/backups";
 import { startAnomalyEngine } from "./lib/anomaly-engine";
+import { initEventListeners } from "./lib/event-bus";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,5 @@ app.listen(port, async () => {
   }
   startBackupScheduler();
   startAnomalyEngine();
+  initEventListeners();
 });
