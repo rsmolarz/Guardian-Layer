@@ -27,6 +27,7 @@ import ThreatIntel from "@/pages/ThreatIntel";
 import BreachResponse from "@/pages/BreachResponse";
 import ApiDeck from "@/pages/ApiDeck";
 import AlertCenter from "@/pages/AlertCenter";
+import SecuritySettings from "@/pages/SecuritySettings";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -78,6 +79,7 @@ function Router() {
         <Route path="/breach-response" component={BreachResponse} />
         <Route path="/api-gateway" component={ApiDeck} />
         <Route path="/alert-center" component={AlertCenter} />
+        <Route path="/security-settings" component={SecuritySettings} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />
