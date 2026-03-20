@@ -24,6 +24,7 @@ import Backups from "@/pages/Backups";
 import EmergencyLockdown from "@/pages/EmergencyLockdown";
 import WorkspaceMonitor from "@/pages/WorkspaceMonitor";
 import ThreatIntel from "@/pages/ThreatIntel";
+import BreachResponse from "@/pages/BreachResponse";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -70,6 +71,7 @@ function Router() {
         <Route path="/emergency-lockdown" component={EmergencyLockdown} />
         <Route path="/workspace-monitor" component={WorkspaceMonitor} />
         <Route path="/threat-intel" component={ThreatIntel} />
+        <Route path="/breach-response" component={BreachResponse} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />

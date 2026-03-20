@@ -11,6 +11,7 @@ import {
   GetLockdownHistoryResponse,
 } from "@workspace/api-zod";
 import { logActivity } from "../lib/activity-logger";
+import { getAutoLockdownConfig, updateAutoLockdownConfig } from "../lib/anomaly-engine";
 
 const router = Router();
 
@@ -251,6 +252,54 @@ router.get("/lockdown/history", async (_req, res): Promise<void> => {
     .limit(50);
 
   res.json(GetLockdownHistoryResponse.parse({ logs }));
+});
+
+router.get("/lockdown/auto-config", async (_req, res): Promise<void> => {
+  res.json(getAutoLockdownConfig());
+});
+
+router.post("/lockdown/auto-config", async (req, res): Promise<void> => {
+  const body = req.body;
+  const validated: Record<string, any> = {};
+
+  if (typeof body.enabled === "boolean") validated.enabled = body.enabled;
+  if (typeof body.criticalAnomalyThreshold === "number" && body.criticalAnomalyThreshold >= 1 && body.criticalAnomalyThreshold <= 20) {
+    validated.criticalAnomalyThreshold = Math.floor(body.criticalAnomalyThreshold);
+  }
+  if (typeof body.triggerOnBruteForce === "boolean") validated.triggerOnBruteForce = body.triggerOnBruteForce;
+  if (typeof body.triggerOnNetworkThreatCluster === "boolean") validated.triggerOnNetworkThreatCluster = body.triggerOnNetworkThreatCluster;
+  if (typeof body.triggerOnErrorSurge === "boolean") validated.triggerOnErrorSurge = body.triggerOnErrorSurge;
+  if (typeof body.cooldownMinutes === "number" && body.cooldownMinutes >= 5 && body.cooldownMinutes <= 1440) {
+    validated.cooldownMinutes = Math.floor(body.cooldownMinutes);
+  }
+
+  const updated = updateAutoLockdownConfig(validated);
+  await logActivity({
+    action: "AUTO_LOCKDOWN_CONFIG_UPDATED",
+    category: "lockdown",
+    source: "emergency_lockdown",
+    detail: `Auto-lockdown configuration updated: enabled=${updated.enabled}, threshold=${updated.criticalAnomalyThreshold}`,
+    severity: "warning",
+  });
+  res.json(updated);
+});
+
+router.post("/lockdown/revoke-sessions", async (_req, res): Promise<void> => {
+  const revokedAt = new Date();
+
+  await logActivity({
+    action: "ALL_SESSIONS_REVOKED",
+    category: "lockdown",
+    source: "session_control",
+    detail: `All active sessions force-revoked at ${revokedAt.toISOString()}. All users must re-authenticate.`,
+    severity: "critical",
+  });
+
+  res.json({
+    success: true,
+    revokedAt: revokedAt.toISOString(),
+    message: "All active sessions have been revoked. Users must re-authenticate.",
+  });
 });
 
 export default router;

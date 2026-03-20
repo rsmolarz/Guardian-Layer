@@ -1,5 +1,34 @@
-import { db, activityLogsTable, networkEventsTable, yubikeyAuthEventsTable } from "@workspace/db";
+import { db, activityLogsTable, networkEventsTable, yubikeyAuthEventsTable, lockdownSessionsTable, lockdownActionsTable } from "@workspace/db";
 import { desc, sql, gte, and, eq } from "drizzle-orm";
+
+export interface AutoLockdownConfig {
+  enabled: boolean;
+  criticalAnomalyThreshold: number;
+  triggerOnBruteForce: boolean;
+  triggerOnNetworkThreatCluster: boolean;
+  triggerOnErrorSurge: boolean;
+  cooldownMinutes: number;
+}
+
+let autoLockdownConfig: AutoLockdownConfig = {
+  enabled: true,
+  criticalAnomalyThreshold: 3,
+  triggerOnBruteForce: true,
+  triggerOnNetworkThreatCluster: true,
+  triggerOnErrorSurge: true,
+  cooldownMinutes: 30,
+};
+
+let lastAutoLockdownAt = 0;
+
+export function getAutoLockdownConfig(): AutoLockdownConfig {
+  return { ...autoLockdownConfig };
+}
+
+export function updateAutoLockdownConfig(updates: Partial<AutoLockdownConfig>): AutoLockdownConfig {
+  autoLockdownConfig = { ...autoLockdownConfig, ...updates };
+  return { ...autoLockdownConfig };
+}
 
 export interface Anomaly {
   id: string;
@@ -228,6 +257,12 @@ function addAnomaly(partial: Omit<Anomaly, "id" | "detectedAt" | "status">): voi
     detectedAnomalies.length = 200;
   }
   console.warn(`[ANOMALY] ${anomaly.severity.toUpperCase()}: ${anomaly.title} (${anomaly.sourceIp || anomaly.source})`);
+
+  if (anomaly.severity === "critical" || anomaly.severity === "high") {
+    checkAutoLockdownTrigger(anomaly).catch((err) => {
+      console.error("[anomaly-engine] Auto-lockdown check failed:", err.message);
+    });
+  }
 }
 
 function hasRecentAnomaly(ip: string, type: string): boolean {
@@ -271,6 +306,91 @@ export function updateAnomalyStatus(id: string, status: "active" | "investigatin
     return true;
   }
   return false;
+}
+
+const CONTAINMENT_ACTIONS = [
+  { actionType: "freeze_credit", label: "Freeze Credit", description: "All credit bureau accounts frozen — Equifax, Experian, TransUnion" },
+  { actionType: "lock_cards", label: "Lock Financial Cards", description: "All credit and debit cards locked — transactions blocked" },
+  { actionType: "secure_email", label: "Secure Email Accounts", description: "All email passwords reset and 2FA enforced" },
+  { actionType: "invalidate_credentials", label: "Invalidate Credentials", description: "All stored credentials invalidated and rotation initiated" },
+  { actionType: "isolate_endpoints", label: "Isolate Endpoints", description: "All endpoints isolated from the network" },
+];
+
+async function checkAutoLockdownTrigger(anomaly: Anomaly): Promise<void> {
+  if (!autoLockdownConfig.enabled) return;
+
+  const now = Date.now();
+  if (now - lastAutoLockdownAt < autoLockdownConfig.cooldownMinutes * 60 * 1000) return;
+
+  const [existingSession] = await db
+    .select()
+    .from(lockdownSessionsTable)
+    .where(eq(lockdownSessionsTable.status, "active"))
+    .limit(1);
+  if (existingSession) return;
+
+  let shouldTrigger = false;
+  let triggerReason = "";
+
+  if (autoLockdownConfig.triggerOnBruteForce && anomaly.type === "brute_force") {
+    shouldTrigger = true;
+    triggerReason = `Auto-lockdown triggered: Brute force attack detected from ${anomaly.sourceIp}`;
+  }
+
+  if (autoLockdownConfig.triggerOnNetworkThreatCluster && anomaly.type === "network_threat_cluster") {
+    shouldTrigger = true;
+    triggerReason = `Auto-lockdown triggered: Network threat cluster detected — coordinated attack suspected`;
+  }
+
+  if (autoLockdownConfig.triggerOnErrorSurge && anomaly.type === "error_surge") {
+    shouldTrigger = true;
+    triggerReason = `Auto-lockdown triggered: System error surge detected — possible attack or cascade failure`;
+  }
+
+  if (!shouldTrigger) {
+    const fiveMinAgo = now - 5 * 60 * 1000;
+    const recentCritical = detectedAnomalies.filter(
+      (a) => a.severity === "critical" && a.status === "active" && new Date(a.detectedAt).getTime() > fiveMinAgo
+    );
+    if (recentCritical.length >= autoLockdownConfig.criticalAnomalyThreshold) {
+      shouldTrigger = true;
+      triggerReason = `Auto-lockdown triggered: ${recentCritical.length} critical anomalies detected in the last 5 minutes`;
+    }
+  }
+
+  if (!shouldTrigger) return;
+
+  try {
+    const activatedAt = new Date();
+
+    const [session] = await db
+      .insert(lockdownSessionsTable)
+      .values({ status: "active", reason: triggerReason, activatedAt })
+      .returning();
+
+    const actionValues = CONTAINMENT_ACTIONS.map((a) => ({
+      sessionId: session.id,
+      actionType: a.actionType,
+      label: a.label,
+      description: a.description,
+      status: "active" as const,
+      activatedAt,
+    }));
+    await db.insert(lockdownActionsTable).values(actionValues);
+
+    await db.insert(activityLogsTable).values({
+      action: "AUTO_LOCKDOWN_ACTIVATED",
+      category: "lockdown",
+      source: "anomaly_engine",
+      detail: triggerReason,
+      severity: "critical",
+    });
+
+    lastAutoLockdownAt = Date.now();
+    console.warn(`[AUTO-LOCKDOWN] ${triggerReason}`);
+  } catch (err: any) {
+    console.error("[anomaly-engine] Auto-lockdown activation failed:", err.message);
+  }
 }
 
 export function startAnomalyEngine(): void {

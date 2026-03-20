@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql, and } from "drizzle-orm";
-import { db, openclawContractsTable, monitoredUrlsTable } from "@workspace/db";
+import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { db, openclawContractsTable, monitoredUrlsTable, activityLogsTable, lockdownSessionsTable } from "@workspace/db";
 import {
   ListOpenclawContractsQueryParams,
   ListOpenclawContractsResponse,
   GetOpenclawStatsResponse,
 } from "@workspace/api-zod";
+import { getAnomalies } from "../lib/anomaly-engine";
 
 const router: IRouter = Router();
 
@@ -166,6 +167,132 @@ router.delete("/openclaw/bookmarks/:id", async (req, res): Promise<void> => {
     const msg = err instanceof Error ? err.message : "Unknown";
     console.error("[openclaw] DELETE /bookmarks/:id failed:", msg);
     res.status(500).json({ error: "Failed to delete bookmark." });
+  }
+});
+
+router.get("/openclaw/breach-alerts", async (_req, res): Promise<void> => {
+  try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+
+    const anomalies = getAnomalies();
+    const recentAnomalies = anomalies.filter(
+      (a) => new Date(a.detectedAt).getTime() > sixHoursAgo.getTime()
+    );
+
+    const [activeLockdown] = await db
+      .select()
+      .from(lockdownSessionsTable)
+      .where(eq(lockdownSessionsTable.status, "active"))
+      .limit(1);
+
+    const configChanges = await db
+      .select()
+      .from(activityLogsTable)
+      .where(
+        and(
+          gte(activityLogsTable.createdAt, sixHoursAgo),
+          sql`${activityLogsTable.category} IN ('config', 'lockdown')`
+        )
+      )
+      .orderBy(desc(activityLogsTable.createdAt))
+      .limit(20);
+
+    const securityEvents = await db
+      .select()
+      .from(activityLogsTable)
+      .where(
+        and(
+          gte(activityLogsTable.createdAt, oneHourAgo),
+          eq(activityLogsTable.severity, "critical")
+        )
+      )
+      .orderBy(desc(activityLogsTable.createdAt))
+      .limit(20);
+
+    const alerts: Array<{
+      id: string;
+      type: string;
+      severity: string;
+      title: string;
+      detail: string;
+      timestamp: string;
+      actionRequired: boolean;
+    }> = [];
+
+    let alertId = 1;
+
+    if (activeLockdown) {
+      alerts.push({
+        id: `BRA-${alertId++}`,
+        type: "lockdown_active",
+        severity: "critical",
+        title: "Emergency Lockdown Active",
+        detail: `Lockdown triggered: ${activeLockdown.reason}. All containment actions engaged.`,
+        timestamp: activeLockdown.activatedAt.toISOString(),
+        actionRequired: true,
+      });
+    }
+
+    for (const anomaly of recentAnomalies.filter((a) => a.status === "active")) {
+      alerts.push({
+        id: `BRA-${alertId++}`,
+        type: `anomaly_${anomaly.type}`,
+        severity: anomaly.severity,
+        title: `Active Anomaly: ${anomaly.title}`,
+        detail: anomaly.description,
+        timestamp: anomaly.detectedAt,
+        actionRequired: anomaly.severity === "critical" || anomaly.severity === "high",
+      });
+    }
+
+    for (const change of configChanges) {
+      alerts.push({
+        id: `BRA-${alertId++}`,
+        type: "config_change",
+        severity: "high",
+        title: "Configuration Change Detected",
+        detail: change.detail || `Config change: ${change.action}`,
+        timestamp: change.createdAt.toISOString(),
+        actionRequired: true,
+      });
+    }
+
+    for (const evt of securityEvents) {
+      alerts.push({
+        id: `BRA-${alertId++}`,
+        type: "security_event",
+        severity: evt.severity,
+        title: evt.action,
+        detail: evt.detail || "",
+        timestamp: evt.createdAt.toISOString(),
+        actionRequired: evt.severity === "critical",
+      });
+    }
+
+    alerts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    let breachMode: "active" | "elevated" | "monitoring" | "normal" = "normal";
+    if (activeLockdown || recentAnomalies.some((a) => a.severity === "critical" && a.status === "active")) {
+      breachMode = "active";
+    } else if (recentAnomalies.some((a) => a.severity === "high" && a.status === "active")) {
+      breachMode = "elevated";
+    } else if (recentAnomalies.length > 0) {
+      breachMode = "monitoring";
+    }
+
+    res.json({
+      breachMode,
+      totalAlerts: alerts.length,
+      actionRequired: alerts.filter((a) => a.actionRequired).length,
+      alerts: alerts.slice(0, 50),
+      lockdownActive: !!activeLockdown,
+      recentAnomalyCount: recentAnomalies.length,
+      configChangeCount: configChanges.length,
+    });
+  } catch (err: any) {
+    console.error("[openclaw] GET /breach-alerts failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve breach alerts" });
   }
 });
 

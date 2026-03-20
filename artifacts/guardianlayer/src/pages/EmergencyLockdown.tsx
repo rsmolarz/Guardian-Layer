@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetLockdownStatus,
@@ -27,6 +27,10 @@ import {
   Unlock,
   Activity,
   XCircle,
+  Settings,
+  Users,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
@@ -203,6 +207,9 @@ export default function EmergencyLockdown() {
           </div>
         </motion.div>
       )}
+
+      <SessionControlsPanel />
+      <AutoLockdownConfigPanel />
     </div>
   );
 }
@@ -534,5 +541,282 @@ function ActiveDashboard({
         </AnimatePresence>
       </motion.div>
     </div>
+  );
+}
+
+function SessionControlsPanel() {
+  const { toast } = useToast();
+  const [revoking, setRevoking] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [lastRevoke, setLastRevoke] = useState<string | null>(null);
+
+  const handleRevoke = async () => {
+    setRevoking(true);
+    try {
+      const res = await fetch("/api/lockdown/revoke-sessions", { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setLastRevoke(data.revokedAt);
+      setShowConfirm(false);
+      toast({ description: "All sessions revoked. Users must re-authenticate." });
+    } catch {
+      toast({ description: "Failed to revoke sessions.", variant: "destructive" });
+    } finally {
+      setRevoking(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35 }}
+      className="mt-10"
+    >
+      <h3 className="font-display text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Session Controls
+      </h3>
+      <div className="glass-panel rounded-2xl p-6">
+        <p className="text-sm text-muted-foreground mb-4">
+          Force-revoke all active user sessions across the platform. All users will be signed out immediately and must re-authenticate.
+        </p>
+
+        {lastRevoke && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center gap-3">
+            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-xs font-mono text-amber-400">
+              Sessions last revoked: {format(new Date(lastRevoke), "MMM dd, HH:mm:ss")}
+            </span>
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {!showConfirm ? (
+            <motion.button
+              key="revoke-btn"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowConfirm(true)}
+              className="px-6 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-display text-xs uppercase tracking-widest hover:bg-rose-500/20 transition-all flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              Revoke All Sessions
+            </motion.button>
+          ) : (
+            <motion.div
+              key="revoke-confirm"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
+                <span className="font-display text-sm text-rose-400 tracking-wider">CONFIRM SESSION REVOCATION</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                This will immediately invalidate all active sessions. Every user will need to sign in again. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="px-4 py-2 rounded-lg border border-white/10 text-muted-foreground font-display text-xs uppercase tracking-widest hover:bg-white/5 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRevoke}
+                  disabled={revoking}
+                  className="px-4 py-2 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400 font-display text-xs uppercase tracking-widest hover:bg-rose-500/30 transition-all disabled:opacity-40 flex items-center gap-2"
+                >
+                  {revoking ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-rose-400/40 border-t-rose-400 rounded-full animate-spin" />
+                      Revoking...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3 h-3" />
+                      Confirm Revoke
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+interface AutoLockdownConfig {
+  enabled: boolean;
+  criticalAnomalyThreshold: number;
+  triggerOnBruteForce: boolean;
+  triggerOnNetworkThreatCluster: boolean;
+  triggerOnErrorSurge: boolean;
+  cooldownMinutes: number;
+}
+
+function AutoLockdownConfigPanel() {
+  const { toast } = useToast();
+  const [config, setConfig] = useState<AutoLockdownConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/lockdown/auto-config")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then((d) => { setConfig(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const saveConfig = async () => {
+    if (!config) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/lockdown/auto-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const updated = await res.json();
+      setConfig(updated);
+      toast({ description: "Auto-lockdown configuration saved." });
+    } catch {
+      toast({ description: "Failed to save configuration.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return null;
+  if (!config) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 }}
+      className="mt-10"
+    >
+      <h3 className="font-display text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+        <Settings className="w-4 h-4" />
+        Auto-Lockdown Configuration
+      </h3>
+      <div className="glass-panel rounded-2xl p-6 space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Configure automatic lockdown triggers. When enabled, the system will activate lockdown when anomaly thresholds are crossed.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:border-primary/20 transition-colors">
+            <input
+              type="checkbox"
+              checked={config.enabled}
+              onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <div>
+              <span className="text-sm text-foreground block">Auto-Lockdown Enabled</span>
+              <span className="text-[10px] text-muted-foreground">Automatically trigger lockdown on critical anomalies</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:border-primary/20 transition-colors">
+            <input
+              type="checkbox"
+              checked={config.triggerOnBruteForce}
+              onChange={(e) => setConfig({ ...config, triggerOnBruteForce: e.target.checked })}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <div>
+              <span className="text-sm text-foreground block">Brute Force Detection</span>
+              <span className="text-[10px] text-muted-foreground">Trigger on authentication brute force attacks</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:border-primary/20 transition-colors">
+            <input
+              type="checkbox"
+              checked={config.triggerOnNetworkThreatCluster}
+              onChange={(e) => setConfig({ ...config, triggerOnNetworkThreatCluster: e.target.checked })}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <div>
+              <span className="text-sm text-foreground block">Network Threat Clusters</span>
+              <span className="text-[10px] text-muted-foreground">Trigger on coordinated network threats</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:border-primary/20 transition-colors">
+            <input
+              type="checkbox"
+              checked={config.triggerOnErrorSurge}
+              onChange={(e) => setConfig({ ...config, triggerOnErrorSurge: e.target.checked })}
+              className="w-4 h-4 rounded accent-primary"
+            />
+            <div>
+              <span className="text-sm text-foreground block">Error Surge Detection</span>
+              <span className="text-[10px] text-muted-foreground">Trigger on sudden error rate spikes</span>
+            </div>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <label className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-2">
+              Critical Anomaly Threshold (1-20)
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={config.criticalAnomalyThreshold}
+              onChange={(e) => setConfig({ ...config, criticalAnomalyThreshold: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)) })}
+              className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm font-mono text-white focus:border-primary/40 focus:outline-none"
+            />
+          </div>
+
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <label className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-2">
+              Cooldown Period (5-1440 minutes)
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={1440}
+              value={config.cooldownMinutes}
+              onChange={(e) => setConfig({ ...config, cooldownMinutes: Math.max(5, Math.min(1440, parseInt(e.target.value) || 5)) })}
+              className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-sm font-mono text-white focus:border-primary/40 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={saveConfig}
+            disabled={saving}
+            className="px-6 py-2 rounded-lg bg-primary/20 border border-primary/40 text-primary font-display text-xs uppercase tracking-widest hover:bg-primary/30 transition-all disabled:opacity-40 flex items-center gap-2"
+          >
+            {saving ? (
+              <>
+                <div className="w-3 h-3 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-3 h-3" />
+                Save Configuration
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </motion.div>
   );
 }

@@ -51,6 +51,8 @@ import {
   Trash2,
   Link as LinkIcon,
   Send,
+  Siren,
+  RefreshCw,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -79,7 +81,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks";
+type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks" | "breach-alerts";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -113,6 +115,7 @@ export default function OpenclawMonitor() {
           { id: "sessions" as Tab, label: "Active Users", icon: Users },
           { id: "config-drift" as Tab, label: "Config Changes", icon: Scan },
           { id: "bookmarks" as Tab, label: "Bookmarks", icon: Bookmark },
+          { id: "breach-alerts" as Tab, label: "Breach Alerts", icon: Siren },
         ]).map((t) => (
           <button
             key={t.id}
@@ -134,6 +137,7 @@ export default function OpenclawMonitor() {
       {tab === "sessions" && <UserSessionPanel />}
       {tab === "config-drift" && <ConfigDriftPanel />}
       {tab === "bookmarks" && <BookmarksPanel />}
+      {tab === "breach-alerts" && <BreachAlertsPanel />}
     </div>
   );
 }
@@ -1322,6 +1326,180 @@ function ConfigDriftPanel() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+interface BreachAlert {
+  id: string;
+  type: string;
+  severity: string;
+  title: string;
+  detail: string;
+  timestamp: string;
+  actionRequired: boolean;
+}
+
+interface BreachAlertsData {
+  breachMode: "active" | "elevated" | "monitoring" | "normal";
+  totalAlerts: number;
+  actionRequired: number;
+  alerts: BreachAlert[];
+  lockdownActive: boolean;
+  recentAnomalyCount: number;
+  configChangeCount: number;
+}
+
+const BREACH_MODE_CONFIG: Record<string, { label: string; color: string; borderColor: string; bgColor: string }> = {
+  active: { label: "BREACH ACTIVE", color: "text-rose-400", borderColor: "border-rose-500", bgColor: "bg-rose-500/5" },
+  elevated: { label: "ELEVATED THREAT", color: "text-orange-400", borderColor: "border-orange-500", bgColor: "bg-orange-500/5" },
+  monitoring: { label: "MONITORING", color: "text-amber-400", borderColor: "border-amber-500", bgColor: "bg-amber-500/5" },
+  normal: { label: "ALL CLEAR", color: "text-emerald-400", borderColor: "border-emerald-500", bgColor: "bg-emerald-500/5" },
+};
+
+const ALERT_TYPE_ICONS: Record<string, typeof Siren> = {
+  lockdown_active: Lock,
+  config_change: FileWarning,
+  security_event: ShieldAlert,
+};
+
+function BreachAlertsPanel() {
+  const [data, setData] = useState<BreachAlertsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAlerts = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const res = await fetch("/api/openclaw/breach-alerts");
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      if (json.breachMode) setData(json);
+    } catch {
+      if (!isRefresh) setData(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { fetchAlerts(); }, []);
+
+  if (loading) return <CyberLoading text="Checking breach alerts..." />;
+  if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load breach alert data. Please try again.</div>;
+
+  const modeConfig = BREACH_MODE_CONFIG[data.breachMode] || BREACH_MODE_CONFIG.normal;
+
+  return (
+    <>
+      <div className={`glass-panel p-4 rounded-xl mb-6 border-l-4 ${modeConfig.borderColor} ${modeConfig.bgColor}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg bg-black/40 ${modeConfig.color}`}>
+              <Siren className={`w-6 h-6 ${data.breachMode === "active" ? "animate-pulse" : ""}`} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg uppercase tracking-wider text-white">
+                Breach Status: <span className={modeConfig.color}>{modeConfig.label}</span>
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {data.totalAlerts} alert{data.totalAlerts !== 1 ? "s" : ""}
+                {data.actionRequired > 0 && <> · <span className="text-rose-400">{data.actionRequired} require action</span></>}
+                {data.lockdownActive && <> · <span className="text-rose-400 font-bold">Lockdown Active</span></>}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchAlerts(true)}
+            disabled={refreshing}
+            className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wider border border-white/10 text-muted-foreground hover:text-white hover:border-white/20 transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: "Total Alerts", value: data.totalAlerts, icon: AlertTriangle, color: data.totalAlerts > 0 ? "text-amber-400" : "text-emerald-400" },
+          { label: "Action Required", value: data.actionRequired, icon: Zap, color: data.actionRequired > 0 ? "text-rose-400" : "text-emerald-400" },
+          { label: "Anomalies (6h)", value: data.recentAnomalyCount, icon: Activity, color: data.recentAnomalyCount > 0 ? "text-orange-400" : "text-emerald-400" },
+          { label: "Config Changes", value: data.configChangeCount, icon: FileWarning, color: data.configChangeCount > 0 ? "text-amber-400" : "text-emerald-400" },
+        ].map((card) => (
+          <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">{card.label}</span>
+            </div>
+            <p className={`text-2xl font-mono font-bold ${card.color}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {data.alerts.length === 0 ? (
+        <div className="text-center py-12">
+          <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+          <p className="font-display text-sm uppercase tracking-wider text-emerald-400">No Active Breach Alerts</p>
+          <p className="text-xs text-muted-foreground mt-1">All systems operating normally. No post-breach anomalies detected.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.alerts.map((alert) => {
+            const Icon = ALERT_TYPE_ICONS[alert.type] || (alert.type.startsWith("anomaly_") ? Bug : ShieldAlert);
+            const severityColor =
+              alert.severity === "critical" ? "border-rose-500 bg-rose-500/[0.03]" :
+              alert.severity === "high" ? "border-orange-500 bg-orange-500/[0.03]" :
+              alert.severity === "warning" ? "border-amber-500 bg-amber-500/[0.03]" :
+              "border-blue-500 bg-blue-500/[0.03]";
+            const severityBadge =
+              alert.severity === "critical" ? "bg-rose-500/20 text-rose-400 border-rose-500/30" :
+              alert.severity === "high" ? "bg-orange-500/20 text-orange-400 border-orange-500/30" :
+              alert.severity === "warning" ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+              "bg-blue-500/20 text-blue-400 border-blue-500/30";
+            const iconColor =
+              alert.severity === "critical" ? "text-rose-400" :
+              alert.severity === "high" ? "text-orange-400" :
+              alert.severity === "warning" ? "text-amber-400" : "text-blue-400";
+
+            return (
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`glass-panel rounded-xl border-l-4 p-4 ${severityColor}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg bg-black/40 shrink-0 ${iconColor}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border ${severityBadge}`}>
+                        {alert.severity}
+                      </span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border bg-white/5 border-white/10 text-muted-foreground">
+                        {alert.type.replace(/_/g, " ")}
+                      </span>
+                      {alert.actionRequired && (
+                        <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border bg-rose-500/20 text-rose-400 border-rose-500/30 animate-pulse">
+                          Action Required
+                        </span>
+                      )}
+                      <span className="text-[10px] font-mono text-muted-foreground">{alert.id}</span>
+                    </div>
+                    <h4 className="text-sm font-display text-white mb-1">{alert.title.replace(/_/g, " ")}</h4>
+                    <p className="text-xs text-muted-foreground">{alert.detail}</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                    {format(new Date(alert.timestamp), "MMM dd, HH:mm")}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
