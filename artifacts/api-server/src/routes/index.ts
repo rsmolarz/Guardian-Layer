@@ -23,6 +23,7 @@ import threatIntelRouter from "./threat-intel";
 import ipManagementRouter from "./ip-management";
 import breachRouter from "./breach";
 import gatewayRouter from "./gateway";
+import securityAgentRouter from "./security-agent";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(threatIntelRouter);
 router.use(ipManagementRouter);
 router.use(breachRouter);
 router.use(gatewayRouter);
+router.use(securityAgentRouter);
 
 export default router;

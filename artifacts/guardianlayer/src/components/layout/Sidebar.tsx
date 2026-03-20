@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive, ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio } from "lucide-react";
+import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive, ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
 
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/threat-intel", label: "Threat Intel Hub", icon: Radar },
   { href: "/breach-response", label: "Breach Response", icon: Siren },
   { href: "/api-gateway", label: "API Gateway", icon: Radio },
+  { href: "/alert-center", label: "Alert Center", icon: BellRing },
 ];
 
 export function Sidebar() {

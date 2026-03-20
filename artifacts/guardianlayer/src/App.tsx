@@ -26,9 +26,12 @@ import WorkspaceMonitor from "@/pages/WorkspaceMonitor";
 import ThreatIntel from "@/pages/ThreatIntel";
 import BreachResponse from "@/pages/BreachResponse";
 import ApiDeck from "@/pages/ApiDeck";
+import AlertCenter from "@/pages/AlertCenter";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
+import { AlertProvider } from "@/components/AlertSystem";
+import { SecurityAgent } from "@/components/SecurityAgent";
 import { useLocation } from "wouter";
 import { useState } from "react";
 
@@ -74,9 +77,11 @@ function Router() {
         <Route path="/threat-intel" component={ThreatIntel} />
         <Route path="/breach-response" component={BreachResponse} />
         <Route path="/api-gateway" component={ApiDeck} />
+        <Route path="/alert-center" component={AlertCenter} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />
+      <SecurityAgent />
       <ThreatChatButton onClick={() => setChatOpen(true)} />
       <ThreatChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </AppLayout>
@@ -88,7 +93,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AlertProvider>
+            <Router />
+          </AlertProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
