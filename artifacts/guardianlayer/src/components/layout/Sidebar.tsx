@@ -1,37 +1,117 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye, Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive, ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing } from "lucide-react";
+import {
+  Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
+  Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
+  ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
+} from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: Activity },
-  { href: "/approvals", label: "Approvals", icon: CheckSquare },
-  { href: "/alerts", label: "Security Alerts", icon: Bell },
-  { href: "/email-security", label: "Email Security", icon: Mail },
-  { href: "/endpoints", label: "Device Security", icon: Laptop },
-  { href: "/network", label: "Network Security", icon: Network },
-  { href: "/yubikey", label: "Security Keys", icon: Key },
-  { href: "/openclaw", label: "Contract Monitor", icon: Scale },
-  { href: "/integrations", label: "Connected Services", icon: Plug2 },
-  { href: "/monitoring", label: "System Health", icon: Monitor },
-  { href: "/dark-web", label: "Data Exposure", icon: Eye },
-  { href: "/recovery", label: "Recovery Center", icon: RefreshCw },
-  { href: "/disaster-recovery", label: "Disaster Recovery", icon: ShieldAlert },
-  { href: "/threat-neutralization", label: "Threat Response", icon: Crosshair },
-  { href: "/glossary", label: "Glossary", icon: BookOpen },
-  { href: "/backups", label: "Backups", icon: HardDrive },
-  { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
-  { href: "/threat-intel", label: "Threat Intel Hub", icon: Radar },
-  { href: "/breach-response", label: "Breach Response", icon: Siren },
-  { href: "/api-gateway", label: "API Gateway", icon: Radio },
-  { href: "/alert-center", label: "Alert Center", icon: BellRing },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof Shield;
+}
+
+interface NavGroup {
+  label: string;
+  icon: typeof Shield;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Security",
+    icon: Shield,
+    items: [
+      { href: "/alerts", label: "Security Alerts", icon: Bell },
+      { href: "/email-security", label: "Email Security", icon: Mail },
+      { href: "/endpoints", label: "Device Security", icon: Laptop },
+      { href: "/network", label: "Network Security", icon: Network },
+      { href: "/yubikey", label: "Security Keys", icon: Key },
+    ],
+  },
+  {
+    label: "Threats & Response",
+    icon: Crosshair,
+    items: [
+      { href: "/threat-intel", label: "Threat Intel Hub", icon: Radar },
+      { href: "/threat-neutralization", label: "Threat Response", icon: Crosshair },
+      { href: "/breach-response", label: "Breach Response", icon: Siren },
+      { href: "/dark-web", label: "Data Exposure", icon: Eye },
+      { href: "/alert-center", label: "Alert Center", icon: BellRing },
+    ],
+  },
+  {
+    label: "Recovery",
+    icon: RefreshCw,
+    items: [
+      { href: "/recovery", label: "Recovery Center", icon: RefreshCw },
+      { href: "/disaster-recovery", label: "Disaster Recovery", icon: ShieldAlert },
+      { href: "/backups", label: "Backups", icon: HardDrive },
+    ],
+  },
+  {
+    label: "Operations",
+    icon: Monitor,
+    items: [
+      { href: "/transactions", label: "Transactions", icon: Activity },
+      { href: "/approvals", label: "Approvals", icon: CheckSquare },
+      { href: "/monitoring", label: "System Health", icon: Monitor },
+      { href: "/openclaw", label: "Contract Monitor", icon: Scale },
+      { href: "/integrations", label: "Connected Services", icon: Plug2 },
+      { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
+    ],
+  },
+  {
+    label: "Developer",
+    icon: Radio,
+    items: [
+      { href: "/api-gateway", label: "API Gateway", icon: Radio },
+      { href: "/glossary", label: "Glossary", icon: BookOpen },
+    ],
+  },
 ];
+
+function findGroupForPath(path: string): string | null {
+  for (const group of NAV_GROUPS) {
+    if (group.items.some(item => item.href === path)) {
+      return group.label;
+    }
+  }
+  return null;
+}
 
 export function Sidebar() {
   const [location] = useLocation();
   const { data: lockdownStatus } = useGetLockdownStatus();
   const isLockdownActive = lockdownStatus?.isActive ?? false;
+
+  const activeGroup = findGroupForPath(location);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    if (activeGroup) initial.add(activeGroup);
+    return initial;
+  });
+
+  useEffect(() => {
+    if (activeGroup && !openGroups.has(activeGroup)) {
+      setOpenGroups(prev => new Set(prev).add(activeGroup));
+    }
+  }, [activeGroup]);
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  };
 
   return (
     <aside className="w-64 fixed inset-y-0 left-0 z-50 glass-panel border-r-white/5 flex flex-col">
@@ -73,25 +153,76 @@ export function Sidebar() {
           </div>
         </Link>
 
-        {NAV_ITEMS.map((item) => {
-          const isActive = location === item.href;
-          return (
-            <Link key={item.href} href={item.href} className="block">
-              <div className={clsx(
-                "flex items-center px-4 py-3 rounded-xl font-display text-sm uppercase tracking-wider transition-all duration-300 relative overflow-hidden group cursor-pointer",
-                isActive 
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]" 
-                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-              )}>
-                {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_10px_rgba(6,182,212,1)]" />
-                )}
-                <item.icon className={clsx("w-5 h-5 mr-3 transition-transform group-hover:scale-110", isActive && "text-primary")} />
-                {item.label}
+        <Link href="/" className="block">
+          <div className={clsx(
+            "flex items-center px-4 py-3 rounded-xl font-display text-sm uppercase tracking-wider transition-all duration-300 relative overflow-hidden group cursor-pointer",
+            location === "/"
+              ? "bg-primary/10 text-primary border border-primary/20 shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]"
+              : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+          )}>
+            {location === "/" && (
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-[0_0_10px_rgba(6,182,212,1)]" />
+            )}
+            <LayoutDashboard className={clsx("w-5 h-5 mr-3 transition-transform group-hover:scale-110", location === "/" && "text-primary")} />
+            Dashboard
+          </div>
+        </Link>
+
+        <div className="pt-2 space-y-0.5">
+          {NAV_GROUPS.map((group) => {
+            const isOpen = openGroups.has(group.label);
+            const hasActiveChild = group.items.some(item => item.href === location);
+            const GroupIcon = group.icon;
+
+            return (
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={clsx(
+                    "w-full flex items-center px-4 py-2.5 rounded-xl font-display text-[11px] uppercase tracking-widest transition-all duration-200 group",
+                    hasActiveChild
+                      ? "text-primary bg-primary/5"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  )}
+                >
+                  <GroupIcon className="w-4 h-4 mr-3 shrink-0" />
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <ChevronDown className={clsx(
+                    "w-3.5 h-3.5 shrink-0 transition-transform duration-200",
+                    isOpen && "rotate-180"
+                  )} />
+                </button>
+
+                <div className={clsx(
+                  "overflow-hidden transition-all duration-200",
+                  isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                )}>
+                  <div className="pl-3 py-1 space-y-0.5">
+                    {group.items.map((item) => {
+                      const isActive = location === item.href;
+                      return (
+                        <Link key={item.href} href={item.href} className="block">
+                          <div className={clsx(
+                            "flex items-center px-3 py-2 rounded-lg font-display text-xs uppercase tracking-wider transition-all duration-200 relative overflow-hidden group cursor-pointer",
+                            isActive
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                          )}>
+                            {isActive && (
+                              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary shadow-[0_0_8px_rgba(6,182,212,1)]" />
+                            )}
+                            <item.icon className={clsx("w-4 h-4 mr-2.5 transition-transform group-hover:scale-110", isActive && "text-primary")} />
+                            {item.label}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </Link>
-          );
-        })}
+            );
+          })}
+        </div>
       </nav>
 
       <div className="p-6 border-t border-white/5">

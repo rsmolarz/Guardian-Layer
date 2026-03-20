@@ -24,6 +24,12 @@ import {
   HardDrive,
   Users,
   Rocket,
+  Key,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
@@ -91,7 +97,7 @@ interface EventEntry {
   createdAt: string;
 }
 
-type DeckTab = "routes" | "status" | "events" | "publish";
+type DeckTab = "routes" | "status" | "events" | "publish" | "api-keys";
 
 export default function ApiDeck() {
   const [tab, setTab] = useState<DeckTab>("routes");
@@ -116,9 +122,10 @@ export default function ApiDeck() {
         />
       </div>
 
-      <div className="mb-6 flex gap-1 glass-panel p-1.5 rounded-xl w-fit">
+      <div className="mb-6 flex gap-1 glass-panel p-1.5 rounded-xl w-fit flex-wrap">
         {([
           { id: "routes" as DeckTab, label: "Endpoints", icon: Layers },
+          { id: "api-keys" as DeckTab, label: "API Keys", icon: Key },
           { id: "status" as DeckTab, label: "Gateway Status", icon: Activity },
           { id: "events" as DeckTab, label: "Event Stream", icon: Radio },
           { id: "publish" as DeckTab, label: "Publish Event", icon: Send },
@@ -138,6 +145,7 @@ export default function ApiDeck() {
       </div>
 
       {tab === "routes" && <RoutesPanel />}
+      {tab === "api-keys" && <ApiKeysPanel />}
       {tab === "status" && <StatusPanel />}
       {tab === "events" && <EventStreamPanel />}
       {tab === "publish" && <PublishPanel />}
@@ -665,6 +673,336 @@ function PublishPanel() {
             </>
           )}
         </button>
+      </div>
+    </div>
+  );
+}
+
+interface ApiKeyEntry {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  scopes: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revoked: boolean;
+  createdAt: string;
+}
+
+function ApiKeysPanel() {
+  const [keys, setKeys] = useState<ApiKeyEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyScopes, setNewKeyScopes] = useState("read,write");
+  const [newKeyExpiry, setNewKeyExpiry] = useState("90");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [revoking, setRevoking] = useState<number | null>(null);
+
+  const fetchKeys = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/gateway/api-keys`);
+      if (!r.ok) throw new Error("Failed");
+      const d = await r.json();
+      setKeys(d.keys || []);
+    } catch {
+      setKeys([]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchKeys(); }, []);
+
+  const handleCreate = async () => {
+    if (!newKeyName.trim()) return;
+    setCreating(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/gateway/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          scopes: newKeyScopes,
+          expiresInDays: newKeyExpiry ? parseInt(newKeyExpiry, 10) : undefined,
+        }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      const d = await r.json();
+      setRevealedKey(d.rawKey);
+      setShowCreate(false);
+      setNewKeyName("");
+      fetchKeys();
+    } catch {
+      alert("Failed to create API key");
+    }
+    setCreating(false);
+  };
+
+  const handleRevoke = async (id: number) => {
+    setRevoking(id);
+    try {
+      const r = await fetch(`${API_BASE}/api/gateway/api-keys/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Failed");
+      fetchKeys();
+    } catch {
+      alert("Failed to revoke key");
+    }
+    setRevoking(null);
+  };
+
+  const copyKey = () => {
+    if (revealedKey) {
+      navigator.clipboard.writeText(revealedKey);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    }
+  };
+
+  const activeKeys = keys.filter(k => !k.revoked);
+  const revokedKeys = keys.filter(k => k.revoked);
+
+  if (loading) return <CyberLoading text="Loading API keys..." />;
+
+  return (
+    <div className="space-y-6">
+      <AnimatePresence>
+        {revealedKey && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="glass-panel rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Key className="w-5 h-5 text-emerald-400" />
+              <h3 className="font-display text-sm uppercase tracking-widest text-emerald-400">API Key Created</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Copy this key now — it will never be shown again. Use it in the <code className="text-primary">Authorization</code> header as <code className="text-primary">Bearer {'<key>'}</code>.
+            </p>
+            <div className="flex items-center gap-2 bg-black/40 rounded-lg p-3 border border-white/10">
+              <code className="flex-1 text-sm text-emerald-300 font-mono break-all select-all">{revealedKey}</code>
+              <button
+                onClick={copyKey}
+                className="shrink-0 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+              >
+                {copiedKey ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setRevealedKey(null)}
+                className="text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+              >
+                I've saved this key
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-display text-sm uppercase tracking-widest text-white flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" />
+            Your API Keys
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Create API keys to access GuardianLayer from external systems, scripts, or integrations.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary font-display text-xs uppercase tracking-widest hover:bg-primary/30 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create API Key
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-panel rounded-xl p-5 border border-primary/20 space-y-4">
+              <h4 className="font-display text-xs uppercase tracking-widest text-primary">Create New API Key</h4>
+
+              <div>
+                <label className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1.5">Key Name</label>
+                <input
+                  type="text"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  placeholder="e.g., CI/CD Pipeline, SIEM Integration, Monitoring Script"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1.5">Permissions</label>
+                  <select
+                    value={newKeyScopes}
+                    onChange={(e) => setNewKeyScopes(e.target.value)}
+                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/40"
+                  >
+                    <option value="read">Read Only</option>
+                    <option value="read,write">Read & Write</option>
+                    <option value="read,write,admin">Full Access</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block mb-1.5">Expires In</label>
+                  <select
+                    value={newKeyExpiry}
+                    onChange={(e) => setNewKeyExpiry(e.target.value)}
+                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/40"
+                  >
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="180">6 months</option>
+                    <option value="365">1 year</option>
+                    <option value="">Never</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={creating || !newKeyName.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary font-display text-xs uppercase tracking-widest hover:bg-primary/30 transition-colors disabled:opacity-40"
+                >
+                  {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Key className="w-3 h-3" />}
+                  {creating ? "Creating..." : "Generate Key"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {activeKeys.length === 0 && !showCreate ? (
+        <div className="glass-panel rounded-xl p-12 text-center border-dashed border-2 border-white/5">
+          <Key className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground mb-1">No API keys yet</p>
+          <p className="text-xs text-muted-foreground/60">Create a key to start accessing GuardianLayer from external systems.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {activeKeys.map((k, i) => (
+            <motion.div
+              key={k.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="glass-panel rounded-xl p-4 flex items-center gap-4"
+            >
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Key className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-display text-white">{k.name}</span>
+                  <code className="text-[10px] font-mono text-muted-foreground bg-white/5 px-2 py-0.5 rounded">{k.keyPrefix}</code>
+                </div>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    Scopes: {k.scopes.split(",").map(s => s.trim()).join(", ")}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    Created: {format(new Date(k.createdAt), "MMM d, yyyy")}
+                  </span>
+                  {k.expiresAt && (
+                    <span className={clsx(
+                      "text-[10px] font-mono",
+                      new Date(k.expiresAt) < new Date() ? "text-rose-400" : "text-muted-foreground"
+                    )}>
+                      {new Date(k.expiresAt) < new Date() ? "Expired" : `Expires: ${format(new Date(k.expiresAt), "MMM d, yyyy")}`}
+                    </span>
+                  )}
+                  {k.lastUsedAt && (
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Last used: {format(new Date(k.lastUsedAt), "MMM d, h:mm a")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => handleRevoke(k.id)}
+                disabled={revoking === k.id}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+              >
+                {revoking === k.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                Revoke
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {revokedKeys.length > 0 && (
+        <div>
+          <h4 className="font-display text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Revoked Keys</h4>
+          <div className="space-y-1">
+            {revokedKeys.map((k) => (
+              <div key={k.id} className="glass-panel rounded-lg p-3 flex items-center gap-3 opacity-50">
+                <Key className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs font-display text-muted-foreground line-through">{k.name}</span>
+                <code className="text-[9px] font-mono text-muted-foreground/60">{k.keyPrefix}</code>
+                <span className="text-[9px] font-mono text-rose-400/60 ml-auto">REVOKED</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="glass-panel rounded-xl p-5 border border-white/5">
+        <h4 className="font-display text-xs uppercase tracking-widest text-white mb-3 flex items-center gap-2">
+          <Terminal className="w-4 h-4 text-primary" />
+          How to Use Your API Key
+        </h4>
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1.5">HTTP Header</p>
+            <code className="block text-xs font-mono text-primary bg-black/40 p-3 rounded-lg border border-white/5">
+              Authorization: Bearer gl_your_api_key_here
+            </code>
+          </div>
+          <div>
+            <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1.5">cURL Example</p>
+            <code className="block text-xs font-mono text-primary bg-black/40 p-3 rounded-lg border border-white/5 whitespace-pre-wrap">
+              {`curl -H "Authorization: Bearer gl_your_api_key_here" \\
+  https://your-domain/api/gateway/status`}
+            </code>
+          </div>
+          <div>
+            <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-1.5">Python Example</p>
+            <code className="block text-xs font-mono text-primary bg-black/40 p-3 rounded-lg border border-white/5 whitespace-pre-wrap">
+              {`import requests
+
+headers = {"Authorization": "Bearer gl_your_api_key_here"}
+response = requests.get(
+    "https://your-domain/api/gateway/status",
+    headers=headers
+)
+print(response.json())`}
+            </code>
+          </div>
+        </div>
       </div>
     </div>
   );

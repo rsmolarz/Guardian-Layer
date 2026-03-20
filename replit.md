@@ -24,7 +24,8 @@ The project is built as a pnpm monorepo using TypeScript. The frontend uses Reac
 *   **OpenClaw Monitor:** Provides AI contract monitoring, UI Health Monitor, API Security Scanner, User Session Monitor, Configuration Drift Detector, URL Bookmarks, and Breach Alerts for post-breach monitoring.
 *   **Breach Incident Dashboard:** A dedicated page `/breach-response` for real-time breach status, anomaly stats, IP activity tracking, and incident timelines.
 *   **Automated Lockdown Triggers:** An anomaly engine (`artifacts/api-server/src/lib/anomaly-engine.ts`) activates emergency lockdown based on configurable thresholds.
-*   **API Gateway & Event Bus:** A centralized API gateway at `/api-gateway` with a 4-tab UI and an in-process event bus for inter-service communication, persisting events to PostgreSQL.
+*   **API Gateway & Event Bus:** A centralized API gateway at `/api-gateway` with a 5-tab UI (Endpoints, API Keys, Gateway Status, Event Stream, Publish Event) and an in-process event bus for inter-service communication, persisting events to PostgreSQL. Includes API key management (create, list, revoke) with SHA-256 hashed key storage in `api_keys` table, masked prefix display, scope/expiry controls, and usage examples.
+*   **Sidebar Navigation:** Collapsible dropdown groups (Security, Threats & Response, Recovery, Operations, Developer) with auto-expansion of active route's parent group. Lockdown and Dashboard always visible at top.
 *   **Security Agent:** An AI-powered floating security posture monitor accessible from any page, providing real-time audits and a scored report.
 *   **Multi-Channel Alert System:** Enterprise alert management at `/alert-center` with configurable preferences and delivery via In-App, Browser Push, Email (Gmail), and Alert Sounds.
 *   **External Linkages:** Manages integration statuses with third-party services.

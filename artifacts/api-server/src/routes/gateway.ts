@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { desc, eq, sql, gte } from "drizzle-orm";
-import { db, systemEventsTable } from "@workspace/db";
+import { desc, eq, sql, gte, and } from "drizzle-orm";
+import crypto from "crypto";
+import { db, systemEventsTable, apiKeysTable } from "@workspace/db";
 import { publishEvent, getEventBusStats, getRecentEvents } from "../lib/event-bus";
 import { logActivity } from "../lib/activity-logger";
 
@@ -190,14 +191,17 @@ router.post("/gateway/backup", async (req, res): Promise<void> => {
 router.get("/gateway/routes", async (_req, res): Promise<void> => {
   res.json({
     routes: [
-      { method: "GET", path: "/api/gateway/status", description: "Gateway health + event bus stats + recent events", auth: "session/bearer" },
-      { method: "GET", path: "/api/gateway/events", description: "Paginated event stream with optional type filter", auth: "session/bearer", params: "?limit=50&offset=0&type=task_completed" },
-      { method: "POST", path: "/api/gateway/event", description: "Publish arbitrary events to the event bus", auth: "session/bearer", body: "{ type, payload, source }" },
-      { method: "POST", path: "/api/gateway/task", description: "Submit tasks via the event bus", auth: "session/bearer", body: "{ taskName, taskId?, assignee?, priority?, payload? }" },
-      { method: "POST", path: "/api/gateway/agent/register", description: "Register agent via event bus", auth: "session/bearer", body: "{ agentId, agentName, capabilities? }" },
-      { method: "POST", path: "/api/gateway/deploy", description: "Trigger deployment events", auth: "session/bearer", body: "{ environment?, version?, service? }" },
-      { method: "POST", path: "/api/gateway/backup", description: "Trigger backup with event lifecycle", auth: "session/bearer", body: "{ targets?, initiatedBy? }" },
+      { method: "GET", path: "/api/gateway/status", description: "Gateway health + event bus stats + recent events", auth: "session/bearer/api-key" },
+      { method: "GET", path: "/api/gateway/events", description: "Paginated event stream with optional type filter", auth: "session/bearer/api-key", params: "?limit=50&offset=0&type=task_completed" },
+      { method: "POST", path: "/api/gateway/event", description: "Publish arbitrary events to the event bus", auth: "session/bearer/api-key", body: "{ type, payload, source }" },
+      { method: "POST", path: "/api/gateway/task", description: "Submit tasks via the event bus", auth: "session/bearer/api-key", body: "{ taskName, taskId?, assignee?, priority?, payload? }" },
+      { method: "POST", path: "/api/gateway/agent/register", description: "Register agent via event bus", auth: "session/bearer/api-key", body: "{ agentId, agentName, capabilities? }" },
+      { method: "POST", path: "/api/gateway/deploy", description: "Trigger deployment events", auth: "session/bearer/api-key", body: "{ environment?, version?, service? }" },
+      { method: "POST", path: "/api/gateway/backup", description: "Trigger backup with event lifecycle", auth: "session/bearer/api-key", body: "{ targets?, initiatedBy? }" },
       { method: "GET", path: "/api/gateway/routes", description: "List all gateway API routes (this endpoint)", auth: "none" },
+      { method: "GET", path: "/api/gateway/api-keys", description: "List all API keys (masked)", auth: "session" },
+      { method: "POST", path: "/api/gateway/api-keys", description: "Create a new API key", auth: "session", body: "{ name, scopes?, expiresInDays? }" },
+      { method: "DELETE", path: "/api/gateway/api-keys/:id", description: "Revoke an API key", auth: "session" },
     ],
     eventTypes: [
       "task_requested", "task_started", "task_progress", "task_completed", "task_failed",
@@ -206,6 +210,115 @@ router.get("/gateway/routes", async (_req, res): Promise<void> => {
       "backup_started", "backup_completed", "backup_failed",
     ],
   });
+});
+
+function generateApiKey(): string {
+  const prefix = "gl_";
+  const key = crypto.randomBytes(32).toString("base64url");
+  return `${prefix}${key}`;
+}
+
+function hashKey(key: string): string {
+  return crypto.createHash("sha256").update(key).digest("hex");
+}
+
+router.get("/gateway/api-keys", async (_req, res): Promise<void> => {
+  try {
+    const keys = await db
+      .select({
+        id: apiKeysTable.id,
+        name: apiKeysTable.name,
+        keyPrefix: apiKeysTable.keyPrefix,
+        scopes: apiKeysTable.scopes,
+        lastUsedAt: apiKeysTable.lastUsedAt,
+        expiresAt: apiKeysTable.expiresAt,
+        revoked: apiKeysTable.revoked,
+        createdAt: apiKeysTable.createdAt,
+      })
+      .from(apiKeysTable)
+      .orderBy(desc(apiKeysTable.createdAt));
+
+    res.json({ keys });
+  } catch (err: any) {
+    console.error("[gateway] GET /api-keys failed:", err.message);
+    res.status(500).json({ error: "Failed to list API keys" });
+  }
+});
+
+router.post("/gateway/api-keys", async (req, res): Promise<void> => {
+  try {
+    const { name, scopes, expiresInDays } = req.body;
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      res.status(400).json({ error: "Name is required" });
+      return;
+    }
+
+    const rawKey = generateApiKey();
+    const keyHash = hashKey(rawKey);
+    const keyPrefix = rawKey.substring(0, 10) + "...";
+    const scopeStr = scopes || "read,write";
+    const expiresAt = expiresInDays
+      ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+      : null;
+
+    const [created] = await db.insert(apiKeysTable).values({
+      name: name.trim(),
+      keyPrefix,
+      keyHash,
+      scopes: scopeStr,
+      expiresAt,
+      revoked: false,
+    }).returning();
+
+    await logActivity({
+      action: "API_KEY_CREATED",
+      category: "gateway",
+      source: "api_gateway",
+      detail: `API key "${name.trim()}" created with scopes: ${scopeStr}`,
+    });
+
+    res.json({
+      key: created,
+      rawKey,
+      message: "Store this key securely — it won't be shown again.",
+    });
+  } catch (err: any) {
+    console.error("[gateway] POST /api-keys failed:", err.message);
+    res.status(500).json({ error: "Failed to create API key" });
+  }
+});
+
+router.delete("/gateway/api-keys/:id", async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid key ID" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(apiKeysTable)
+      .set({ revoked: true })
+      .where(eq(apiKeysTable.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "API key not found" });
+      return;
+    }
+
+    await logActivity({
+      action: "API_KEY_REVOKED",
+      category: "gateway",
+      source: "api_gateway",
+      detail: `API key "${updated.name}" (ID: ${id}) has been revoked`,
+    });
+
+    res.json({ success: true, key: updated });
+  } catch (err: any) {
+    console.error("[gateway] DELETE /api-keys/:id failed:", err.message);
+    res.status(500).json({ error: "Failed to revoke API key" });
+  }
 });
 
 export default router;
