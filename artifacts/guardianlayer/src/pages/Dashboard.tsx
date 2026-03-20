@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, ShieldAlert, ShieldCheck, Zap, Ban, Database, Bot, Send, AlertTriangle, Link2, Radio, MessageSquare, X } from "lucide-react";
+import { Activity, ShieldAlert, ShieldCheck, Zap, Ban, Database, Bot, Send, AlertTriangle, Link2, Radio, MessageSquare, X, Crosshair, Landmark } from "lucide-react";
+import { ThreatEvaluator } from "@/components/ThreatEvaluator";
 import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area } from "recharts";
 
 import { SecurityHealthScore, calculateHealthGrade } from "@/components/clarity/SecurityHealthScore";
@@ -133,6 +134,11 @@ export default function Dashboard() {
     { role: "assistant", text: "Hi! I'm your security assistant. Ask me anything about your organization's security — threats, risks, compliance, or device status." },
   ]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [evaluatingThreat, setEvaluatingThreat] = useState<{
+    title: string; detail: string; severity: string;
+    sources?: string[]; confidence?: number;
+    timeline?: Array<{ time: string; title: string; description: string; status: string }>;
+  } | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -273,6 +279,36 @@ export default function Dashboard() {
                     severity={c.severity === "critical" ? "act-now" : c.severity === "high" ? "needs-attention" : "monitor"}
                   />
                 </div>
+                <div className="mt-3 pt-3 border-t border-white/5 flex gap-2">
+                  <button
+                    onClick={() => setEvaluatingThreat({
+                      title: c.title,
+                      detail: c.detail,
+                      severity: c.severity,
+                      sources: c.sources,
+                      confidence: c.confidence,
+                      timeline: c.timeline,
+                    })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-wider bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors"
+                  >
+                    <Crosshair className="w-3 h-3" />
+                    Evaluate & Eliminate
+                  </button>
+                  <button
+                    onClick={() => setEvaluatingThreat({
+                      title: c.title,
+                      detail: c.detail + " — FOCUS ON GOVERNMENT REPORTING REQUIREMENTS",
+                      severity: c.severity,
+                      sources: c.sources,
+                      confidence: c.confidence,
+                      timeline: c.timeline,
+                    })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Landmark className="w-3 h-3" />
+                    Report to Authorities
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -314,7 +350,33 @@ export default function Dashboard() {
                     <span className="text-[9px] font-mono text-muted-foreground">{item.source}</span>
                     <span className="text-[9px] font-mono text-muted-foreground ml-auto">{item.time}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{item.detail}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{item.detail}</p>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setEvaluatingThreat({
+                        title: item.detail.substring(0, 60),
+                        detail: item.detail,
+                        severity: item.type,
+                        sources: [item.source],
+                      })}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-display uppercase tracking-wider bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      <Crosshair className="w-2.5 h-2.5" />
+                      Evaluate
+                    </button>
+                    <button
+                      onClick={() => setEvaluatingThreat({
+                        title: item.detail.substring(0, 60),
+                        detail: item.detail + " — FOCUS ON GOVERNMENT REPORTING REQUIREMENTS",
+                        severity: item.type,
+                        sources: [item.source],
+                      })}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-display uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                    >
+                      <Landmark className="w-2.5 h-2.5" />
+                      Report
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -491,6 +553,13 @@ export default function Dashboard() {
       >
         <MessageSquare className="w-6 h-6" />
       </motion.button>
+
+      {evaluatingThreat && (
+        <ThreatEvaluator
+          threat={evaluatingThreat}
+          onClose={() => setEvaluatingThreat(null)}
+        />
+      )}
     </div>
   );
 }
