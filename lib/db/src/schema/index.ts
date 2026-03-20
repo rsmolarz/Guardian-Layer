@@ -18,3 +18,4 @@ export * from "./monitored-urls";
 export * from "./system-events";
 export * from "./api-keys";
 export * from "./security-settings";
+export * from "./domain-monitor";
