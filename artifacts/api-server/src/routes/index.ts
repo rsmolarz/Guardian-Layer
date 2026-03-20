@@ -25,6 +25,7 @@ import breachRouter from "./breach";
 import gatewayRouter from "./gateway";
 import securityAgentRouter from "./security-agent";
 import securitySettingsRouter from "./security-settings";
+import selfScanRouter from "./self-scan";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use(breachRouter);
 router.use(gatewayRouter);
 router.use(securityAgentRouter);
 router.use(securitySettingsRouter);
+router.use(selfScanRouter);
 
 export default router;

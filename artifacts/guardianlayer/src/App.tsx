@@ -28,6 +28,7 @@ import BreachResponse from "@/pages/BreachResponse";
 import ApiDeck from "@/pages/ApiDeck";
 import AlertCenter from "@/pages/AlertCenter";
 import SecuritySettings from "@/pages/SecuritySettings";
+import SelfScanner from "@/pages/SelfScanner";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -80,6 +81,7 @@ function Router() {
         <Route path="/api-gateway" component={ApiDeck} />
         <Route path="/alert-center" component={AlertCenter} />
         <Route path="/security-settings" component={SecuritySettings} />
+        <Route path="/self-scanner" component={SelfScanner} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />
