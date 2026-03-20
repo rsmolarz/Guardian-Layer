@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { monitoredDomainsTable, domainEmailsTable, domainBreachResultsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logActivity } from "../lib/activity-logger";
+import { getAgentStatus, updateAgentConfig, triggerManualScan } from "../lib/breach-agent";
 
 const router: IRouter = Router();
 
@@ -329,6 +330,41 @@ router.post("/domain-monitor/domains/:id/scan-all", async (req, res): Promise<vo
   } catch (err: any) {
     console.error("[domain-monitor] POST /domains/:id/scan-all failed:", err.message);
     res.status(500).json({ error: "Domain scan failed" });
+  }
+});
+
+router.get("/domain-monitor/agent/status", async (_req, res): Promise<void> => {
+  try {
+    res.json(getAgentStatus());
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to get agent status" });
+  }
+});
+
+router.post("/domain-monitor/agent/config", async (req, res): Promise<void> => {
+  try {
+    const { enabled, intervalHours, maxEmailsPerCycle } = req.body;
+    const config = updateAgentConfig({ enabled, intervalHours, maxEmailsPerCycle });
+
+    await logActivity({
+      action: "BREACH_AGENT_CONFIG",
+      category: "monitoring",
+      source: "breach_agent",
+      detail: `Agent config updated: enabled=${config.enabled}, interval=${config.intervalHours}h, max=${config.maxEmailsPerCycle}/cycle`,
+    });
+
+    res.json(config);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update agent config" });
+  }
+});
+
+router.post("/domain-monitor/agent/trigger", async (_req, res): Promise<void> => {
+  try {
+    const result = triggerManualScan();
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to trigger scan" });
   }
 });
 

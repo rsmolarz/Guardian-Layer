@@ -27,6 +27,11 @@ import {
   FileText,
   Server,
   Code,
+  Bot,
+  Power,
+  Clock,
+  Play,
+  Settings,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
@@ -244,6 +249,315 @@ function EmailBreachDetails({ emailId }: { emailId: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+interface AgentStatus {
+  config: { enabled: boolean; intervalHours: number; maxEmailsPerCycle: number };
+  running: boolean;
+  lastRunAt: string | null;
+  lastRunResults: {
+    startedAt: string;
+    completedAt: string;
+    emailsScanned: number;
+    newBreachesFound: number;
+    errors: number;
+    results: Array<{
+      email: string;
+      domain: string;
+      previousBreachCount: number;
+      currentBreachCount: number;
+      newBreaches: string[];
+      verdict: string;
+      error?: string;
+    }>;
+  } | null;
+  nextRunAt: string | null;
+  totalScansCompleted: number;
+  newBreachesFound: number;
+}
+
+function BreachAgentPanel({ onScanComplete }: { onScanComplete: () => void }) {
+  const [status, setStatus] = useState<AgentStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [configForm, setConfigForm] = useState({ intervalHours: 24, maxEmailsPerCycle: 50 });
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/api/domain-monitor/agent/status`);
+      const data = await r.json();
+      setStatus(data);
+      setConfigForm({
+        intervalHours: data.config.intervalHours,
+        maxEmailsPerCycle: data.config.maxEmailsPerCycle,
+      });
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!status?.running) return;
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, [status?.running, fetchStatus]);
+
+  const toggleAgent = async () => {
+    setSaving(true);
+    try {
+      await fetch(`${API_BASE}/api/domain-monitor/agent/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: !status?.config.enabled,
+          intervalHours: configForm.intervalHours,
+          maxEmailsPerCycle: configForm.maxEmailsPerCycle,
+        }),
+      });
+      await fetchStatus();
+      if (!status?.config.enabled) {
+        setTimeout(() => { fetchStatus(); onScanComplete(); }, 15000);
+      }
+    } catch {}
+    setSaving(false);
+  };
+
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      await fetch(`${API_BASE}/api/domain-monitor/agent/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: status?.config.enabled,
+          ...configForm,
+        }),
+      });
+      await fetchStatus();
+    } catch {}
+    setSaving(false);
+  };
+
+  const triggerScan = async () => {
+    setTriggering(true);
+    try {
+      await fetch(`${API_BASE}/api/domain-monitor/agent/trigger`, { method: "POST" });
+      await fetchStatus();
+      const pollInterval = setInterval(async () => {
+        const r = await fetch(`${API_BASE}/api/domain-monitor/agent/status`);
+        const data = await r.json();
+        setStatus(data);
+        if (!data.running) {
+          clearInterval(pollInterval);
+          setTriggering(false);
+          onScanComplete();
+        }
+      }, 3000);
+    } catch {
+      setTriggering(false);
+    }
+  };
+
+  if (loading) return null;
+
+  const isEnabled = status?.config.enabled ?? false;
+  const isRunningNow = status?.running ?? false;
+
+  return (
+    <div className={`border rounded-lg overflow-hidden ${
+      isEnabled
+        ? "bg-emerald-500/5 border-emerald-500/30"
+        : "bg-slate-800/30 border-slate-700/50"
+    }`}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-700/10 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${isEnabled ? "bg-emerald-500/20" : "bg-slate-700/50"}`}>
+            <Bot className={`w-5 h-5 ${isEnabled ? "text-emerald-400" : "text-slate-500"}`} />
+          </div>
+          <div className="text-left">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-semibold text-slate-200">BREACH AGENT</span>
+              {isRunningNow && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-cyan-400 animate-pulse">
+                  <Loader2 className="w-3 h-3 animate-spin" /> SCANNING
+                </span>
+              )}
+              {isEnabled && !isRunningNow && (
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">ACTIVE</span>
+              )}
+              {!isEnabled && (
+                <span className="text-[10px] font-mono text-slate-500 bg-slate-500/10 px-1.5 py-0.5 rounded">INACTIVE</span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isEnabled
+                ? `Scanning every ${status?.config.intervalHours}h · ${status?.totalScansCompleted || 0} cycles completed`
+                : "Automated breach scanning is disabled"
+              }
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {status?.newBreachesFound ? (
+            <span className="text-xs text-red-400 font-mono">{status.newBreachesFound} new breach(es)</span>
+          ) : null}
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={toggleAgent}
+                  disabled={saving}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-xs font-mono rounded transition-colors ${
+                    isEnabled
+                      ? "bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
+                      : "bg-emerald-600 text-white hover:bg-emerald-500"
+                  }`}
+                >
+                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
+                  {isEnabled ? "DISABLE AGENT" : "ENABLE AGENT"}
+                </button>
+
+                <button
+                  onClick={triggerScan}
+                  disabled={triggering || isRunningNow}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono border border-cyan-500/30 text-cyan-400 rounded hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                >
+                  {triggering || isRunningNow ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                  RUN NOW
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400 font-mono">SCAN INTERVAL (HOURS)</label>
+                  <div className="flex gap-2">
+                    {[1, 6, 12, 24, 48].map(h => (
+                      <button
+                        key={h}
+                        onClick={() => setConfigForm(p => ({ ...p, intervalHours: h }))}
+                        className={`px-2.5 py-1 text-xs font-mono rounded transition-colors ${
+                          configForm.intervalHours === h
+                            ? "bg-cyan-600 text-white"
+                            : "bg-slate-700/50 text-slate-400 hover:bg-slate-700"
+                        }`}
+                      >
+                        {h}h
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400 font-mono">MAX EMAILS PER CYCLE</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={configForm.maxEmailsPerCycle}
+                    onChange={e => setConfigForm(p => ({ ...p, maxEmailsPerCycle: Number(e.target.value) }))}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {(configForm.intervalHours !== status?.config.intervalHours ||
+                configForm.maxEmailsPerCycle !== status?.config.maxEmailsPerCycle) && (
+                <button
+                  onClick={saveConfig}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors"
+                >
+                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Settings className="w-3 h-3" />}
+                  SAVE CONFIG
+                </button>
+              )}
+
+              {status?.lastRunAt && (
+                <div className="bg-slate-900/40 border border-slate-700/30 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-slate-400">LAST RUN</span>
+                    <span className="text-xs text-slate-500">
+                      {formatDistanceToNow(new Date(status.lastRunAt), { addSuffix: true })}
+                    </span>
+                  </div>
+
+                  {status.lastRunResults && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="text-center">
+                        <div className="text-lg font-mono font-bold text-slate-200">
+                          {status.lastRunResults.emailsScanned}
+                        </div>
+                        <div className="text-[10px] text-slate-500">Scanned</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-lg font-mono font-bold ${
+                          status.lastRunResults.newBreachesFound > 0 ? "text-red-400" : "text-green-400"
+                        }`}>
+                          {status.lastRunResults.newBreachesFound}
+                        </div>
+                        <div className="text-[10px] text-slate-500">New Breaches</div>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-lg font-mono font-bold ${
+                          status.lastRunResults.errors > 0 ? "text-yellow-400" : "text-slate-300"
+                        }`}>
+                          {status.lastRunResults.errors}
+                        </div>
+                        <div className="text-[10px] text-slate-500">Errors</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {status.lastRunResults?.results && status.lastRunResults.results.length > 0 && (
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {status.lastRunResults.results.map((r, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs py-1 border-t border-slate-700/30">
+                          <span className="text-slate-300 font-mono truncate">{r.email}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {r.error ? (
+                              <span className="text-yellow-400">{r.error}</span>
+                            ) : r.newBreaches.length > 0 ? (
+                              <span className="text-red-400">{r.newBreaches.length} new</span>
+                            ) : (
+                              <span className="text-green-400">{r.verdict}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {status.nextRunAt && (
+                    <div className="flex items-center gap-1 text-xs text-slate-500 pt-1 border-t border-slate-700/30">
+                      <Clock className="w-3 h-3" />
+                      Next scan: {formatDistanceToNow(new Date(status.nextRunAt), { addSuffix: true })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -570,6 +884,8 @@ export default function DomainMonitor() {
         which accounts have been compromised. This also guides you through HIBP's domain
         verification process so you can unlock full domain-level breach searching.
       </WhyThisMatters>
+
+      <BreachAgentPanel onScanComplete={fetchDomains} />
 
       {!loading && domains.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
