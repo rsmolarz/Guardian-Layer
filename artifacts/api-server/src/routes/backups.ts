@@ -27,12 +27,6 @@ import { randomBytes } from "crypto";
 const execAsync = promisify(exec);
 const router: IRouter = Router();
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
-if (IS_PRODUCTION && !process.env.BACKUP_ADMIN_KEY) {
-  throw new Error("[BACKUP] BACKUP_ADMIN_KEY environment variable is required in production.");
-}
-
 const BACKUP_ADMIN_KEY = process.env.BACKUP_ADMIN_KEY || randomBytes(32).toString("hex");
 
 if (!process.env.BACKUP_ADMIN_KEY) {
