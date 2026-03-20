@@ -48,6 +48,7 @@ import { PlainEnglishThreatCard, getUrgencyFromSeverity } from "@/components/cla
 import { ThreatExplainer } from "@/components/clarity/ThreatExplainer";
 import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 import { RiskImpactCalculator } from "@/components/clarity/RiskImpactCalculator";
+import { RecoveryPlaybook } from "@/components/clarity/RecoveryPlaybook";
 import { AutoJargon } from "@/components/clarity/JargonTranslator";
 
 const DATA_TYPE_ICONS: Record<string, typeof ShieldAlert> = {
@@ -228,6 +229,20 @@ function ExposuresTab({
   expandedExposure: number | null;
   setExpandedExposure: (id: number | null) => void;
 }) {
+  const [completedPlaybookSteps, setCompletedPlaybookSteps] = useState<Record<number, Set<string>>>({});
+
+  const togglePlaybookStep = (exposureId: number, stepId: string) => {
+    setCompletedPlaybookSteps(prev => {
+      const current = prev[exposureId] || new Set<string>();
+      const next = new Set(current);
+      if (next.has(stepId)) {
+        next.delete(stepId);
+      } else {
+        next.add(stepId);
+      }
+      return { ...prev, [exposureId]: next };
+    });
+  };
   return (
     <div>
       <div className="mb-6 flex items-center gap-4 glass-panel p-2 rounded-xl inline-flex w-full md:w-auto overflow-x-auto">
@@ -368,19 +383,12 @@ function ExposuresTab({
                               : "Exposed personal data on the dark web puts you at risk of fraud, identity theft, or targeted attacks."
                           } />
 
-                          {actions.length > 0 && (
-                            <div>
-                              <h5 className="text-xs font-display uppercase tracking-widest text-primary mb-3">What You Should Do</h5>
-                              <ul className="space-y-2">
-                                {actions.map((action: string, i: number) => (
-                                  <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-                                    {action}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <RecoveryPlaybook
+                            dataType={exposure.dataType}
+                            sourceMarketplace={exposure.sourceMarketplace}
+                            completedSteps={completedPlaybookSteps[exposure.id] || new Set<string>()}
+                            onToggleStep={(stepId) => togglePlaybookStep(exposure.id, stepId)}
+                          />
                         </div>
                       </motion.div>
                     )}
