@@ -167,6 +167,16 @@ export default function AlertCenter() {
 
       <div className="h-px bg-gradient-to-r from-primary/50 via-primary/20 to-transparent" />
 
+      <div className="glass-panel border border-white/5 rounded-xl p-4 bg-white/[0.02]">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">How it works:</strong> The alert system watches for security events across the entire platform. When something important happens, you get notified through the channels you choose.
+          <strong className="text-white"> Alerts tab</strong> shows all alerts with color-coded severity — red is critical (act now), orange is high priority, yellow needs attention, blue is informational.
+          <strong className="text-white"> Preferences tab</strong> lets you control how you're notified — turn channels on/off and set the minimum severity for each.
+          <strong className="text-white"> Create Alert tab</strong> lets you manually create alerts for your team.
+          To make an alert go away, click the checkmark icon to dismiss it. Use "Dismiss All" to clear everything at once.
+        </p>
+      </div>
+
       {stats && (
         <div className="grid grid-cols-4 gap-4">
           {[

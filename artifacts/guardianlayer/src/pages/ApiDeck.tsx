@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 
 const API_BASE = "";
 
@@ -98,8 +100,21 @@ export default function ApiDeck() {
     <div className="pb-12">
       <PageHeader
         title="API Gateway"
-        description="Centralized API gateway with event bus routing, endpoint documentation, and real-time event monitoring."
+        description="Your central control panel for all system communication. See every connection, monitor live events, and test integrations."
       />
+
+      <div className="mb-6 space-y-3">
+        <WhyThisMatters explanation="The API Gateway is the central hub that connects all parts of the security platform together. Every action — from detecting a threat to sending an alert — flows through here. This page lets you monitor that traffic, check that everything is connected, and troubleshoot if something stops working." />
+        <ExecutiveSummary
+          title="API Gateway"
+          sections={[
+            { heading: "Endpoints Tab", content: "Shows every available connection point in the system. Think of these like phone numbers — other systems call these endpoints to communicate. Each card shows what the endpoint does and how to use it." },
+            { heading: "Gateway Status Tab", content: "A health check for the entire communication system. Shows how many events have been processed, how many listeners are active, and whether the gateway is working properly. Green 'OPERATIONAL' means everything is fine." },
+            { heading: "Event Stream Tab", content: "A live feed of every event flowing through the system — like a security camera for data. You can filter by event type and see exactly what happened and when." },
+            { heading: "Publish Event Tab", content: "Lets you manually send test events through the system. Use the quick presets to simulate common scenarios and verify the system responds correctly. This is mainly for testing and troubleshooting." },
+          ]}
+        />
+      </div>
 
       <div className="mb-6 flex gap-1 glass-panel p-1.5 rounded-xl w-fit">
         {([

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
+import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 import {
   Shield,
   AlertTriangle,
@@ -151,8 +153,21 @@ export default function BreachResponse() {
     <div className="space-y-6">
       <PageHeader
         title="Breach Incident Response"
-        description="Real-time breach detection, timeline analysis, and incident forensics"
+        description="Real-time breach detection, timeline analysis, and incident forensics."
       />
+
+      <div className="space-y-3">
+        <WhyThisMatters explanation="When a security breach happens, speed matters. This page shows you everything that has happened during a breach — what was attacked, which systems were affected, and the full timeline. Use it to understand what happened, what is still happening, and what you need to do next." />
+        <ExecutiveSummary
+          title="Breach Response"
+          sections={[
+            { heading: "What This Page Shows", content: "A real-time view of security incidents detected by the system. You'll see a timeline of events, which IP addresses and systems were involved, and whether the breach is still active or has been contained." },
+            { heading: "What the Status Badges Mean", content: "BREACH ACTIVE means an attack is currently happening and needs immediate attention. CONTAINED means the attack has been stopped but you should review what happened. MONITORING means the system is watching for follow-up attacks. ALL CLEAR means no active threats were detected in the selected time window." },
+            { heading: "What To Do", content: "If the status shows ACTIVE: go to Emergency Lockdown immediately to freeze all accounts. If CONTAINED: review the timeline to understand what happened and check if any data was exposed. If ALL CLEAR: no action needed, but review the timeline periodically to stay informed." },
+            { heading: "Time Window", content: "Use the time buttons (1h, 6h, 12h, 24h, 48h, 7d) to look at different periods. A wider window shows more history. Narrow it down when investigating a specific incident." },
+          ]}
+        />
+      </div>
 
       {data?.summary.activeLockdown && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center gap-3 animate-pulse">

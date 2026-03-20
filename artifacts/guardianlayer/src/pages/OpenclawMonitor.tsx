@@ -389,36 +389,41 @@ function HealthMonitorPanel() {
   if (loading) return <CyberLoading text="Checking system status..." />;
   if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load system health data. Please try again.</div>;
 
-  const { services, recentIncidents, summary } = data;
+  const { services = [], recentIncidents = [], summary = {} as any } = data || {};
   const filtered = statusFilter ? services.filter((s: any) => s.status === statusFilter) : services;
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">System Health:</strong> Shows whether each part of the platform is working properly. Green means operational, yellow means degraded performance, red means an outage. Click any service to see recent incidents and response times. If a service is down, the platform will automatically attempt recovery.
+        </p>
+      </div>
       <div className={`glass-panel p-4 rounded-xl mb-6 border-l-4 ${
-        summary.status === "operational" ? "border-emerald-500" :
-        summary.status === "degraded" ? "border-yellow-500" : "border-blue-500"
+        summary?.status === "operational" ? "border-emerald-500" :
+        summary?.status === "degraded" ? "border-yellow-500" : "border-blue-500"
       }`}>
         <div className="flex items-center gap-3">
           <div className={`p-2.5 rounded-lg bg-black/40 ${
-            summary.status === "operational" ? "text-emerald-400" :
-            summary.status === "degraded" ? "text-yellow-400" : "text-blue-400"
+            summary?.status === "operational" ? "text-emerald-400" :
+            summary?.status === "degraded" ? "text-yellow-400" : "text-blue-400"
           }`}>
-            {summary.status === "operational" ? <Wifi className="w-6 h-6" /> :
-             summary.status === "degraded" ? <AlertTriangle className="w-6 h-6" /> :
+            {summary?.status === "operational" ? <Wifi className="w-6 h-6" /> :
+             summary?.status === "degraded" ? <AlertTriangle className="w-6 h-6" /> :
              <Wrench className="w-6 h-6" />}
           </div>
           <div>
             <h3 className="font-display text-lg uppercase tracking-wider text-white">
               System Status: <span className={
-                summary.status === "operational" ? "text-emerald-400" :
-                summary.status === "degraded" ? "text-yellow-400" : "text-blue-400"
-              }>{summary.status}</span>
+                summary?.status === "operational" ? "text-emerald-400" :
+                summary?.status === "degraded" ? "text-yellow-400" : "text-blue-400"
+              }>{summary?.status ?? "unknown"}</span>
             </h3>
             <p className="text-xs text-muted-foreground">
-              {summary.operational}/{summary.totalServices} services operational
-              {summary.degraded > 0 && ` · ${summary.degraded} degraded`}
-              {summary.maintenance > 0 && ` · ${summary.maintenance} in maintenance`}
-              {summary.activeIncidents > 0 && ` · ${summary.activeIncidents} active incident${summary.activeIncidents !== 1 ? "s" : ""}`}
+              {summary?.operational ?? 0}/{summary?.totalServices ?? 0} services operational
+              {(summary?.degraded ?? 0) > 0 && ` · ${summary.degraded} degraded`}
+              {(summary?.maintenance ?? 0) > 0 && ` · ${summary.maintenance} in maintenance`}
+              {(summary?.activeIncidents ?? 0) > 0 && ` · ${summary.activeIncidents} active incident${summary.activeIncidents !== 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
@@ -426,10 +431,10 @@ function HealthMonitorPanel() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Overall Uptime", value: `${summary.overallUptime}%`, icon: Activity, color: summary.overallUptime >= 99.5 ? "text-emerald-400" : "text-yellow-400" },
-          { label: "Avg Response", value: `${summary.avgResponseTime}ms`, icon: Zap, color: summary.avgResponseTime < 500 ? "text-emerald-400" : "text-yellow-400" },
-          { label: "Requests/min", value: summary.totalRequestsPerMinute.toLocaleString(), icon: BarChart3, color: "text-primary" },
-          { label: "Active Incidents", value: summary.activeIncidents, icon: AlertTriangle, color: summary.activeIncidents > 0 ? "text-yellow-400" : "text-emerald-400" },
+          { label: "Overall Uptime", value: `${summary?.overallUptime ?? 0}%`, icon: Activity, color: (summary?.overallUptime ?? 0) >= 99.5 ? "text-emerald-400" : "text-yellow-400" },
+          { label: "Avg Response", value: `${summary?.avgResponseTime ?? 0}ms`, icon: Zap, color: (summary?.avgResponseTime ?? 0) < 500 ? "text-emerald-400" : "text-yellow-400" },
+          { label: "Requests/min", value: (summary?.totalRequestsPerMinute ?? 0).toLocaleString(), icon: BarChart3, color: "text-primary" },
+          { label: "Active Incidents", value: summary?.activeIncidents ?? 0, icon: AlertTriangle, color: (summary?.activeIncidents ?? 0) > 0 ? "text-yellow-400" : "text-emerald-400" },
         ].map((card) => (
           <div key={card.label} className="glass-panel p-4 rounded-xl border border-white/5">
             <div className="flex items-center gap-2 mb-2">
@@ -654,6 +659,11 @@ function ApiSecurityPanel() {
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">API Security Scan:</strong> Checks every API endpoint for known vulnerabilities. Each endpoint is scored using CVSS (a standard 0-10 severity scale). Red items have critical vulnerabilities that need fixing immediately — click any endpoint to see the specific issues and recommended fixes. "Open Vulns" counts unresolved security gaps.
+        </p>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
           { label: "Total Endpoints", value: summary.totalEndpoints, icon: FileCode, color: "text-primary" },
@@ -899,6 +909,11 @@ function UserSessionPanel() {
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">Active Sessions:</strong> Shows everyone currently logged in and what they're doing. "Flagged" sessions have suspicious behavior — like logging in from an unusual location or too many failed attempts. You can click any session for details. If something looks wrong, use the lockdown controls to terminate suspicious sessions.
+        </p>
+      </div>
       {summary.flaggedSessions > 0 && (
         <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
           <div className="flex items-center gap-2 mb-2">
@@ -1147,6 +1162,11 @@ function ConfigDriftPanel() {
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">Configuration Drift:</strong> Detects when security settings have been changed from their expected values — either accidentally or by an attacker. "Drift" means a setting no longer matches the approved baseline. Critical drifts (red) could create security holes and should be fixed immediately by reverting to the approved value. Click any item to see what changed and the recommended fix.
+        </p>
+      </div>
       {summary.criticalDrifts > 0 && (
         <div className="glass-panel p-4 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
           <div className="flex items-center gap-2 mb-2">
@@ -1392,6 +1412,11 @@ function BreachAlertsPanel() {
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">Breach Alerts:</strong> Monitors for active security breaches across the platform. The breach mode indicator shows the current threat level — "Normal" means no active threats, "Elevated" means suspicious activity detected, "Critical" means an active breach requiring immediate response. Recent alerts show the latest security events with timestamps so you can track what happened and when.
+        </p>
+      </div>
       <div className={`glass-panel p-4 rounded-xl mb-6 border-l-4 ${modeConfig.borderColor} ${modeConfig.bgColor}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -1573,6 +1598,11 @@ function BookmarksPanel() {
 
   return (
     <>
+      <div className="glass-panel border border-white/5 rounded-xl p-3 bg-white/[0.02] mb-4">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">Monitored URLs:</strong> Keep track of important websites and services your organization uses. Add URLs here so you can quickly access them and monitor whether they are still available. Useful for keeping an organized list of financial platforms, payment gateways, compliance portals, and other critical services your team relies on.
+        </p>
+      </div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Bookmark className="w-5 h-5 text-primary" />

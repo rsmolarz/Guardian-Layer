@@ -62,19 +62,31 @@ export default function ThreatIntel() {
   }, []);
 
   const tabs: { id: Tab; label: string; icon: any; key: string }[] = [
-    { id: "virustotal", label: "VirusTotal", icon: Bug, key: "virustotal" },
-    { id: "abuseipdb", label: "AbuseIPDB", icon: Fingerprint, key: "abuseipdb" },
-    { id: "shodan", label: "Shodan", icon: Eye, key: "shodan" },
-    { id: "hibp", label: "HIBP", icon: Database, key: "hibp" },
-    { id: "ssllabs", label: "SSL Labs", icon: Lock, key: "ssllabs" },
+    { id: "virustotal", label: "Malware Scanner", icon: Bug, key: "virustotal" },
+    { id: "abuseipdb", label: "IP Reputation", icon: Fingerprint, key: "abuseipdb" },
+    { id: "shodan", label: "Port Scanner", icon: Eye, key: "shodan" },
+    { id: "hibp", label: "Data Breach Check", icon: Database, key: "hibp" },
+    { id: "ssllabs", label: "SSL Certificate Check", icon: Lock, key: "ssllabs" },
   ];
 
   return (
     <div className="p-6 pb-12">
       <PageHeader
         title="Threat Intelligence Hub"
-        subtitle="Scan URLs, IPs, domains, and emails against global threat databases"
+        subtitle="Check if websites, IP addresses, domains, and email accounts are safe or compromised"
       />
+
+      <div className="glass-panel border border-white/5 rounded-xl p-4 bg-white/[0.02] mb-6">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">What this page does:</strong> Lets you check anything suspicious against major security databases used by professionals worldwide.
+          <strong className="text-white"> Malware Scanner</strong> (VirusTotal) — paste a URL, file hash, or domain to check if it contains malware or has been flagged as dangerous.
+          <strong className="text-white"> IP Reputation</strong> (AbuseIPDB) — check if an IP address has been reported for abuse, hacking attempts, or spam.
+          <strong className="text-white"> Port Scanner</strong> (Shodan) — see what services and open ports are exposed on any IP address or domain. Open ports can be entry points for attackers.
+          <strong className="text-white"> Data Breach Check</strong> (HIBP) — check if an email address has appeared in known data breaches. If so, change that password immediately.
+          <strong className="text-white"> SSL Certificate Check</strong> — verify that a website's security certificate is valid and properly configured.
+          Each tab shows "Ready" if the API key is configured, or "Needs Key" if you need to add the API key to your environment secrets.
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {tabs.map((t) => {

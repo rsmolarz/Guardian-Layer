@@ -14,7 +14,7 @@ The project is built as a pnpm monorepo using TypeScript for scalability and mai
 
 **Core Architectural Decisions and Features:**
 
-*   **User Interface & Experience (UI/UX):** Focuses on simplifying complex security concepts for non-technical users through a "Plain English Overhaul" of UI text, severity labels ("Act Now," "Monitor"), Executive Summary panels, a searchable Glossary, QuickHelp buttons, and JargonTooltips.
+*   **User Interface & Experience (UI/UX):** Focuses on simplifying complex security concepts for non-technical users through a "Plain English Overhaul" of UI text, severity labels ("Act Now," "Monitor"), Executive Summary panels, a searchable Glossary, QuickHelp buttons, and JargonTooltips. Platform-wide UX clarity audit completed — all pages now have plain-language explanations (WhyThisMatters, ExecutiveSummary, or inline explainers) covering what the page shows, what the controls mean, and what actions to take. ThreatIntel tabs renamed from vendor jargon (VirusTotal, AbuseIPDB, Shodan, HIBP) to plain English (Malware Scanner, IP Reputation, Port Scanner, Data Breach Check, SSL Certificate Check).
 *   **Centralized Monitoring & Management:**
     *   **Dashboard (Command Center):** High-level security posture overview, Security Health Score, Protection Status, and actionable recommendations.
     *   **Transaction Management:** Transaction Ledger with filtering, ML-driven "Scan Payload" for risk analysis, and a Manual Override Queue.

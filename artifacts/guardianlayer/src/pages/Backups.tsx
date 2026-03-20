@@ -227,6 +227,16 @@ export default function Backups() {
         }
       />
 
+      <div className="glass-panel border border-white/5 rounded-xl p-4 bg-white/[0.02]">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          <strong className="text-cyan-400">Why backups matter:</strong> If something goes wrong — a breach, accidental deletion, or system failure — backups let you restore your entire platform to a known good state.
+          <strong className="text-white"> How it works:</strong> The system automatically saves snapshots of your database and configurations at regular intervals.
+          Each backup shows its status: <span className="text-emerald-400">Verified</span> means the backup has been tested and is ready to restore. <span className="text-yellow-400">Pending</span> means it hasn't been tested yet.
+          <strong className="text-white"> Settings:</strong> Control how often backups run (interval), how long they're kept (retention), and the maximum number stored.
+          <strong className="text-white"> To restore:</strong> Click the restore icon on any verified backup. You'll be asked to confirm before anything changes.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryCards.map((card, i) => (
           <motion.div
