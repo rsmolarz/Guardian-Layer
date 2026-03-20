@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
+import { IncidentReportGenerator } from "@/components/IncidentReportGenerator";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
@@ -245,6 +246,8 @@ export default function BreachResponse() {
           </div>
         </div>
       )}
+
+      {data && <IncidentReportGenerator data={data} hours={hours} />}
 
       <div className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
         <div className="p-4 border-b border-gray-800 flex items-center justify-between">
