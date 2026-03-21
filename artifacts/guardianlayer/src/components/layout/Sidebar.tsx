@@ -4,7 +4,7 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users,
+  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -30,9 +30,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/alerts", label: "Security Alerts", icon: Bell },
       { href: "/security-settings", label: "Settings Monitor", icon: Settings },
       { href: "/self-scanner", label: "DAST Self-Scanner", icon: Zap },
+      { href: "/virus-scanner", label: "Virus & Malware", icon: Bug },
       { href: "/email-security", label: "Email Security", icon: Mail },
       { href: "/endpoints", label: "Device Security", icon: Laptop },
       { href: "/network", label: "Network Security", icon: Network },
+      { href: "/travel-security", label: "Travel Security", icon: Plane },
       { href: "/yubikey", label: "Security Keys", icon: Key },
       { href: "/secure-vault", label: "Secure Vault", icon: Lock },
     ],
