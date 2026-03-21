@@ -28,6 +28,7 @@ import securitySettingsRouter from "./security-settings";
 import selfScanRouter from "./self-scan";
 import domainMonitorRouter from "./domain-monitor";
 import secureVaultRouter from "./secure-vault";
+import threatDetectionRouter from "./threat-detection";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(securitySettingsRouter);
 router.use(selfScanRouter);
 router.use(domainMonitorRouter);
 router.use(secureVaultRouter);
+router.use(threatDetectionRouter);
 
 export default router;

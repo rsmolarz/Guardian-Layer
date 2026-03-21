@@ -4,7 +4,7 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock,
+  Settings, Zap, Globe, Lock, ScanSearch,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Threats & Response",
     icon: Crosshair,
     items: [
+      { href: "/threat-detection", label: "Threat Detection", icon: ScanSearch },
       { href: "/threat-intel", label: "Threat Intel Hub", icon: Radar },
       { href: "/threat-neutralization", label: "Threat Response", icon: Crosshair },
       { href: "/breach-response", label: "Breach Response", icon: Siren },

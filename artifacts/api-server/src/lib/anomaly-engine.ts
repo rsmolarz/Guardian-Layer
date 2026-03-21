@@ -1,5 +1,6 @@
 import { db, activityLogsTable, networkEventsTable, yubikeyAuthEventsTable, lockdownSessionsTable, lockdownActionsTable } from "@workspace/db";
 import { desc, sql, gte, and, eq } from "drizzle-orm";
+import { blockIP, tempBlockIP } from "../middleware/ip-guard";
 
 export interface AutoLockdownConfig {
   enabled: boolean;
@@ -63,6 +64,29 @@ const BRUTE_FORCE_THRESHOLD = 15;
 const RAPID_REQUEST_THRESHOLD = 60;
 const ERROR_SPIKE_THRESHOLD = 10;
 const PATH_SCAN_THRESHOLD = 20;
+const AUTO_LOCKOUT_THRESHOLD = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const DATA_TRANSFER_ALERT_BYTES = 500 * 1024 * 1024;
+const IP_REPUTATION_CACHE_TTL = 60 * 60 * 1000;
+
+const lockedOutIPs = new Map<string, { lockedAt: number; attempts: number; reason: string }>();
+const ipReputationCache = new Map<string, { score: number; category: string; checkedAt: number }>();
+const dataTransferTracker = new Map<string, { bytes: number; firstSeen: number }>();
+let lastNetworkTrafficCheckAt = new Date(Date.now() - WINDOW_MS);
+
+export interface ThreatCorrelation {
+  id: string;
+  severity: "critical" | "high" | "medium";
+  title: string;
+  description: string;
+  relatedAnomalies: string[];
+  attackPattern: string;
+  detectedAt: string;
+  recommendation: string;
+}
+
+const threatCorrelations: ThreatCorrelation[] = [];
+let correlationIdCounter = 1;
 
 export function trackRequest(ip: string, path: string, statusCode: number, responseTimeMs: number): void {
   const now = Date.now();
@@ -150,19 +174,46 @@ export function trackRequest(ip: string, path: string, statusCode: number, respo
     }
     authWindow.count++;
 
+    if (authWindow.count >= AUTO_LOCKOUT_THRESHOLD && !lockedOutIPs.has(ip)) {
+      lockedOutIPs.set(ip, { lockedAt: now, attempts: authWindow.count, reason: `${authWindow.count} failed login attempts` });
+      tempBlockIP(ip, LOCKOUT_DURATION_MS, `Auto-lockout: ${authWindow.count} failed login attempts`);
+      addAnomaly({
+        type: "auto_lockout",
+        severity: "high",
+        title: "IP Auto-Locked Out",
+        description: `IP ${ip} automatically locked out after ${authWindow.count} failed login attempts in ${Math.round((now - authWindow.firstSeen) / 1000)} seconds. Lockout duration: 15 minutes.`,
+        aiAnalysis: `Automatic lockout triggered for IP ${ip} after exceeding the ${AUTO_LOCKOUT_THRESHOLD}-attempt threshold. This prevents credential stuffing and brute force attacks. The IP is blocked from all requests for ${LOCKOUT_DURATION_MS / 60000} minutes.`,
+        recommendedActions: [
+          "Monitor for the same attack from different IPs (distributed attack)",
+          "Check if any login attempts succeeded before lockout",
+          "Review targeted accounts for password strength",
+        ],
+        source: "auto_lockout",
+        sourceIp: ip,
+        riskScore: 75,
+      });
+      db.insert(activityLogsTable).values({
+        action: "AUTO_LOCKOUT",
+        category: "security",
+        source: "anomaly_engine",
+        detail: `IP ${ip} auto-locked out after ${authWindow.count} failed login attempts`,
+        severity: "warning",
+        ipAddress: ip,
+      }).catch(() => {});
+    }
+
     if (authWindow.count >= BRUTE_FORCE_THRESHOLD && !hasRecentAnomaly(ip, "brute_force")) {
       addAnomaly({
         type: "brute_force",
         severity: "critical",
         title: "Brute Force Authentication Attack",
-        description: `IP ${ip} had ${authWindow.count} failed authentication attempts in ${Math.round((now - authWindow.firstSeen) / 1000)} seconds.`,
-        aiAnalysis: `${authWindow.count} failed logins from a single IP in under ${Math.round((now - authWindow.firstSeen) / 60000)} minutes is a textbook brute force attack. This IP is likely running automated credential stuffing using leaked password databases. If any accounts share passwords from previous breaches, they are at immediate risk of compromise.`,
+        description: `IP ${ip} had ${authWindow.count} failed authentication attempts in ${Math.round((now - authWindow.firstSeen) / 1000)} seconds. IP has been auto-locked.`,
+        aiAnalysis: `${authWindow.count} failed logins from a single IP in under ${Math.round((now - authWindow.firstSeen) / 60000)} minutes is a textbook brute force attack. This IP is likely running automated credential stuffing using leaked password databases. The IP has been automatically blocked. If any accounts share passwords from previous breaches, they are at immediate risk of compromise.`,
         recommendedActions: [
-          "Block this IP immediately",
           "Force password reset on any accounts that received 401 responses",
-          "Enable account lockout after 5 failed attempts",
           "Check HIBP for credential leak exposure",
           "Alert affected users via email",
+          "Consider permanent IP ban if attack persists from same range",
         ],
         source: "auth_monitor",
         sourceIp: ip,
@@ -393,6 +444,289 @@ async function checkAutoLockdownTrigger(anomaly: Anomaly): Promise<void> {
   }
 }
 
+export function trackDataTransfer(ip: string, bytes: number): void {
+  const now = Date.now();
+  let tracker = dataTransferTracker.get(ip);
+  if (!tracker || now - tracker.firstSeen > WINDOW_MS) {
+    tracker = { bytes: 0, firstSeen: now };
+    dataTransferTracker.set(ip, tracker);
+  }
+  tracker.bytes += bytes;
+
+  if (tracker.bytes >= DATA_TRANSFER_ALERT_BYTES && !hasRecentAnomaly(ip, "data_exfiltration")) {
+    const mbTransferred = Math.round(tracker.bytes / (1024 * 1024));
+    addAnomaly({
+      type: "data_exfiltration",
+      severity: "critical",
+      title: "Abnormal Data Transfer Detected",
+      description: `IP ${ip} has transferred ${mbTransferred} MB outbound in ${Math.round((now - tracker.firstSeen) / 1000)} seconds — possible data exfiltration.`,
+      aiAnalysis: `${mbTransferred} MB of outbound data from a single IP in a short window is ${Math.round(mbTransferred / 100)}x the normal baseline. This pattern is consistent with data exfiltration — an attacker copying database dumps, credential stores, or sensitive documents. If this IP is internal, it may indicate a compromised endpoint. If external, it suggests successful exploitation followed by data theft.`,
+      recommendedActions: [
+        "Block this IP immediately",
+        "Audit all database queries from this IP for data extraction patterns",
+        "Check for any new or modified files on the server",
+        "Review access logs for what data was accessed",
+        "Consider activating emergency lockdown",
+      ],
+      source: "data_transfer_monitor",
+      sourceIp: ip,
+      riskScore: 95,
+      metadata: { bytesTransferred: tracker.bytes, mbTransferred },
+    });
+
+    blockIP(ip);
+    db.insert(activityLogsTable).values({
+      action: "DATA_EXFILTRATION_BLOCKED",
+      category: "security",
+      source: "anomaly_engine",
+      detail: `Blocked IP ${ip} after ${mbTransferred} MB abnormal outbound transfer`,
+      severity: "critical",
+      ipAddress: ip,
+    }).catch(() => {});
+  }
+}
+
+export async function checkIPReputation(ip: string): Promise<{ score: number; category: string; isKnownBad: boolean } | null> {
+  const isPrivate172 = ip.startsWith("172.") && (() => {
+    const second = parseInt(ip.split(".")[1], 10);
+    return second >= 16 && second <= 31;
+  })();
+  if (ip === "unknown" || ip === "127.0.0.1" || ip === "::1" || ip.startsWith("10.") || ip.startsWith("192.168.") || isPrivate172) {
+    return null;
+  }
+
+  const cached = ipReputationCache.get(ip);
+  if (cached && Date.now() - cached.checkedAt < IP_REPUTATION_CACHE_TTL) {
+    return { score: cached.score, category: cached.category, isKnownBad: cached.score >= 50 };
+  }
+
+  const apiKey = process.env.ABUSEIPDB_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const r = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`, {
+      headers: { Key: apiKey, Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!r.ok) return null;
+    const data = await r.json();
+    const score = data.data?.abuseConfidenceScore ?? 0;
+    const category = score >= 75 ? "malicious" : score >= 50 ? "suspicious" : score >= 25 ? "low_risk" : "clean";
+
+    ipReputationCache.set(ip, { score, category, checkedAt: Date.now() });
+
+    if (score >= 50 && !hasRecentAnomaly(ip, "bad_reputation")) {
+      addAnomaly({
+        type: "bad_reputation",
+        severity: score >= 75 ? "critical" : "high",
+        title: `Known Bad IP Detected: ${ip}`,
+        description: `IP ${ip} has an AbuseIPDB confidence score of ${score}% — categorized as "${category}". This IP has been reported ${data.data?.totalReports ?? 0} times by ${data.data?.numDistinctUsers ?? 0} users.`,
+        aiAnalysis: `AbuseIPDB reports a ${score}% abuse confidence for this IP, with ${data.data?.totalReports ?? 0} reports from ${data.data?.numDistinctUsers ?? 0} distinct sources. ${score >= 75 ? "This is a known malicious IP actively used for attacks. Immediate blocking is recommended." : "This IP has been flagged for suspicious activity. Monitor closely and consider blocking if behavior continues."}${data.data?.usageType ? ` Usage type: ${data.data.usageType}.` : ""}${data.data?.domain ? ` Domain: ${data.data.domain}.` : ""}`,
+        recommendedActions: [
+          score >= 75 ? "Block this IP immediately" : "Monitor this IP closely",
+          "Review all requests from this IP in the activity log",
+          "Check if this IP has accessed any sensitive endpoints",
+          `View full report at https://www.abuseipdb.com/check/${ip}`,
+        ],
+        source: "ip_reputation",
+        sourceIp: ip,
+        riskScore: Math.min(95, score),
+        metadata: { abuseScore: score, totalReports: data.data?.totalReports, distinctUsers: data.data?.numDistinctUsers },
+      });
+
+      if (score >= 75) {
+        blockIP(ip);
+        db.insert(activityLogsTable).values({
+          action: "BAD_IP_BLOCKED",
+          category: "security",
+          source: "anomaly_engine",
+          detail: `Auto-blocked known malicious IP ${ip} (AbuseIPDB score: ${score}%)`,
+          severity: "critical",
+          ipAddress: ip,
+        }).catch(() => {});
+      }
+    }
+
+    return { score, category, isKnownBad: score >= 50 };
+  } catch (err: any) {
+    console.log("[anomaly-engine] IP reputation check failed for", ip, err.message);
+    return null;
+  }
+}
+
+export function runThreatCorrelation(): void {
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  const recentAnomalies = detectedAnomalies.filter(a =>
+    new Date(a.detectedAt).getTime() > fiveMinAgo && a.status === "active"
+  );
+
+  if (recentAnomalies.length < 2) return;
+
+  const byIP = new Map<string, Anomaly[]>();
+  for (const a of recentAnomalies) {
+    if (a.sourceIp) {
+      const list = byIP.get(a.sourceIp) || [];
+      list.push(a);
+      byIP.set(a.sourceIp, list);
+    }
+  }
+
+  for (const [ip, anomalies] of byIP.entries()) {
+    if (anomalies.length < 2) continue;
+    const types = new Set(anomalies.map(a => a.type));
+
+    if (types.has("brute_force") && (types.has("path_scanning") || types.has("error_spike"))) {
+      if (!threatCorrelations.some(c => c.attackPattern === "credential_stuffing_recon" && c.relatedAnomalies.some(id => anomalies.map(a => a.id).includes(id)))) {
+        const corrId = `COR-${String(++correlationIdCounter).padStart(4, "0")}`;
+        threatCorrelations.unshift({
+          id: corrId,
+          severity: "critical",
+          title: "Coordinated Attack: Reconnaissance + Brute Force",
+          description: `IP ${ip} is conducting both path scanning and brute force attacks — this indicates a multi-stage intrusion attempt. The attacker is mapping your API surface while simultaneously trying to crack authentication.`,
+          relatedAnomalies: anomalies.map(a => a.id),
+          attackPattern: "credential_stuffing_recon",
+          detectedAt: new Date().toISOString(),
+          recommendation: "Block this IP immediately. Review all endpoints it accessed. Force password resets on targeted accounts. Check if any probed paths returned sensitive data.",
+        });
+      }
+    }
+
+    if (types.has("data_exfiltration") && (types.has("brute_force") || types.has("auto_lockout"))) {
+      if (!threatCorrelations.some(c => c.attackPattern === "breach_and_exfil" && c.relatedAnomalies.some(id => anomalies.map(a => a.id).includes(id)))) {
+        const corrId = `COR-${String(++correlationIdCounter).padStart(4, "0")}`;
+        threatCorrelations.unshift({
+          id: corrId,
+          severity: "critical",
+          title: "Active Breach: Authentication Attack + Data Exfiltration",
+          description: `IP ${ip} combined authentication attacks with large data transfers — this strongly suggests a successful breach followed by data theft. The attacker may have gained access and is extracting data.`,
+          relatedAnomalies: anomalies.map(a => a.id),
+          attackPattern: "breach_and_exfil",
+          detectedAt: new Date().toISOString(),
+          recommendation: "ACTIVATE EMERGENCY LOCKDOWN. This is a confirmed breach pattern. Preserve all logs for forensics. Disconnect affected systems. Begin incident response procedures.",
+        });
+      }
+    }
+
+    if (types.has("bad_reputation") && anomalies.length >= 2) {
+      if (!threatCorrelations.some(c => c.attackPattern === "known_threat_actor" && c.relatedAnomalies.some(id => anomalies.map(a => a.id).includes(id)))) {
+        const corrId = `COR-${String(++correlationIdCounter).padStart(4, "0")}`;
+        threatCorrelations.unshift({
+          id: corrId,
+          severity: "critical",
+          title: "Known Threat Actor: Multiple Attack Vectors",
+          description: `IP ${ip} is a known malicious IP (flagged by AbuseIPDB) and is conducting ${anomalies.length} simultaneous attack types: ${[...types].join(", ")}. This is a professional threat actor.`,
+          relatedAnomalies: anomalies.map(a => a.id),
+          attackPattern: "known_threat_actor",
+          detectedAt: new Date().toISOString(),
+          recommendation: "Block the entire IP range. Report to AbuseIPDB. Audit all access from this IP. Consider filing a report with law enforcement if data was accessed.",
+        });
+      }
+    }
+
+    if (types.has("rapid_requests") && types.has("error_spike") && types.has("slow_response")) {
+      if (!threatCorrelations.some(c => c.attackPattern === "dos_attack" && c.relatedAnomalies.some(id => anomalies.map(a => a.id).includes(id)))) {
+        const corrId = `COR-${String(++correlationIdCounter).padStart(4, "0")}`;
+        threatCorrelations.unshift({
+          id: corrId,
+          severity: "high",
+          title: "Denial of Service Pattern Detected",
+          description: `IP ${ip} is generating rapid requests, causing error spikes and slow responses — classic DoS attack pattern designed to overwhelm the system.`,
+          relatedAnomalies: anomalies.map(a => a.id),
+          attackPattern: "dos_attack",
+          detectedAt: new Date().toISOString(),
+          recommendation: "Block this IP and its /24 subnet. Enable enhanced rate limiting. Monitor for distributed attacks from related IPs. Consider enabling a CDN or DDoS protection service.",
+        });
+      }
+    }
+  }
+
+  const uniqueIPs = new Set(recentAnomalies.map(a => a.sourceIp).filter(Boolean));
+  if (uniqueIPs.size >= 3) {
+    const criticalCount = recentAnomalies.filter(a => a.severity === "critical").length;
+    if (criticalCount >= 3 && !threatCorrelations.some(c => c.attackPattern === "distributed_attack" && Date.now() - new Date(c.detectedAt).getTime() < WINDOW_MS)) {
+      const corrId = `COR-${String(++correlationIdCounter).padStart(4, "0")}`;
+      threatCorrelations.unshift({
+        id: corrId,
+        severity: "critical",
+        title: "Distributed Attack Campaign Detected",
+        description: `${uniqueIPs.size} different IPs are conducting ${criticalCount} critical-severity attacks simultaneously. This is a coordinated distributed attack campaign — multiple attackers or a botnet are targeting the system from different sources.`,
+        relatedAnomalies: recentAnomalies.map(a => a.id),
+        attackPattern: "distributed_attack",
+        detectedAt: new Date().toISOString(),
+        recommendation: "ACTIVATE EMERGENCY LOCKDOWN. This is a coordinated attack from multiple sources. Enable maximum rate limiting. Consider temporarily restricting access to whitelisted IPs only.",
+      });
+    }
+  }
+
+  if (threatCorrelations.length > 100) threatCorrelations.length = 100;
+}
+
+export function getThreatCorrelations(): ThreatCorrelation[] {
+  return [...threatCorrelations];
+}
+
+export function getLockedOutIPs(): Array<{ ip: string; lockedAt: number; attempts: number; reason: string; remainingMs: number }> {
+  const result: Array<{ ip: string; lockedAt: number; attempts: number; reason: string; remainingMs: number }> = [];
+  const now = Date.now();
+  for (const [ip, info] of lockedOutIPs.entries()) {
+    const remaining = LOCKOUT_DURATION_MS - (now - info.lockedAt);
+    if (remaining > 0) {
+      result.push({ ip, ...info, remainingMs: remaining });
+    } else {
+      lockedOutIPs.delete(ip);
+    }
+  }
+  return result;
+}
+
+export function getIPReputationCache(): Array<{ ip: string; score: number; category: string; checkedAt: number }> {
+  const result: Array<{ ip: string; score: number; category: string; checkedAt: number }> = [];
+  for (const [ip, info] of ipReputationCache.entries()) {
+    result.push({ ip, ...info });
+  }
+  return result.sort((a, b) => b.score - a.score);
+}
+
+async function runPeriodicIPReputationCheck(): Promise<void> {
+  const recentIPs = new Set<string>();
+  for (const [ip] of requestWindows.entries()) {
+    if (!ip.includes(":auth_failures") && ip !== "unknown" && !ip.startsWith("::")) {
+      recentIPs.add(ip);
+    }
+  }
+  for (const ip of recentIPs) {
+    await checkIPReputation(ip);
+    await new Promise(r => setTimeout(r, 1200));
+  }
+}
+
+async function runNetworkTrafficAnomalyCheck(): Promise<void> {
+  try {
+    const sinceTime = lastNetworkTrafficCheckAt;
+    lastNetworkTrafficCheckAt = new Date();
+    const rows = await db
+      .select({
+        sourceIp: networkEventsTable.sourceIp,
+        totalBytes: sql<number>`COALESCE(SUM(${networkEventsTable.bytesTransferred}), 0)::bigint`,
+      })
+      .from(networkEventsTable)
+      .where(gte(networkEventsTable.createdAt, sinceTime))
+      .groupBy(networkEventsTable.sourceIp);
+
+    for (const row of rows) {
+      if (Number(row.totalBytes) > 0) {
+        trackDataTransfer(row.sourceIp, Number(row.totalBytes));
+      }
+    }
+  } catch (err: any) {
+    console.error("[anomaly-engine] Network traffic check failed:", err.message);
+  }
+}
+
 export function startAnomalyEngine(): void {
   setInterval(() => {
     const now = Date.now();
@@ -401,11 +735,30 @@ export function startAnomalyEngine(): void {
         requestWindows.delete(key);
       }
     }
+    for (const [ip, info] of lockedOutIPs.entries()) {
+      if (now - info.lockedAt > LOCKOUT_DURATION_MS) {
+        lockedOutIPs.delete(ip);
+      }
+    }
+    for (const [ip, tracker] of dataTransferTracker.entries()) {
+      if (now - tracker.firstSeen > WINDOW_MS * 2) {
+        dataTransferTracker.delete(ip);
+      }
+    }
   }, 60 * 1000);
 
   setInterval(() => {
     runDatabaseAnomalyCheck();
+    runThreatCorrelation();
   }, 2 * 60 * 1000);
 
-  console.log("[Anomaly Engine] Started — monitoring requests, errors, auth failures, and network events");
+  setInterval(() => {
+    runNetworkTrafficAnomalyCheck();
+  }, 3 * 60 * 1000);
+
+  setInterval(() => {
+    runPeriodicIPReputationCheck();
+  }, 10 * 60 * 1000);
+
+  console.log("[Anomaly Engine] Started — monitoring requests, errors, auth failures, network traffic, IP reputation, and threat correlations");
 }

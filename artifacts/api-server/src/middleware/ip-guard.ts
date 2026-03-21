@@ -105,6 +105,18 @@ export function blockIP(ip: string): void {
   }
 }
 
+export function tempBlockIP(ip: string, durationMs: number, reason: string): void {
+  const now = Date.now();
+  let record = ipTracker.get(ip);
+  if (!record) {
+    record = { count: 0, firstSeen: now, lastSeen: now, blocked: false };
+    ipTracker.set(ip, record);
+  }
+  record.blocked = true;
+  record.blockedAt = now;
+  record.reason = reason;
+}
+
 export function unblockIP(ip: string): void {
   manualBlocklist.delete(ip);
   const record = ipTracker.get(ip);
