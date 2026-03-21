@@ -4,10 +4,11 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock, ScanSearch,
+  Settings, Zap, Globe, Lock, ScanSearch, LogOut,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
+import { useAuth } from "@/lib/auth";
 
 interface NavItem {
   href: string;
@@ -87,6 +88,20 @@ function findGroupForPath(path: string): string | null {
     }
   }
   return null;
+}
+
+function LogoutButton() {
+  const { logout, user } = useAuth();
+  return (
+    <button
+      onClick={logout}
+      className="flex items-center gap-1.5 text-gray-500 hover:text-red-400 transition-colors"
+      title={`Logout ${user?.username || ""}`}
+    >
+      <LogOut className="w-3.5 h-3.5" />
+      <span className="text-xs font-mono">EXIT</span>
+    </button>
+  );
 }
 
 export function Sidebar() {
@@ -231,19 +246,22 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="p-6 border-t border-white/5">
-        <div className="flex items-center space-x-3">
-          {isLockdownActive ? (
-            <>
-              <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
-              <span className="font-mono text-xs text-rose-500/80 tracking-widest">LOCKDOWN ACTIVE</span>
-            </>
-          ) : (
-            <>
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              <span className="font-mono text-xs text-emerald-500/80">SYSTEM SECURE</span>
-            </>
-          )}
+      <div className="p-6 border-t border-white/5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {isLockdownActive ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
+                <span className="font-mono text-xs text-rose-500/80 tracking-widest">LOCKDOWN ACTIVE</span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                <span className="font-mono text-xs text-emerald-500/80">SYSTEM SECURE</span>
+              </>
+            )}
+          </div>
+          <LogoutButton />
         </div>
       </div>
     </aside>

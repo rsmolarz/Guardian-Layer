@@ -5,6 +5,7 @@ import router from "./routes";
 import { activityLoggerMiddleware } from "./lib/activity-logger";
 import { globalLimiter } from "./middleware/rate-limiter";
 import { ipGuard } from "./middleware/ip-guard";
+import { authMiddleware } from "./middleware/auth";
 import { getPrometheusMetrics } from "./lib/metrics-collector";
 
 const app: Express = express();
@@ -52,6 +53,8 @@ app.get("/metrics", (_req, res) => {
   res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
   res.send(getPrometheusMetrics());
 });
+
+app.use(authMiddleware);
 
 app.use("/api", activityLoggerMiddleware, router);
 
