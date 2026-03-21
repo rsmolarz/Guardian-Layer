@@ -21,7 +21,8 @@
     "googleapis": "148.0.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "stripe": "^20.4.1"
+    "stripe": "^20.4.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

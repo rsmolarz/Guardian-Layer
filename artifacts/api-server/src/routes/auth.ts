@@ -1,8 +1,14 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { signToken } from "../middleware/auth";
 import { authLimiter } from "../middleware/rate-limiter";
 
 const router: IRouter = Router();
+
+const loginSchema = z.object({
+  username: z.string({ required_error: "Username is required" }).min(1, "Username is required"),
+  password: z.string({ required_error: "Password is required" }).min(1, "Password is required"),
+});
 
 const DEMO_USERS: Record<string, { password: string; userId: string; role: string }> = {
   admin: { password: "admin123", userId: "usr_001", role: "admin" },
@@ -10,11 +16,13 @@ const DEMO_USERS: Record<string, { password: string; userId: string; role: strin
 
 router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      res.status(400).json({ error: "Username and password are required." });
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const firstError = parsed.error.errors[0]?.message || "Invalid input.";
+      res.status(400).json({ error: firstError });
       return;
     }
+    const { username, password } = parsed.data;
 
     const user = DEMO_USERS[username];
     if (!user || user.password !== password) {
