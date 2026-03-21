@@ -827,6 +827,28 @@ export default function DomainMonitor() {
   const [newDomain, setNewDomain] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ total: number; imported: number; skipped: number } | null>(null);
+
+  const importFromNameSilo = async () => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/domain-monitor/namesilo/import`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Failed to import from NameSilo");
+        setImporting(false);
+        return;
+      }
+      const data = await res.json();
+      setImportResult({ total: data.total, imported: data.imported, skipped: data.skipped });
+      fetchDomains();
+    } catch {
+      alert("Failed to connect to NameSilo");
+    }
+    setImporting(false);
+  };
 
   const fetchDomains = useCallback(async () => {
     try {
@@ -912,18 +934,53 @@ export default function DomainMonitor() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-sm text-slate-400 font-mono">
           {domains.length} domain(s) monitored
         </span>
-        <button
-          onClick={() => setShowAddDomain(!showAddDomain)}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          ADD DOMAIN
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={importFromNameSilo}
+            disabled={importing}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+            {importing ? "IMPORTING..." : "IMPORT FROM NAMESILO"}
+          </button>
+          <button
+            onClick={() => setShowAddDomain(!showAddDomain)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            ADD DOMAIN
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {importResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm text-emerald-300">
+                NameSilo import complete — {importResult.imported} new domain(s) added,{" "}
+                {importResult.skipped} already existed ({importResult.total} total in account)
+              </span>
+            </div>
+            <button
+              onClick={() => setImportResult(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showAddDomain && (

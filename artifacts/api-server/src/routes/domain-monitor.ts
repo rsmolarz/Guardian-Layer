@@ -333,6 +333,137 @@ router.post("/domain-monitor/domains/:id/scan-all", async (req, res): Promise<vo
   }
 });
 
+router.get("/domain-monitor/namesilo/domains", async (_req, res): Promise<void> => {
+  const apiKey = process.env.NAMESILO_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ configured: false, error: "NameSilo API key not configured" });
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+
+    const r = await fetch(
+      `https://www.namesilo.com/api/listDomains?version=1&type=xml&key=${apiKey}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+
+    if (!r.ok) {
+      res.status(r.status).json({ error: `NameSilo API returned ${r.status}` });
+      return;
+    }
+
+    const xml = await r.text();
+
+    const domains: string[] = [];
+    const domainMatches = xml.match(/<domain>(.*?)<\/domain>/gi);
+    if (domainMatches) {
+      for (const match of domainMatches) {
+        const domain = match.replace(/<\/?domain>/gi, "").trim().toLowerCase();
+        if (domain && domain.includes(".")) {
+          domains.push(domain);
+        }
+      }
+    }
+
+    const codeMatch = xml.match(/<code>(.*?)<\/code>/i);
+    const apiCode = codeMatch ? codeMatch[1] : "";
+
+    if (apiCode !== "300") {
+      const detailMatch = xml.match(/<detail>(.*?)<\/detail>/i);
+      const detail = detailMatch ? detailMatch[1] : "Unknown error";
+      res.status(400).json({ configured: true, error: `NameSilo error: ${detail} (code ${apiCode})` });
+      return;
+    }
+
+    res.json({ configured: true, domains, total: domains.length });
+  } catch (err: any) {
+    console.error("[domain-monitor] NameSilo fetch failed:", err.message);
+    res.status(500).json({ error: "Failed to fetch domains from NameSilo" });
+  }
+});
+
+router.post("/domain-monitor/namesilo/import", async (_req, res): Promise<void> => {
+  const apiKey = process.env.NAMESILO_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "NameSilo API key not configured" });
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+
+    const r = await fetch(
+      `https://www.namesilo.com/api/listDomains?version=1&type=xml&key=${apiKey}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+
+    if (!r.ok) {
+      res.status(r.status).json({ error: `NameSilo API returned ${r.status}` });
+      return;
+    }
+
+    const xml = await r.text();
+    const codeMatch = xml.match(/<code>(.*?)<\/code>/i);
+    if (codeMatch?.[1] !== "300") {
+      const detailMatch = xml.match(/<detail>(.*?)<\/detail>/i);
+      res.status(400).json({ error: detailMatch?.[1] || "NameSilo API error" });
+      return;
+    }
+
+    const domains: string[] = [];
+    const domainMatches = xml.match(/<domain>(.*?)<\/domain>/gi);
+    if (domainMatches) {
+      for (const match of domainMatches) {
+        const domain = match.replace(/<\/?domain>/gi, "").trim().toLowerCase();
+        if (domain && domain.includes(".")) {
+          domains.push(domain);
+        }
+      }
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const domain of domains) {
+      const existing = await db.select().from(monitoredDomainsTable)
+        .where(eq(monitoredDomainsTable.domain, domain));
+
+      if (existing.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      await db.insert(monitoredDomainsTable).values({
+        domain,
+        notes: "Imported from NameSilo",
+      });
+      imported++;
+    }
+
+    await logActivity({
+      action: "NAMESILO_IMPORT",
+      category: "monitoring",
+      source: "domain_monitor",
+      detail: `Imported ${imported} domains from NameSilo (${skipped} already existed, ${domains.length} total)`,
+    });
+
+    res.json({
+      total: domains.length,
+      imported,
+      skipped,
+      domains,
+    });
+  } catch (err: any) {
+    console.error("[domain-monitor] NameSilo import failed:", err.message);
+    res.status(500).json({ error: "Failed to import domains from NameSilo" });
+  }
+});
+
 router.get("/domain-monitor/agent/status", async (_req, res): Promise<void> => {
   try {
     res.json(getAgentStatus());
