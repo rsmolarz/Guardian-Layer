@@ -8,6 +8,7 @@ import { seedYubikey } from "./seed-yubikey";
 import { seedOpenclawContracts } from "./seed-openclaw";
 import { seedLockdown } from "./seed-lockdown";
 import { seedDisasterRecovery } from "./seed-disaster-recovery";
+import { seedSuperadmin } from "./seed-users";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -130,6 +131,7 @@ export async function seedIfEmpty() {
 }
 
 export async function seedAllModules() {
+  await seedSuperadmin();
   await seedIfEmpty();
   await seedDarkWebData();
   await seedEmailThreats();

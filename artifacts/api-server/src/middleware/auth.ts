@@ -57,6 +57,18 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 }
 
+export function requireSuperadmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
+  if (req.user.role !== "superadmin") {
+    res.status(403).json({ error: "Access denied. Superadmin privileges required." });
+    return;
+  }
+  next();
+}
+
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 }

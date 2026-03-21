@@ -32,6 +32,7 @@ import SelfScanner from "@/pages/SelfScanner";
 import DomainMonitor from "@/pages/DomainMonitor";
 import SecureVault from "@/pages/SecureVault";
 import ThreatDetection from "@/pages/ThreatDetection";
+import UserManagement from "@/pages/UserManagement";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -58,7 +59,7 @@ function QuickHelpWrapper() {
 
 function ProtectedRouter() {
   const [chatOpen, setChatOpen] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -103,6 +104,9 @@ function ProtectedRouter() {
         <Route path="/domain-monitor" component={DomainMonitor} />
         <Route path="/secure-vault" component={SecureVault} />
         <Route path="/threat-detection" component={ThreatDetection} />
+        <Route path="/user-management">{() =>
+          user?.role === "superadmin" ? <UserManagement /> : <Redirect to="/" />
+        }</Route>
         <Route path="/login">{() => <Redirect to="/" />}</Route>
         <Route path="/lockdown">{() => <Redirect to="/emergency-lockdown" />}</Route>
         <Route path="/threats">{() => <Redirect to="/threat-intel" />}</Route>

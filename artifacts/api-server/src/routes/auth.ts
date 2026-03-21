@@ -2,17 +2,17 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { signToken } from "../middleware/auth";
 import { authLimiter } from "../middleware/rate-limiter";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db/schema";
+import { eq, or } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
 const loginSchema = z.object({
-  username: z.string({ required_error: "Username is required" }).min(1, "Username is required"),
+  username: z.string({ required_error: "Email or username is required" }).min(1, "Email or username is required"),
   password: z.string({ required_error: "Password is required" }).min(1, "Password is required"),
 });
-
-const DEMO_USERS: Record<string, { password: string; userId: string; role: string }> = {
-  admin: { password: "admin123", userId: "usr_001", role: "admin" },
-};
 
 router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
   try {
@@ -24,16 +24,36 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
     }
     const { username, password } = parsed.data;
 
-    const user = DEMO_USERS[username];
-    if (!user || user.password !== password) {
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(or(eq(usersTable.email, username), eq(usersTable.username, username)))
+      .limit(1);
+
+    const user = users[0];
+    if (!user) {
       res.status(401).json({ error: "Invalid credentials." });
       return;
     }
 
-    const token = signToken({ userId: user.userId, username, role: user.role });
-    res.json({ token, user: { userId: user.userId, username, role: user.role } });
-  } catch (err: any) {
-    console.error("[auth] POST /login failed:", err.message);
+    if (!user.active) {
+      res.status(401).json({ error: "Account is deactivated. Contact your administrator." });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid credentials." });
+      return;
+    }
+
+    const token = signToken({ userId: String(user.id), username: user.username, role: user.role });
+    res.json({
+      token,
+      user: { userId: String(user.id), username: user.username, email: user.email, role: user.role },
+    });
+  } catch (err) {
+    console.error("[auth] POST /login failed:", err instanceof Error ? err.message : err);
     res.status(500).json({ error: "Authentication failed." });
   }
 });

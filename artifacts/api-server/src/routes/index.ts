@@ -30,6 +30,7 @@ import selfScanRouter from "./self-scan";
 import domainMonitorRouter from "./domain-monitor";
 import secureVaultRouter from "./secure-vault";
 import threatDetectionRouter from "./threat-detection";
+import usersRouter from "./users";
 
 const router: IRouter = Router();
 
@@ -64,6 +65,7 @@ router.use(selfScanRouter);
 router.use(domainMonitorRouter);
 router.use(secureVaultRouter);
 router.use(threatDetectionRouter);
+router.use(usersRouter);
 
 router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
 router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));

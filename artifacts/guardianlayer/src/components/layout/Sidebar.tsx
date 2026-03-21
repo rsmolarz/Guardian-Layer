@@ -4,7 +4,7 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock, ScanSearch, LogOut,
+  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -106,6 +106,7 @@ function LogoutButton() {
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
   const { data: lockdownStatus } = useGetLockdownStatus();
   const isLockdownActive = lockdownStatus?.isActive ?? false;
 
@@ -245,6 +246,25 @@ export function Sidebar() {
           })}
         </div>
       </nav>
+
+      {user?.role === "superadmin" && (
+        <div className="px-4 pb-2">
+          <Link href="/user-management" className="block">
+            <div className={clsx(
+              "flex items-center px-4 py-2.5 rounded-xl font-display text-xs uppercase tracking-wider transition-all duration-200 relative overflow-hidden group cursor-pointer",
+              location === "/user-management"
+                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+            )}>
+              {location === "/user-management" && (
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]" />
+              )}
+              <Users className={clsx("w-4 h-4 mr-2.5 transition-transform group-hover:scale-110", location === "/user-management" && "text-amber-400")} />
+              User Management
+            </div>
+          </Link>
+        </div>
+      )}
 
       <div className="p-6 border-t border-white/5 space-y-3">
         <div className="flex items-center justify-between">
