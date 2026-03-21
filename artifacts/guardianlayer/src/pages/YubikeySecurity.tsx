@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import {
   useListYubikeyDevices,
   useListYubikeyEvents,
@@ -8,6 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { API_BASE } from "@/lib/constants";
 import { clsx } from "clsx";
 import {
   Key,
@@ -77,7 +78,47 @@ type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "l
 type StatusFilter = "active" | "suspended" | "revoked" | "unassigned" | undefined;
 type EventFilter = "auth_success" | "auth_failure" | "key_enrolled" | "key_revoked" | undefined;
 
+class YubikeyErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[YubiKey] Component crashed:", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="pb-12">
+          <PageHeader title="Security Keys" description="Manage physical security keys used by employees." />
+          <div className="glass-panel rounded-xl p-8 text-center mt-6">
+            <ShieldAlert className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-white mb-2">Security Keys Module Error</h2>
+            <p className="text-muted-foreground mb-4">Something went wrong loading this page. This has been logged for review.</p>
+            <p className="text-xs text-rose-400/60 font-mono mb-4">{this.state.error?.message}</p>
+            <button onClick={() => this.setState({ hasError: false, error: null })} className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors">
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function YubikeySecurity() {
+  return (
+    <YubikeyErrorBoundary>
+      <YubikeySecurityInner />
+    </YubikeyErrorBoundary>
+  );
+}
+
+function YubikeySecurityInner() {
   const [tab, setTab] = useState<Tab>("devices");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [eventFilter, setEventFilter] = useState<EventFilter>(undefined);
@@ -176,7 +217,7 @@ function EnrollmentPanel() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    fetch("/api/yubikey/enrollment")
+    fetch(`${API_BASE}/api/yubikey/enrollment`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -368,7 +409,7 @@ function FailedAuthPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/yubikey/failed-auth")
+    fetch(`${API_BASE}/api/yubikey/failed-auth`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -548,7 +589,7 @@ function PoliciesPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/yubikey/policies")
+    fetch(`${API_BASE}/api/yubikey/policies`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -691,7 +732,7 @@ function FleetManagerPanel() {
   const [fleetFilter, setFleetFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    fetch("/api/yubikey/fleet")
+    fetch(`${API_BASE}/api/yubikey/fleet`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -700,7 +741,8 @@ function FleetManagerPanel() {
   if (loading) return <CyberLoading text="Loading security key data..." />;
   if (!data) return <div className="text-muted-foreground text-center py-12">Couldn't load device data. Please try again.</div>;
 
-  const { fleet, summary } = data;
+  const fleet = data?.fleet ?? [];
+  const summary = data?.summary ?? { totalDevices: 0, activeDevices: 0, fipsCertified: 0, firmwareOutdated: 0, totalAuths: 0 };
   const filtered = fleetFilter ? fleet.filter((d: any) => d.status === fleetFilter) : fleet;
 
   const attestColor = (s: string) => {
@@ -902,7 +944,7 @@ function AuditLogPanel() {
   const [eventFilter, setEventFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    fetch("/api/yubikey/audit-log")
+    fetch(`${API_BASE}/api/yubikey/audit-log`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -1108,7 +1150,7 @@ function LostStolenPanel() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    fetch("/api/yubikey/lost-stolen")
+    fetch(`${API_BASE}/api/yubikey/lost-stolen`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -1396,7 +1438,7 @@ function MfaCompliancePanel() {
   const [showNonCompliantOnly, setShowNonCompliantOnly] = useState(false);
 
   useEffect(() => {
-    fetch("/api/yubikey/mfa-compliance")
+    fetch(`${API_BASE}/api/yubikey/mfa-compliance`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -1591,7 +1633,7 @@ function AnomalyDetectorPanel() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    fetch("/api/yubikey/anomaly-detector")
+    fetch(`${API_BASE}/api/yubikey/anomaly-detector`)
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
