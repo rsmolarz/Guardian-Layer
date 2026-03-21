@@ -32,11 +32,16 @@ import {
   Clock,
   Play,
   Settings,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
+const PIN_SESSION_KEY = "gl_pin_verified";
+const PIN_SESSION_TTL = 30 * 60 * 1000;
 
 interface BreachResult {
   id: number;
@@ -828,9 +833,59 @@ export default function DomainMonitor() {
   const [newNotes, setNewNotes] = useState("");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ total: number; imported: number; skipped: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ total: number; imported: number; skipped: number; emailsAdded: number } | null>(null);
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinChecking, setPinChecking] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [standaloneEmail, setStandaloneEmail] = useState("");
+  const [addingStandalone, setAddingStandalone] = useState(false);
 
-  const importFromNameSilo = async () => {
+  const isPinVerified = (): boolean => {
+    const stored = sessionStorage.getItem(PIN_SESSION_KEY);
+    if (!stored) return false;
+    return Date.now() - parseInt(stored, 10) < PIN_SESSION_TTL;
+  };
+
+  const verifyPinAndImport = async () => {
+    if (!pinInput) return;
+    setPinChecking(true);
+    setPinError("");
+    try {
+      const r = await fetch(`${API_BASE}/api/platform-pin/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      const d = await r.json();
+      if (d.valid) {
+        sessionStorage.setItem(PIN_SESSION_KEY, Date.now().toString());
+        setShowPinPrompt(false);
+        setPinInput("");
+        doImport();
+      } else {
+        setPinError("Incorrect PIN");
+        setPinInput("");
+      }
+    } catch {
+      setPinError("Verification failed");
+    }
+    setPinChecking(false);
+  };
+
+  const handleImportClick = async () => {
+    const hasPin = await fetch(`${API_BASE}/api/platform-pin/status`).then(r => r.json()).catch(() => ({ hasPin: false }));
+    if (hasPin.hasPin && !isPinVerified()) {
+      setShowPinPrompt(true);
+      setPinError("");
+      setPinInput("");
+      return;
+    }
+    doImport();
+  };
+
+  const doImport = async () => {
     setImporting(true);
     setImportResult(null);
     try {
@@ -842,12 +897,32 @@ export default function DomainMonitor() {
         return;
       }
       const data = await res.json();
-      setImportResult({ total: data.total, imported: data.imported, skipped: data.skipped });
+      setImportResult({ total: data.total, imported: data.imported, skipped: data.skipped, emailsAdded: data.emailsAdded || 0 });
       fetchDomains();
     } catch {
       alert("Failed to connect to NameSilo");
     }
     setImporting(false);
+  };
+
+  const addStandaloneEmail = async () => {
+    if (!standaloneEmail.trim() || !standaloneEmail.includes("@")) return;
+    setAddingStandalone(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/domain-monitor/standalone/emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: standaloneEmail.trim() }),
+      });
+      if (res.ok) {
+        setStandaloneEmail("");
+        fetchDomains();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to add email");
+      }
+    } catch {}
+    setAddingStandalone(false);
   };
 
   const fetchDomains = useCallback(async () => {
@@ -889,6 +964,10 @@ export default function DomainMonitor() {
     fetchDomains();
   };
 
+  const realDomains = domains.filter(d => d.domain !== "__standalone__");
+  const standaloneDomain = domains.find(d => d.domain === "__standalone__");
+  const standaloneEmails = standaloneDomain?.emails || [];
+
   const totalEmails = domains.reduce((s, d) => s + d.emails.length, 0);
   const totalBreaches = domains.reduce((s, d) => s + d.emails.reduce((es, e) => es + e.breachCount, 0), 0);
   const exposedEmails = domains.reduce((s, d) => s + d.emails.filter(e => e.verdict === "exposed" || e.verdict === "critical").length, 0);
@@ -909,10 +988,10 @@ export default function DomainMonitor() {
 
       <BreachAgentPanel onScanComplete={fetchDomains} />
 
-      {!loading && domains.length > 0 && (
+      {!loading && (realDomains.length > 0 || standaloneEmails.length > 0) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-mono font-bold text-cyan-400">{domains.length}</div>
+            <div className="text-2xl font-mono font-bold text-cyan-400">{realDomains.length}</div>
             <div className="text-xs text-slate-400 mt-1">Domains</div>
           </div>
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4 text-center">
@@ -936,15 +1015,15 @@ export default function DomainMonitor() {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-sm text-slate-400 font-mono">
-          {domains.length} domain(s) monitored
+          {realDomains.length} domain(s) monitored{standaloneEmails.length > 0 ? ` + ${standaloneEmails.length} standalone email(s)` : ""}
         </span>
         <div className="flex gap-2">
           <button
-            onClick={importFromNameSilo}
+            onClick={handleImportClick}
             disabled={importing}
             className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors disabled:opacity-50"
           >
-            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-3 h-3" /><Globe className="w-4 h-4" /></>}
             {importing ? "IMPORTING..." : "IMPORT FROM NAMESILO"}
           </button>
           <button
@@ -958,6 +1037,58 @@ export default function DomainMonitor() {
       </div>
 
       <AnimatePresence>
+        {showPinPrompt && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-800/80 border border-amber-500/30 rounded-lg p-4 space-y-3"
+          >
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-mono text-amber-400">PIN REQUIRED — NameSilo Import</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Enter your platform PIN to authorize the NameSilo domain import.
+            </p>
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <input
+                  type={showPin ? "text" : "password"}
+                  value={pinInput}
+                  onChange={e => setPinInput(e.target.value)}
+                  placeholder="Enter PIN"
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 pr-10"
+                  onKeyDown={e => e.key === "Enter" && verifyPinAndImport()}
+                  autoFocus
+                />
+                <button
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400"
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                onClick={verifyPinAndImport}
+                disabled={pinChecking || !pinInput}
+                className="px-4 py-2 text-xs font-mono bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded transition-colors"
+              >
+                {pinChecking ? "CHECKING..." : "UNLOCK"}
+              </button>
+              <button
+                onClick={() => { setShowPinPrompt(false); setPinInput(""); setPinError(""); }}
+                className="px-3 py-2 text-xs font-mono text-slate-400 border border-slate-700 rounded hover:bg-slate-700/50 transition-colors"
+              >
+                CANCEL
+              </button>
+            </div>
+            {pinError && <p className="text-xs text-red-400">{pinError}</p>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {importResult && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -969,7 +1100,8 @@ export default function DomainMonitor() {
               <CheckCircle className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300">
                 NameSilo import complete — {importResult.imported} new domain(s) added,{" "}
-                {importResult.skipped} already existed ({importResult.total} total in account)
+                {importResult.emailsAdded} contact email(s) auto-added,{" "}
+                {importResult.skipped} domain(s) already existed ({importResult.total} total in account)
               </span>
             </div>
             <button
@@ -1031,7 +1163,7 @@ export default function DomainMonitor() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
         </div>
-      ) : domains.length === 0 ? (
+      ) : realDomains.length === 0 && standaloneEmails.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 space-y-4">
           <Globe className="w-16 h-16 text-slate-700" />
           <div className="text-center space-y-2">
@@ -1039,16 +1171,101 @@ export default function DomainMonitor() {
             <p className="text-sm text-slate-500 max-w-md">
               Add your domains (e.g., drryans.com) and the email addresses you use on them.
               Then scan to check if any have been compromised in known data breaches.
+              You can also import all domains from your NameSilo account or add standalone emails.
             </p>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {domains.map(d => (
+          {realDomains.map(d => (
             <DomainCard key={d.id} domain={d} onDelete={deleteDomain} onRefresh={fetchDomains} />
           ))}
         </div>
       )}
+
+      <div className="border border-slate-700/50 bg-slate-800/30 rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-purple-400" />
+            <h3 className="text-sm font-mono font-semibold text-purple-400">STANDALONE EMAILS</h3>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">{standaloneEmails.length} email(s)</span>
+        </div>
+        <p className="text-xs text-slate-400">
+          Monitor personal emails that aren't tied to domains you own (e.g., Hotmail, Gmail, Yahoo accounts).
+          These get scanned for breaches just like domain emails.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={standaloneEmail}
+            onChange={e => setStandaloneEmail(e.target.value)}
+            placeholder="e.g., yourname@hotmail.com"
+            className="flex-1 bg-slate-900/50 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500"
+            onKeyDown={e => e.key === "Enter" && addStandaloneEmail()}
+          />
+          <button
+            onClick={addStandaloneEmail}
+            disabled={addingStandalone || !standaloneEmail.trim() || !standaloneEmail.includes("@")}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded transition-colors"
+          >
+            {addingStandalone ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+            ADD EMAIL
+          </button>
+        </div>
+
+        {standaloneEmails.length > 0 && standaloneDomain && (
+          <div className="space-y-2">
+            {standaloneEmails.map(email => {
+              const v = verdictConfig[email.verdict] || verdictConfig.unchecked;
+              const VIcon = v.icon;
+              return (
+                <div key={email.id} className={`border ${v.bg} rounded-lg p-3 flex items-center justify-between`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-sm text-slate-200 font-mono truncate">{email.email}</span>
+                    <span className={`flex items-center gap-1 text-xs ${v.color}`}>
+                      <VIcon className="w-3 h-3" />
+                      {v.label}
+                    </span>
+                    {email.breachCount > 0 && (
+                      <span className="text-xs text-red-400">{email.breachCount} breach(es)</span>
+                    )}
+                    {email.lastCheckedAt && (
+                      <span className="text-xs text-slate-500">
+                        Checked {formatDistanceToNow(new Date(email.lastCheckedAt), { addSuffix: true })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={async () => {
+                        await fetch(`${API_BASE}/api/domain-monitor/emails/${email.id}/scan`, { method: "POST" });
+                        fetchDomains();
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors"
+                      title="Scan for breaches"
+                    >
+                      <Search className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await fetch(`${API_BASE}/api/domain-monitor/emails/${email.id}`, { method: "DELETE" });
+                        fetchDomains();
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-red-400 transition-colors"
+                      title="Remove email"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

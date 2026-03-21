@@ -385,6 +385,25 @@ router.get("/domain-monitor/namesilo/domains", async (_req, res): Promise<void> 
   }
 });
 
+async function fetchNameSiloXml(endpoint: string, apiKey: string, extraParams = ""): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  const r = await fetch(
+    `https://www.namesilo.com/api/${endpoint}?version=1&type=xml&key=${apiKey}${extraParams}`,
+    { signal: controller.signal }
+  );
+  clearTimeout(timer);
+  if (!r.ok) throw new Error(`NameSilo API returned ${r.status}`);
+  return r.text();
+}
+
+function parseNameSiloCode(xml: string): { ok: boolean; detail: string } {
+  const codeMatch = xml.match(/<code>(.*?)<\/code>/i);
+  const detailMatch = xml.match(/<detail>(.*?)<\/detail>/i);
+  const code = codeMatch?.[1] || "";
+  return { ok: code === "300", detail: detailMatch?.[1] || "Unknown error" };
+}
+
 router.post("/domain-monitor/namesilo/import", async (_req, res): Promise<void> => {
   const apiKey = process.env.NAMESILO_API_KEY;
   if (!apiKey) {
@@ -393,30 +412,15 @@ router.post("/domain-monitor/namesilo/import", async (_req, res): Promise<void> 
   }
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-
-    const r = await fetch(
-      `https://www.namesilo.com/api/listDomains?version=1&type=xml&key=${apiKey}`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timer);
-
-    if (!r.ok) {
-      res.status(r.status).json({ error: `NameSilo API returned ${r.status}` });
-      return;
-    }
-
-    const xml = await r.text();
-    const codeMatch = xml.match(/<code>(.*?)<\/code>/i);
-    if (codeMatch?.[1] !== "300") {
-      const detailMatch = xml.match(/<detail>(.*?)<\/detail>/i);
-      res.status(400).json({ error: detailMatch?.[1] || "NameSilo API error" });
+    const listXml = await fetchNameSiloXml("listDomains", apiKey);
+    const listStatus = parseNameSiloCode(listXml);
+    if (!listStatus.ok) {
+      res.status(400).json({ error: `NameSilo: ${listStatus.detail}` });
       return;
     }
 
     const domains: string[] = [];
-    const domainMatches = xml.match(/<domain>(.*?)<\/domain>/gi);
+    const domainMatches = listXml.match(/<domain>(.*?)<\/domain>/gi);
     if (domainMatches) {
       for (const match of domainMatches) {
         const domain = match.replace(/<\/?domain>/gi, "").trim().toLowerCase();
@@ -426,41 +430,147 @@ router.post("/domain-monitor/namesilo/import", async (_req, res): Promise<void> 
       }
     }
 
+    let contactEmails: Map<string, string[]> = new Map();
+    try {
+      const contactXml = await fetchNameSiloXml("contactList", apiKey);
+      const contactStatus = parseNameSiloCode(contactXml);
+      if (contactStatus.ok) {
+        const contactBlocks = contactXml.match(/<contact>([\s\S]*?)<\/contact>/gi) || [];
+        const contactMap = new Map<string, string>();
+        for (const block of contactBlocks) {
+          const idMatch = block.match(/<contact_id>(.*?)<\/contact_id>/i);
+          const emailMatch = block.match(/<em>(.*?)<\/em>/i);
+          if (idMatch && emailMatch) {
+            contactMap.set(idMatch[1], emailMatch[1].trim().toLowerCase());
+          }
+        }
+
+        for (const domain of domains) {
+          try {
+            const infoXml = await fetchNameSiloXml("getDomainInfo", apiKey, `&domain=${domain}`);
+            const infoStatus = parseNameSiloCode(infoXml);
+            if (infoStatus.ok) {
+              const emails = new Set<string>();
+              const contactFields = ["registrant", "administrative", "technical", "billing"];
+              for (const field of contactFields) {
+                const regex = new RegExp(`<${field}>(.*?)</${field}>`, "i");
+                const m = infoXml.match(regex);
+                if (m && contactMap.has(m[1])) {
+                  emails.add(contactMap.get(m[1])!);
+                }
+              }
+              if (emails.size > 0) {
+                contactEmails.set(domain, [...emails]);
+              }
+            }
+          } catch {}
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    } catch (e: any) {
+      console.log("[domain-monitor] Contact fetch skipped:", e.message);
+    }
+
     let imported = 0;
     let skipped = 0;
+    let emailsAdded = 0;
 
     for (const domain of domains) {
+      let domainRow: any;
       const existing = await db.select().from(monitoredDomainsTable)
         .where(eq(monitoredDomainsTable.domain, domain));
 
       if (existing.length > 0) {
         skipped++;
-        continue;
+        domainRow = existing[0];
+      } else {
+        const [created] = await db.insert(monitoredDomainsTable).values({
+          domain,
+          notes: "Imported from NameSilo",
+        }).returning();
+        domainRow = created;
+        imported++;
       }
 
-      await db.insert(monitoredDomainsTable).values({
-        domain,
-        notes: "Imported from NameSilo",
-      });
-      imported++;
+      const domainContactEmails = contactEmails.get(domain) || [];
+      for (const email of domainContactEmails) {
+        const existingEmail = await db.select().from(domainEmailsTable)
+          .where(eq(domainEmailsTable.email, email));
+        if (existingEmail.length === 0) {
+          await db.insert(domainEmailsTable).values({
+            domainId: domainRow.id,
+            email,
+          });
+          emailsAdded++;
+        }
+      }
     }
 
     await logActivity({
       action: "NAMESILO_IMPORT",
       category: "monitoring",
       source: "domain_monitor",
-      detail: `Imported ${imported} domains from NameSilo (${skipped} already existed, ${domains.length} total)`,
+      detail: `Imported ${imported} domains, ${emailsAdded} contact emails from NameSilo (${skipped} domains existed, ${domains.length} total)`,
     });
 
     res.json({
       total: domains.length,
       imported,
       skipped,
+      emailsAdded,
       domains,
     });
   } catch (err: any) {
     console.error("[domain-monitor] NameSilo import failed:", err.message);
     res.status(500).json({ error: "Failed to import domains from NameSilo" });
+  }
+});
+
+router.post("/domain-monitor/standalone/emails", async (req, res): Promise<void> => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      res.status(400).json({ error: "Valid email address is required" });
+      return;
+    }
+
+    const cleaned = email.trim().toLowerCase();
+
+    const existingEmail = await db.select().from(domainEmailsTable)
+      .where(eq(domainEmailsTable.email, cleaned));
+    if (existingEmail.length > 0) {
+      res.status(409).json({ error: "Email already tracked" });
+      return;
+    }
+
+    const standaloneDomain = "__standalone__";
+    let domainRow = await db.select().from(monitoredDomainsTable)
+      .where(eq(monitoredDomainsTable.domain, standaloneDomain));
+
+    if (domainRow.length === 0) {
+      const [created] = await db.insert(monitoredDomainsTable).values({
+        domain: standaloneDomain,
+        notes: "Standalone emails not tied to any owned domain",
+      }).returning();
+      domainRow = [created];
+    }
+
+    const [createdEmail] = await db.insert(domainEmailsTable).values({
+      domainId: domainRow[0].id,
+      email: cleaned,
+    }).returning();
+
+    await logActivity({
+      action: "STANDALONE_EMAIL_ADDED",
+      category: "monitoring",
+      source: "domain_monitor",
+      detail: `Added standalone email: ${cleaned}`,
+    });
+
+    res.json(createdEmail);
+  } catch (err: any) {
+    console.error("[domain-monitor] POST /standalone/emails failed:", err.message);
+    res.status(500).json({ error: "Failed to add standalone email" });
   }
 });
 
