@@ -30,6 +30,7 @@ import AlertCenter from "@/pages/AlertCenter";
 import SecuritySettings from "@/pages/SecuritySettings";
 import SelfScanner from "@/pages/SelfScanner";
 import DomainMonitor from "@/pages/DomainMonitor";
+import SecureVault from "@/pages/SecureVault";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -84,6 +85,7 @@ function Router() {
         <Route path="/security-settings" component={SecuritySettings} />
         <Route path="/self-scanner" component={SelfScanner} />
         <Route path="/domain-monitor" component={DomainMonitor} />
+        <Route path="/secure-vault" component={SecureVault} />
         <Route component={NotFound} />
       </Switch>
       <QuickHelpWrapper />

@@ -27,6 +27,7 @@ import securityAgentRouter from "./security-agent";
 import securitySettingsRouter from "./security-settings";
 import selfScanRouter from "./self-scan";
 import domainMonitorRouter from "./domain-monitor";
+import secureVaultRouter from "./secure-vault";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(securityAgentRouter);
 router.use(securitySettingsRouter);
 router.use(selfScanRouter);
 router.use(domainMonitorRouter);
+router.use(secureVaultRouter);
 
 export default router;
