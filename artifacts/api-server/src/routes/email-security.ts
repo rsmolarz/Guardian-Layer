@@ -226,7 +226,7 @@ router.get("/email-security/attachment-analysis", async (_req, res): Promise<voi
         hash: { md5: "c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6", sha256: "6ca13d52ca70c883e0f0bb101e425a89e8624de51db2d2392593af6a84118090" },
       },
       {
-        id: "ATT-005", fileName: "vpn_client_setup.msi", fileType: "application/x-msi", fileSize: 15728640,
+        id: "ATT-005", fileName: "tailscale_client_setup.msi", fileType: "application/x-msi", fileSize: 15728640,
         sender: "it-support@corp-it.biz", recipient: "newuser@corp.com", status: "blocked", threatLevel: "critical", riskScore: 0.91,
         detectedAt: new Date(now.getTime() - 30 * 60000).toISOString(),
         findings: [

@@ -57,7 +57,7 @@ export async function seedDisasterRecovery() {
       rpoMinutes: 0,
       estimatedRecoveryMinutes: 25,
       requiredPersonnel: "Network Engineer, ISP Liaison, Security Lead",
-      dependencies: "Backup ISP, VPN infrastructure, DNS failover",
+      dependencies: "Backup ISP, Tailscale mesh network, DNS failover",
       lastTestedAt: new Date("2026-01-20"),
       lastTestResult: "partial",
       status: "active",
@@ -135,7 +135,7 @@ export async function seedDisasterRecovery() {
 
     { procedureId: procMap.get("network_outage")!, stepOrder: 1, title: "Assess Outage Scope", description: "Determine if the outage is internal, ISP-related, or DNS. Run traceroutes and check ISP status pages.", estimatedMinutes: 5, responsible: "Network Engineer" },
     { procedureId: procMap.get("network_outage")!, stepOrder: 2, title: "Activate Backup ISP", description: "Switch to backup ISP connection. Update BGP routing or DNS records as needed.", estimatedMinutes: 10, responsible: "Network Engineer" },
-    { procedureId: procMap.get("network_outage")!, stepOrder: 3, title: "Verify VPN and Internal Services", description: "Ensure VPN tunnels are re-established. Verify internal service communication across all zones.", estimatedMinutes: 5, responsible: "Network Engineer" },
+    { procedureId: procMap.get("network_outage")!, stepOrder: 3, title: "Verify Tailscale and Internal Services", description: "Ensure Tailscale mesh connections are re-established. Verify internal service communication across all zones.", estimatedMinutes: 5, responsible: "Network Engineer" },
     { procedureId: procMap.get("network_outage")!, stepOrder: 4, title: "Validate External Connectivity", description: "Test external-facing services. Verify CDN, API endpoints, and customer-facing applications are accessible.", estimatedMinutes: 5, responsible: "ISP Liaison" },
 
     { procedureId: procMap.get("security_breach")!, stepOrder: 1, title: "Contain the Breach", description: "Isolate affected systems from the network. Block compromised accounts. Preserve evidence for forensic analysis.", estimatedMinutes: 10, responsible: "Security Analyst" },
@@ -148,7 +148,7 @@ export async function seedDisasterRecovery() {
     { procedureId: procMap.get("data_corruption")!, stepOrder: 3, title: "Restore from Point-in-Time Backup", description: "Identify the last known good state. Restore from point-in-time backup. Replay valid transactions after the corruption point.", estimatedMinutes: 20, responsible: "Data Engineer" },
     { procedureId: procMap.get("data_corruption")!, stepOrder: 4, title: "Validate Restored Data", description: "Run comprehensive data validation. Compare checksums and record counts against known good values.", estimatedMinutes: 5, responsible: "QA Lead" },
 
-    { procedureId: procMap.get("ransomware_attack")!, stepOrder: 1, title: "Isolate All Systems", description: "Immediately disconnect all systems from the network. Disable Wi-Fi, VPN, and cloud connectivity. Shut down affected endpoints.", estimatedMinutes: 5, responsible: "Security Analyst" },
+    { procedureId: procMap.get("ransomware_attack")!, stepOrder: 1, title: "Isolate All Systems", description: "Immediately disconnect all systems from the network. Disable Wi-Fi, revoke Tailscale node keys, and cut cloud connectivity. Shut down affected endpoints.", estimatedMinutes: 5, responsible: "Security Analyst" },
     { procedureId: procMap.get("ransomware_attack")!, stepOrder: 2, title: "Assess Encryption Scope", description: "Identify which systems and files are encrypted. Determine the ransomware variant. Do NOT pay the ransom.", estimatedMinutes: 15, responsible: "CISO" },
     { procedureId: procMap.get("ransomware_attack")!, stepOrder: 3, title: "Notify Law Enforcement", description: "Contact FBI IC3, local law enforcement, and legal counsel. Preserve all evidence including ransom notes and logs.", estimatedMinutes: 10, responsible: "Legal Counsel" },
     { procedureId: procMap.get("ransomware_attack")!, stepOrder: 4, title: "Restore from Air-Gapped Backups", description: "Boot clean OS images on wiped hardware. Restore data from verified air-gapped backups. Scan all restored files before reconnecting.", estimatedMinutes: 45, responsible: "Infrastructure Lead" },

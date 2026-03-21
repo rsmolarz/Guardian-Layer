@@ -32,7 +32,7 @@ const PLAIN_TEXT: Record<string, string> = {
   "ANALYZING THREAT VECTORS...": "Analyzing threat patterns...",
   "COMPUTING THROUGHPUT METRICS...": "Calculating traffic volume...",
   "ANALYZING DNS QUERIES...": "Checking website safety...",
-  "VERIFYING ZERO-TRUST POLICIES...": "Checking secure access rules...",
+  "VERIFYING ZERO-TRUST POLICIES...": "Checking Tailscale ACL policies...",
   "ANALYZING FIREWALL RULES...": "Reviewing firewall settings...",
   "CHECKING SYSTEM HEALTH...": "Checking system health...",
   "SCANNING API ENDPOINTS...": "Checking application security...",

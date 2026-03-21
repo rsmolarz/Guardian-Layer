@@ -86,7 +86,7 @@ const PAGE_HELP: Record<string, { title: string; sections: { name: string; expla
       { name: "Security Events", explanation: "A log of network security events — connection attempts, blocked traffic, and suspicious patterns." },
       { name: "Break-in Detection", explanation: "Monitors for unauthorized attempts to access your network — like someone trying to break in." },
       { name: "Website Safety", explanation: "Checks the websites your employees visit and blocks access to known dangerous sites." },
-      { name: "Secure Access", explanation: "Manages VPN and secure remote access, ensuring only authorized users connect to your network." },
+      { name: "Secure Access", explanation: "Monitors Tailscale mesh network connections and zero-trust policies, ensuring only authorized devices reach your network." },
       { name: "Firewall Activity", explanation: "Shows what your firewall is blocking and allowing — your network's first line of defense." },
     ],
   },

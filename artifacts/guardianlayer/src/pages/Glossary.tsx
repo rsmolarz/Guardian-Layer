@@ -21,6 +21,8 @@ const TERM_EXAMPLES: Record<string, { example: string; whereYouSeeIt: string }> 
   "SIEM": { example: "\"The SIEM correlated login failures across 5 servers and identified a coordinated attack.\"", whereYouSeeIt: "Monitoring page — system health overview" },
   "MFA": { example: "\"MFA prevented an attacker who had stolen a password from logging in — they didn't have the phone code.\"", whereYouSeeIt: "YubiKey Security page — authentication policies" },
   "VPN": { example: "\"Remote employees connect through VPN so their internet traffic is encrypted and private.\"", whereYouSeeIt: "Network Security — secure access section" },
+  "Tailscale": { example: "\"All 5 team members are connected via Tailscale — their devices form an encrypted mesh network.\"", whereYouSeeIt: "Network Security — secure access tab, showing Tailscale node status and DERP relays" },
+  "DERP relay": { example: "\"Traffic is routed through DERP nyc because the two devices couldn't establish a direct connection.\"", whereYouSeeIt: "Network Security — secure access tab, Tailscale relay column" },
   "firewall": { example: "\"The firewall blocked 150 connection attempts from a known malicious IP address today.\"", whereYouSeeIt: "Network Security — firewall activity tab" },
   "endpoint": { example: "\"3 out of 50 endpoints are missing the latest security update.\"", whereYouSeeIt: "Endpoint Security page — device overview" },
   "vulnerability": { example: "\"A vulnerability in the web server software could let attackers view private files.\"", whereYouSeeIt: "Alerts page — vulnerability alerts" },

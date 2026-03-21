@@ -100,7 +100,7 @@ export default function NetworkSecurity() {
           title="Network Security"
           sections={[
             { heading: "What This Page Covers", content: "Your network is the highway that connects your organization to the internet. This page monitors all traffic flowing in and out, looking for unauthorized access attempts, attacks, and suspicious patterns." },
-            { heading: "Key Areas", content: "Security Events logs all notable network activity. Break-in Detection watches for unauthorized access attempts. Website Safety blocks dangerous websites. Secure Access manages VPN and remote connections. Firewall Activity shows what's being blocked and allowed." },
+            { heading: "Key Areas", content: "Security Events logs all notable network activity. Break-in Detection watches for unauthorized access attempts. Website Safety blocks dangerous websites. Secure Access monitors your Tailscale mesh network and zero-trust policies. Firewall Activity shows what's being blocked and allowed." },
           ]}
         />
         <WhyThisMatters explanation="Your network is the front door to your organization's data. Monitoring network traffic catches unauthorized access attempts, data theft, and attacks before they cause damage. A single undetected breach can compromise your entire infrastructure." />
@@ -963,7 +963,7 @@ function VpnZeroTrustPanel() {
 
   const summaryCards = [
     { label: "Total Users", value: summary.totalSessions, icon: UserCheck, color: "text-primary" },
-    { label: "Active VPN", value: summary.activeSessions, icon: Wifi, color: "text-green-400" },
+    { label: "Active Tailscale", value: summary.activeSessions, icon: Wifi, color: "text-green-400" },
     { label: "Compliant", value: summary.compliantUsers, icon: CheckCircle, color: "text-green-400" },
     { label: "Non-Compliant", value: summary.nonCompliantUsers, icon: ShieldAlert, color: "text-red-400" },
     { label: "Geo Anomalies", value: summary.geoAnomalies, icon: MapPin, color: "text-orange-400" },
@@ -1082,7 +1082,7 @@ function VpnZeroTrustPanel() {
                 <div className="px-4 pb-4 border-t border-white/5 pt-4 space-y-3">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-2 rounded-lg bg-black/20 border border-white/5">
-                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">VPN Server</span>
+                      <span className="text-[10px] font-display uppercase tracking-widest text-muted-foreground block">Tailscale Relay</span>
                       <span className="text-xs font-mono text-white">{session.vpnServer}</span>
                     </div>
                     <div className="p-2 rounded-lg bg-black/20 border border-white/5">

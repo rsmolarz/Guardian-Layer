@@ -255,7 +255,7 @@ router.get("/yubikey/failed-auth", async (_req, res): Promise<void> => {
         { count: 2, reason: "Timeout", detail: "User didn't touch the key within the challenge window." },
       ],
       lockReason: "Automatic lockout triggered after 10+ failures within 60 minutes from multiple geographic locations.",
-      recommendation: "Verify the user's identity via out-of-band channel (phone call). Check if the key was reported lost/stolen. Review VPN and access logs for this user over the past 24 hours.",
+      recommendation: "Verify the user's identity via out-of-band channel (phone call). Check if the key was reported lost/stolen. Review Tailscale node logs and access history for this user over the past 24 hours.",
     },
     {
       id: "FA-002",
@@ -291,7 +291,7 @@ router.get("/yubikey/failed-auth", async (_req, res): Promise<void> => {
       firstFailure: new Date(now.getTime() - 10800000).toISOString(),
       lastFailure: new Date(now.getTime() - 3600000).toISOString(),
       ipAddresses: ["192.168.1.100", "203.0.113.88"],
-      geoLocations: ["HQ Office", "Unknown VPN Exit"],
+      geoLocations: ["HQ Office", "Unknown Tailscale Exit Node"],
       failureReasons: [
         { count: 5, reason: "Invalid PIN", detail: "PIN verification failed multiple times." },
         { count: 3, reason: "Certificate Expired", detail: "The PIV certificate on the key has expired and needs renewal." },
@@ -376,7 +376,7 @@ router.get("/yubikey/policies", async (_req, res): Promise<void> => {
       lastUpdated: new Date(now.getTime() - 1 * 86400000).toISOString(),
       compliance: { compliant: 3, total: 8, exempted: 0, nonCompliant: 5 },
       rules: [
-        { rule: "Hardware key recommended for VPN access", status: "partial" },
+        { rule: "Hardware key recommended for Tailscale admin access", status: "partial" },
         { rule: "TOTP required at minimum", status: "active" },
         { rule: "Key return upon contract termination", status: "active" },
       ],
@@ -624,7 +624,7 @@ router.get("/yubikey/anomaly-detector", async (_req, res): Promise<void> => {
       locations: [
         { city: "New York", country: "US", ip: a.sourceIp || "10.0.1.1", application: "Corporate SSO", timestamp: a.detectedAt },
         ...(a.type === "impossible_travel"
-          ? [{ city: "Beijing", country: "CN", ip: "203.0.113.42", application: "VPN Gateway", timestamp: new Date(new Date(a.detectedAt).getTime() + 1800000).toISOString() }]
+          ? [{ city: "Beijing", country: "CN", ip: "203.0.113.42", application: "Tailscale Admin Console", timestamp: new Date(new Date(a.detectedAt).getTime() + 1800000).toISOString() }]
           : []),
       ],
       aiAnalysis: a.aiAnalysis,

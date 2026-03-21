@@ -19,7 +19,7 @@ The project is built as a pnpm monorepo using TypeScript. The frontend uses Reac
 *   **Domain-Specific Security Modules:**
     *   **Email Security:** AI-powered threat detection, Auth Monitor (SPF/DKIM/DMARC), Compromise Detector, and Phishing Campaign tracking.
     *   **Endpoint Security:** Device Fleet management, AI-driven Malware Detection, Patch Compliance, Behavioral Analytics, and USB Monitor.
-    *   **Network Security:** Events Monitor, AI-powered Intrusion Detection, DNS Security, VPN & Zero-Trust management, and Firewall Analyzer.
+    *   **Network Security:** Events Monitor, AI-powered Intrusion Detection, DNS Security, Tailscale Mesh VPN & Zero-Trust management (DERP relays, ACL policies, tailnet monitoring), and Firewall Analyzer.
     *   **YubiKey & Hardware MFA:** Fleet Manager, Audit Log, Enrollment lifecycle, Failed Auth analysis, Policy enforcement, Lost/Stolen Key Response, MFA Compliance Dashboard, and Anomaly Detector.
 *   **OpenClaw Monitor:** Provides AI contract monitoring, UI Health Monitor, API Security Scanner, User Session Monitor, Configuration Drift Detector, URL Bookmarks, and Breach Alerts for post-breach monitoring.
 *   **Breach Incident Dashboard:** A dedicated page `/breach-response` for real-time breach status, anomaly stats, IP activity tracking, and incident timelines. Includes **Incident Report Generator** with downloadable security incident report and pre-written letters for FBI/IC3, FTC, local police, bank fraud department, and credit bureaus. Component: `IncidentReportGenerator.tsx`.
