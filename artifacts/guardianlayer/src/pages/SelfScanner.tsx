@@ -16,6 +16,8 @@ import {
   Zap,
   Clock,
   Target,
+  ClipboardCopy,
+  Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
@@ -206,6 +208,109 @@ function CategorySection({ category, checks }: { category: string; checks: ScanC
   );
 }
 
+function generateTechnicalReport(result: ScanResult): string {
+  const lines: string[] = [];
+  const ts = new Date(result.completedAt).toISOString();
+  lines.push("=== GUARDIANLAYER DAST SECURITY AUDIT REPORT ===");
+  lines.push(`Scan ID: ${result.scanId}`);
+  lines.push(`Completed: ${ts}`);
+  lines.push(`Duration: ${result.duration}ms`);
+  lines.push(`Grade: ${result.summary.grade} (${result.summary.score}/100)`);
+  lines.push(`Total Checks: ${result.summary.total} | Passed: ${result.summary.passed} | Failed: ${result.summary.failed} | Warnings: ${result.summary.warnings}`);
+  lines.push("");
+
+  const failed = result.checks.filter(c => c.status === "fail");
+  const warned = result.checks.filter(c => c.status === "warn");
+  const passed = result.checks.filter(c => c.status === "pass");
+
+  if (failed.length > 0) {
+    lines.push("──── FAILURES (must fix) ────");
+    lines.push("");
+    failed.forEach((c, i) => {
+      lines.push(`[FAIL ${i + 1}] ${c.name} [${c.severity.toUpperCase()}]`);
+      lines.push(`  Category: ${c.category}`);
+      lines.push(`  Finding: ${c.detail}`);
+      if (c.recommendation) lines.push(`  Fix: ${c.recommendation}`);
+      lines.push("");
+    });
+  }
+
+  if (warned.length > 0) {
+    lines.push("──── WARNINGS (should fix) ────");
+    lines.push("");
+    warned.forEach((c, i) => {
+      lines.push(`[WARN ${i + 1}] ${c.name} [${c.severity.toUpperCase()}]`);
+      lines.push(`  Category: ${c.category}`);
+      lines.push(`  Finding: ${c.detail}`);
+      if (c.recommendation) lines.push(`  Fix: ${c.recommendation}`);
+      lines.push("");
+    });
+  }
+
+  if (passed.length > 0) {
+    lines.push("──── PASSED ────");
+    lines.push("");
+    passed.forEach(c => {
+      lines.push(`[PASS] ${c.name} — ${c.detail}`);
+    });
+    lines.push("");
+  }
+
+  lines.push("──── ACTION ITEMS ────");
+  lines.push("");
+  if (failed.length > 0) {
+    lines.push("CRITICAL — Fix these immediately:");
+    failed.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.name}: ${c.recommendation || c.detail}`);
+    });
+    lines.push("");
+  }
+  if (warned.length > 0) {
+    lines.push("RECOMMENDED — Fix when possible:");
+    warned.forEach((c, i) => {
+      lines.push(`  ${i + 1}. ${c.name}: ${c.recommendation || c.detail}`);
+    });
+    lines.push("");
+  }
+  if (failed.length === 0 && warned.length === 0) {
+    lines.push("No security gaps found. All checks passed.");
+    lines.push("");
+  }
+
+  lines.push("=== END OF REPORT ===");
+  return lines.join("\n");
+}
+
+function CopyReportButton({ result }: { result: ScanResult }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    const report = generateTechnicalReport(result);
+    navigator.clipboard.writeText(report).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }, [result]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono border rounded transition-colors whitespace-nowrap
+        text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+    >
+      {copied ? (
+        <>
+          <Check className="w-3 h-3" /> COPIED
+        </>
+      ) : (
+        <>
+          <ClipboardCopy className="w-3 h-3" /> COPY TECHNICAL REPORT
+        </>
+      )}
+    </button>
+  );
+}
+
 export default function SelfScanner() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -349,12 +454,15 @@ export default function SelfScanner() {
                   </span>
                   <span className="font-mono">{result.scanId}</span>
                 </div>
-                <button
-                  onClick={runScan}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/10 transition-colors"
-                >
-                  <RefreshCw className="w-3 h-3" /> RE-SCAN
-                </button>
+                <div className="flex items-center gap-2">
+                  <CopyReportButton result={result} />
+                  <button
+                    onClick={runScan}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/10 transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" /> RE-SCAN
+                  </button>
+                </div>
               </div>
             </div>
           </div>
