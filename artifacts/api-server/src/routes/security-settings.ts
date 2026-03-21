@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import crypto from "crypto";
 import { db, securitySettingsTable, settingsChangeLogTable, platformPinTable } from "@workspace/db";
 import { logActivity } from "../lib/activity-logger";
+import { authLimiter } from "../middleware/rate-limiter";
 
 const router: IRouter = Router();
 
@@ -204,7 +205,7 @@ router.post("/platform-pin/set", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/platform-pin/verify", async (req, res): Promise<void> => {
+router.post("/platform-pin/verify", authLimiter, async (req, res): Promise<void> => {
   try {
     const { pin } = req.body;
     if (!pin) { res.status(400).json({ error: "PIN is required" }); return; }
