@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bell, BellRing, Filter, RefreshCw, Trash2, CheckCircle2, XCircle, AlertTriangle, Info, Send, Settings, Volume2, Mail, Smartphone, Monitor, ChevronDown } from "lucide-react";
 import { useAlerts } from "@/components/AlertSystem";
+import { API_BASE } from "@/lib/constants";
 
 interface AlertData {
   id: number;
@@ -64,7 +65,7 @@ export default function AlertCenter() {
   const [total, setTotal] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const { sendTestAlert, pushPermission, requestPushPermission } = useAlerts();
-  const baseUrl = import.meta.env.BASE_URL || "/";
+  const baseUrl = API_BASE;
 
   const [newAlert, setNewAlert] = useState({ title: "", message: "", severity: "medium", category: "security", source: "manual" });
 

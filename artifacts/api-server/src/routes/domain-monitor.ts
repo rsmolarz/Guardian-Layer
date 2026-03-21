@@ -463,7 +463,9 @@ router.post("/domain-monitor/namesilo/import", async (_req, res): Promise<void> 
                 contactEmails.set(domain, [...emails]);
               }
             }
-          } catch {}
+          } catch (err: any) {
+            console.error(`[domain-monitor] Failed to fetch info for domain:`, err.message);
+          }
           await new Promise(r => setTimeout(r, 500));
         }
       }

@@ -311,8 +311,9 @@ router.post("/gateway/api-keys", async (req, res): Promise<void> => {
       detail: `API key "${name.trim()}" created with scopes: ${scopeStr}`,
     });
 
+    const { encryptedKey: _enc, keyHash: _hash, ...safeKey } = created;
     res.json({
-      key: created,
+      key: safeKey,
       rawKey,
       message: "Store this key securely — it won't be shown again.",
     });

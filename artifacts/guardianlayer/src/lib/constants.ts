@@ -1,5 +1,7 @@
 import { TransactionStatus, AlertSeverity } from "@workspace/api-client-react";
 
+export const API_BASE = import.meta.env.VITE_API_URL || "";
+
 export const STATUS_COLORS: Record<string, string> = {
   [TransactionStatus.ALLOWED]: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]",
   [TransactionStatus.HELD]: "bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]",

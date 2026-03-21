@@ -28,7 +28,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
 import { PinGate } from "@/components/PinGate";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+import { API_BASE } from "@/lib/constants";
 
 interface SecuritySetting {
   id: number;

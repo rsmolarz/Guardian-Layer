@@ -32,6 +32,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
 
+import { API_BASE } from "@/lib/constants";
+
 function formatBytes(bytes: number | null | undefined): string {
   if (!bytes || bytes === 0) return "0 B";
   const k = 1024;
@@ -79,7 +81,7 @@ export default function Backups() {
     if (!key) return;
     setTriggerLoading(true);
     try {
-      const resp = await fetch(`${import.meta.env.BASE_URL}api/backups/trigger`, {
+      const resp = await fetch(`${API_BASE}/api/backups/trigger`, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}` },
       });
@@ -102,7 +104,7 @@ export default function Backups() {
     if (!key) return;
     setSettingsSaving(true);
     try {
-      const resp = await fetch(`${import.meta.env.BASE_URL}api/backups/settings`, {
+      const resp = await fetch(`${API_BASE}/api/backups/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify(data),
@@ -126,7 +128,7 @@ export default function Backups() {
     if (!key) return;
     setVerifyLoading(true);
     try {
-      const resp = await fetch(`${import.meta.env.BASE_URL}api/backups/${backupId}/verify`, {
+      const resp = await fetch(`${API_BASE}/api/backups/${backupId}/verify`, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}` },
       });
@@ -148,7 +150,7 @@ export default function Backups() {
     if (!key) return;
     setRestoreLoading(true);
     try {
-      const resp = await fetch(`${import.meta.env.BASE_URL}api/backups/${backupId}/restore`, {
+      const resp = await fetch(`${API_BASE}/api/backups/${backupId}/restore`, {
         method: "POST",
         headers: { "X-Confirm-Restore": "true", Authorization: `Bearer ${key}` },
       });
@@ -439,7 +441,7 @@ export default function Backups() {
                                   onClick={async () => {
                                     const key = getAdminKey();
                                     if (!key) return;
-                                    const resp = await fetch(`${import.meta.env.BASE_URL}api/backups/${backup.id}/download`, {
+                                    const resp = await fetch(`${API_BASE}/api/backups/${backup.id}/download`, {
                                       headers: { Authorization: `Bearer ${key}` },
                                     });
                                     if (resp.status === 401 || resp.status === 403) {

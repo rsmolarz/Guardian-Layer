@@ -79,7 +79,7 @@ router.get("/threat-detection/correlations", async (_req, res): Promise<void> =>
 });
 
 router.post("/threat-detection/correlate-now", async (_req, res): Promise<void> => {
-  runThreatCorrelation();
+  await runThreatCorrelation();
   const correlations = getThreatCorrelations();
   res.json({ correlations, total: correlations.length, message: "Correlation analysis complete" });
 });

@@ -36,7 +36,7 @@ import { CyberLoading } from "@/components/ui/CyberLoading";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
 import { ExecutiveSummary } from "@/components/clarity/ExecutiveSummary";
 
-const API_BASE = "";
+import { API_BASE } from "@/lib/constants";
 
 const METHOD_BADGE: Record<string, string> = {
   GET: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -258,7 +258,7 @@ function RoutesPanel() {
                       <div className="relative">
                         <code className="text-[11px] font-mono text-emerald-300 bg-black/60 px-3 py-2 rounded-lg border border-white/5 block break-all">
                           {route.method === "GET"
-                            ? `curl -s ${route.path}${route.params ? route.params.split("?")[1] ? "?" + route.params.split("?")[1] : "" : ""}`
+                            ? `curl -s ${route.path}`
                             : `curl -X ${route.method} ${route.path} -H "Content-Type: application/json" -d '${route.body || "{}"}'`
                           }
                         </code>

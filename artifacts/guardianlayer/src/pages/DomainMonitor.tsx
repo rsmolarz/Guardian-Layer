@@ -39,7 +39,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+import { API_BASE } from "@/lib/constants";
 const PIN_SESSION_KEY = "gl_pin_verified";
 const PIN_SESSION_TTL = 30 * 60 * 1000;
 

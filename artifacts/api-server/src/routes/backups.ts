@@ -60,9 +60,14 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-function computeSHA256(filePath: string): string {
-  const fileBuffer = fs.readFileSync(filePath);
-  return createHash("sha256").update(fileBuffer).digest("hex");
+async function computeSHA256(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", reject);
+  });
 }
 
 async function performBackup(backupId: number, backupType: string) {
@@ -149,9 +154,9 @@ async function performBackup(backupId: number, backupType: string) {
     fs.rmSync(tempDir, { recursive: true, force: true });
 
     const stats = fs.statSync(archivePath);
-    const checksum = computeSHA256(archivePath);
+    const checksum = await computeSHA256(archivePath);
 
-    const verifyChecksum = computeSHA256(archivePath);
+    const verifyChecksum = await computeSHA256(archivePath);
     if (checksum !== verifyChecksum) {
       throw new Error("Post-create integrity check failed: SHA-256 mismatch on re-read");
     }
@@ -339,7 +344,9 @@ router.post("/backups/trigger", requireBackupAuth, async (_req, res): Promise<vo
     })
     .returning();
 
-  performBackup(backup.id, "manual");
+  performBackup(backup.id, "manual").catch((err) => {
+    console.error("[backups] Background backup failed:", err.message);
+  });
 
   res.json(
     TriggerBackupResponse.parse({
@@ -487,7 +494,7 @@ router.post("/backups/:id/verify", requireBackupAuth, async (req, res): Promise<
     return;
   }
 
-  const currentChecksum = computeSHA256(backup.localPath);
+  const currentChecksum = await computeSHA256(backup.localPath);
   const verified = currentChecksum === backup.checksum;
 
   await db

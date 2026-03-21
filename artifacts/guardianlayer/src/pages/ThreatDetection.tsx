@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, ExternalLink,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+import { API_BASE } from "@/lib/constants";
 
 interface AnomalySummary {
   totalAnomalies: number;
@@ -232,17 +232,22 @@ function AnomaliesTab() {
   const [filter, setFilter] = useState<{ severity?: string; status?: string }>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (filter.severity) params.set("severity", filter.severity);
       if (filter.status) params.set("status", filter.status);
       const r = await fetch(`${API_BASE}/api/threat-detection/anomalies?${params}`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setAnomalies(data.anomalies || []);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to load anomalies");
+    }
     setLoading(false);
   }, [filter]);
 
@@ -286,6 +291,10 @@ function AnomaliesTab() {
         </button>
         <span className="text-xs text-gray-500 ml-auto">{anomalies.length} anomalies</span>
       </div>
+
+      {error && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-400">{error}</div>
+      )}
 
       {anomalies.length === 0 ? (
         <div className="text-center py-12">
@@ -362,14 +371,19 @@ function AnomaliesTab() {
 function CorrelationsTab() {
   const [correlations, setCorrelations] = useState<ThreatCorrelation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/correlations`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setCorrelations(data.correlations || []);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to load correlations");
+    }
     setLoading(false);
   }, []);
 
@@ -377,11 +391,15 @@ function CorrelationsTab() {
 
   const runCorrelation = async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/correlate-now`, { method: "POST" });
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setCorrelations(data.correlations || []);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to run correlation");
+    }
     setLoading(false);
   };
 
@@ -395,6 +413,10 @@ function CorrelationsTab() {
           <Crosshair className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Run Analysis
         </button>
       </div>
+
+      {error && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-400">{error}</div>
+      )}
 
       {correlations.length === 0 ? (
         <div className="text-center py-12">
@@ -434,14 +456,19 @@ function CorrelationsTab() {
 function LockoutsTab() {
   const [locked, setLocked] = useState<LockedIP[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/locked-ips`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setLocked(data.lockedIPs || []);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to load locked IPs");
+    }
     setLoading(false);
   }, []);
 
@@ -457,6 +484,10 @@ function LockoutsTab() {
           <li className="flex items-start gap-2"><Shield className="w-3 h-3 text-cyan-400 mt-0.5 shrink-0" /> If attempts exceed 15, a critical brute force alert triggers</li>
         </ul>
       </div>
+
+      {error && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-400">{error}</div>
+      )}
 
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-400">{locked.length} IPs currently locked out</span>
@@ -501,14 +532,19 @@ function ReputationTab() {
   const [checkResult, setCheckResult] = useState<any>(null);
   const [checking, setChecking] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/ip-reputation`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setResults(data.results || []);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to load IP reputation data");
+    }
     setLoading(false);
   }, []);
 
@@ -518,6 +554,7 @@ function ReputationTab() {
     if (!checkIp.trim()) return;
     setChecking(true);
     setCheckResult(null);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/check-ip`, {
         method: "POST",
@@ -527,12 +564,18 @@ function ReputationTab() {
       const data = await r.json();
       setCheckResult(data);
       load();
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to check IP reputation");
+    }
     setChecking(false);
   };
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-400">{error}</div>
+      )}
+
       <div className="bg-[#0a0a1a]/80 border border-cyan-900/30 rounded-lg p-4">
         <h4 className="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
           <Search className="w-4 h-4" /> Check IP Reputation
@@ -620,14 +663,19 @@ export default function ThreatDetection() {
   const [tab, setTab] = useState<Tab>("overview");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadOverview = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const r = await fetch(`${API_BASE}/api/threat-detection/overview`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
       const data = await r.json();
       setOverview(data);
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.message || "Failed to load overview");
+    }
     setLoading(false);
   }, []);
 
@@ -673,6 +721,10 @@ export default function ThreatDetection() {
           </button>
         ))}
       </div>
+
+      {error && tab === "overview" && (
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-sm text-rose-400">{error}</div>
+      )}
 
       <div>
         {tab === "overview" && <OverviewTab data={overview} onRefresh={loadOverview} loading={loading} />}

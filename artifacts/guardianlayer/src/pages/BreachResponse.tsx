@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { IncidentReportGenerator } from "@/components/IncidentReportGenerator";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+import { API_BASE } from "@/lib/constants";
 
 interface TimelineEvent {
   timestamp: string;
