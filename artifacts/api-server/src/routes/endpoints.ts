@@ -218,7 +218,7 @@ router.get("/endpoints/patch-compliance", async (_req, res): Promise<void> => {
   }
 });
 
-router.get("/endpoints/behavioral-analytics", async (_req, res): Promise<void> => {
+const behavioralAnalyticsHandler = async (_req: any, res: any): Promise<void> => {
   try {
     const now = new Date();
     const devices = [
@@ -279,7 +279,10 @@ router.get("/endpoints/behavioral-analytics", async (_req, res): Promise<void> =
     console.error("[endpoints] GET /behavioral-analytics failed:", err.message);
     res.status(500).json({ error: "Failed to retrieve behavioral analytics." });
   }
-});
+};
+router.get("/endpoints/behavioral-analytics", behavioralAnalyticsHandler);
+router.get("/endpoints/activity", behavioralAnalyticsHandler);
+router.get("/endpoints/unusual-activity", behavioralAnalyticsHandler);
 
 router.get("/endpoints/usb-monitor", async (_req, res): Promise<void> => {
   try {
