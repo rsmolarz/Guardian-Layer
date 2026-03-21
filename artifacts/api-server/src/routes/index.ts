@@ -63,4 +63,19 @@ router.use(domainMonitorRouter);
 router.use(secureVaultRouter);
 router.use(threatDetectionRouter);
 
+router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
+router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));
+router.get("/endpoints/behavior", (req, res) => res.redirect(307, `/api/endpoints/behavioral-analytics`));
+router.get("/endpoints/malware", (req, res) => res.redirect(307, `/api/endpoints/malware-scans`));
+router.get("/email-security/auth", (req, res) => res.redirect(307, `/api/email-security/auth-monitor`));
+router.get("/email-security/attachments", (req, res) => res.redirect(307, `/api/email-security/attachment-analysis`));
+router.get("/email-security/compromise", (req, res) => res.redirect(307, `/api/email-security/account-compromise`));
+router.get("/email-security/phishing", (req, res) => res.redirect(307, `/api/email-security/phishing-campaigns`));
+router.get("/network/intrusions", (req, res) => res.redirect(307, `/api/network/ids`));
+router.get("/network/dns", (req, res) => res.redirect(307, `/api/network/dns-security`));
+router.get("/network/vpn", (req, res) => res.redirect(307, `/api/network/vpn-zerotrust`));
+router.get("/network/firewall", (req, res) => res.redirect(307, `/api/network/firewall-rules`));
+router.get("/openclaw/api", (req, res) => res.redirect(307, `/api/openclaw/api-security`));
+router.get("/openclaw/drift", (req, res) => res.redirect(307, `/api/openclaw/config-drift`));
+
 export default router;
