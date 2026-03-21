@@ -698,8 +698,13 @@ function ApiKeysPanel() {
   const [newKeyScopes, setNewKeyScopes] = useState("read,write");
   const [newKeyExpiry, setNewKeyExpiry] = useState("90");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [revealedKeyId, setRevealedKeyId] = useState<number | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [revoking, setRevoking] = useState<number | null>(null);
+  const [showPinDialog, setShowPinDialog] = useState<number | null>(null);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [revealing, setRevealing] = useState(false);
 
   const fetchKeys = async () => {
     setLoading(true);
@@ -761,6 +766,36 @@ function ApiKeysPanel() {
     }
   };
 
+  const handleReveal = async (keyId: number) => {
+    if (!pinInput.trim()) {
+      setPinError("Enter your platform PIN");
+      return;
+    }
+    setRevealing(true);
+    setPinError("");
+    try {
+      const r = await fetch(`${API_BASE}/api/gateway/api-keys/${keyId}/reveal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setPinError(d.error || "Failed to reveal key");
+        setRevealing(false);
+        return;
+      }
+      setRevealedKey(d.rawKey);
+      setRevealedKeyId(keyId);
+      setShowPinDialog(null);
+      setPinInput("");
+      setPinError("");
+    } catch {
+      setPinError("Failed to reveal key");
+    }
+    setRevealing(false);
+  };
+
   const activeKeys = keys.filter(k => !k.revoked);
   const revokedKeys = keys.filter(k => k.revoked);
 
@@ -781,7 +816,7 @@ function ApiKeysPanel() {
               <h3 className="font-display text-sm uppercase tracking-widest text-emerald-400">API Key Created</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              Copy this key now — it will never be shown again. Use it in the <code className="text-primary">Authorization</code> header as <code className="text-primary">Bearer {'<key>'}</code>.
+              {revealedKeyId ? "Your full API key is shown below. Use your platform PIN to reveal it again anytime." : "Copy this key now. You can reveal it again later using your platform PIN."} Use it in the <code className="text-primary">Authorization</code> header as <code className="text-primary">Bearer {'<key>'}</code>.
             </p>
             <div className="flex items-center gap-2 bg-black/40 rounded-lg p-3 border border-white/10">
               <code className="flex-1 text-sm text-emerald-300 font-mono break-all select-all">{revealedKey}</code>
@@ -794,7 +829,7 @@ function ApiKeysPanel() {
             </div>
             <div className="mt-3 flex justify-end">
               <button
-                onClick={() => setRevealedKey(null)}
+                onClick={() => { setRevealedKey(null); setRevealedKeyId(null); }}
                 className="text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
               >
                 I've saved this key
@@ -941,14 +976,23 @@ function ApiKeysPanel() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => handleRevoke(k.id)}
-                disabled={revoking === k.id}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
-              >
-                {revoking === k.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                Revoke
-              </button>
+              <div className="shrink-0 flex items-center gap-2">
+                <button
+                  onClick={() => { setShowPinDialog(k.id); setPinInput(""); setPinError(""); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <Eye className="w-3 h-3" />
+                  Reveal
+                </button>
+                <button
+                  onClick={() => handleRevoke(k.id)}
+                  disabled={revoking === k.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-display uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                >
+                  {revoking === k.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  Revoke
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -969,6 +1013,65 @@ function ApiKeysPanel() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showPinDialog !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPinDialog(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass-panel rounded-xl p-6 border border-primary/30 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Key className="w-5 h-5 text-primary" />
+                <h3 className="font-display text-sm uppercase tracking-widest text-white">Reveal API Key</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                Enter your platform PIN to reveal the full API key.
+              </p>
+              <input
+                type="password"
+                value={pinInput}
+                onChange={(e) => { setPinInput(e.target.value); setPinError(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && showPinDialog !== null) handleReveal(showPinDialog); }}
+                placeholder="Enter PIN"
+                autoFocus
+                className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40 mb-3"
+              />
+              {pinError && (
+                <p className="text-xs text-rose-400 mb-3 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {pinError}
+                </p>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowPinDialog(null)}
+                  className="px-4 py-2 rounded-lg text-xs font-display uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => showPinDialog !== null && handleReveal(showPinDialog)}
+                  disabled={revealing || !pinInput.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 border border-primary/30 text-primary font-display text-xs uppercase tracking-widest hover:bg-primary/30 transition-colors disabled:opacity-40"
+                >
+                  {revealing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                  {revealing ? "Revealing..." : "Reveal Key"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="glass-panel rounded-xl p-5 border border-white/5">
         <h4 className="font-display text-xs uppercase tracking-widest text-white mb-3 flex items-center gap-2">

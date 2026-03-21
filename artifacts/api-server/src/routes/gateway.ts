@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, eq, sql, gte, and } from "drizzle-orm";
 import crypto from "crypto";
-import { db, systemEventsTable, apiKeysTable } from "@workspace/db";
+import { db, systemEventsTable, apiKeysTable, platformPinTable } from "@workspace/db";
 import { publishEvent, getEventBusStats, getRecentEvents } from "../lib/event-bus";
 import { logActivity } from "../lib/activity-logger";
 
@@ -222,6 +222,38 @@ function hashKey(key: string): string {
   return crypto.createHash("sha256").update(key).digest("hex");
 }
 
+const ENC_ALGORITHM = "aes-256-gcm";
+const ENC_IV_LENGTH = 16;
+
+function getEncryptionKey(): Buffer {
+  const raw = process.env.DATABASE_URL || "gl-vault-fallback-key-do-not-use";
+  return crypto.createHash("sha256").update(raw).digest();
+}
+
+function encryptApiKey(plaintext: string): string {
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(ENC_IV_LENGTH);
+  const cipher = crypto.createCipheriv(ENC_ALGORITHM, key, iv);
+  let encrypted = cipher.update(plaintext, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  const tag = (cipher as any).getAuthTag();
+  return iv.toString("hex") + ":" + tag.toString("hex") + ":" + encrypted;
+}
+
+function decryptApiKey(ciphertext: string): string {
+  const key = getEncryptionKey();
+  const parts = ciphertext.split(":");
+  if (parts.length !== 3) throw new Error("Invalid encrypted data format");
+  const iv = Buffer.from(parts[0], "hex");
+  const tag = Buffer.from(parts[1], "hex");
+  const encrypted = parts[2];
+  const decipher = crypto.createDecipheriv(ENC_ALGORITHM, key, iv);
+  decipher.setAuthTag(tag);
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+
 router.get("/gateway/api-keys", async (_req, res): Promise<void> => {
   try {
     const keys = await db
@@ -256,6 +288,7 @@ router.post("/gateway/api-keys", async (req, res): Promise<void> => {
     const rawKey = generateApiKey();
     const keyHash = hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 10) + "...";
+    const encryptedKey = encryptApiKey(rawKey);
     const scopeStr = scopes || "read,write";
     const expiresAt = expiresInDays
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
@@ -265,6 +298,7 @@ router.post("/gateway/api-keys", async (req, res): Promise<void> => {
       name: name.trim(),
       keyPrefix,
       keyHash,
+      encryptedKey,
       scopes: scopeStr,
       expiresAt,
       revoked: false,
@@ -318,6 +352,77 @@ router.delete("/gateway/api-keys/:id", async (req, res): Promise<void> => {
   } catch (err: any) {
     console.error("[gateway] DELETE /api-keys/:id failed:", err.message);
     res.status(500).json({ error: "Failed to revoke API key" });
+  }
+});
+
+router.post("/gateway/api-keys/:id/reveal", async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid key ID" });
+      return;
+    }
+
+    const { pin } = req.body;
+    if (!pin || typeof pin !== "string") {
+      res.status(400).json({ error: "PIN is required to reveal API key" });
+      return;
+    }
+
+    const [storedPin] = await db.select().from(platformPinTable).limit(1);
+    if (!storedPin) {
+      res.status(400).json({ error: "No platform PIN has been set. Set one in Security Settings first." });
+      return;
+    }
+
+    const pinHash = crypto.createHash("sha256").update(pin).digest("hex");
+    if (storedPin.pinHash !== pinHash) {
+      await logActivity({
+        action: "API_KEY_REVEAL_FAILED",
+        category: "gateway",
+        source: "api_gateway",
+        detail: `Failed PIN attempt to reveal API key ID: ${id}`,
+        severity: "warning",
+      });
+      res.status(403).json({ error: "Incorrect PIN" });
+      return;
+    }
+
+    const [key] = await db
+      .select()
+      .from(apiKeysTable)
+      .where(eq(apiKeysTable.id, id))
+      .limit(1);
+
+    if (!key) {
+      res.status(404).json({ error: "API key not found" });
+      return;
+    }
+
+    if (key.revoked) {
+      res.status(400).json({ error: "Cannot reveal a revoked API key" });
+      return;
+    }
+
+    if (!key.encryptedKey) {
+      res.status(400).json({ error: "This key was created before secure storage was enabled. The full key cannot be recovered." });
+      return;
+    }
+
+    const rawKey = decryptApiKey(key.encryptedKey);
+
+    await logActivity({
+      action: "API_KEY_REVEALED",
+      category: "gateway",
+      source: "api_gateway",
+      detail: `API key "${key.name}" (ID: ${id}) was revealed via PIN`,
+      severity: "info",
+    });
+
+    res.json({ rawKey });
+  } catch (err: any) {
+    console.error("[gateway] POST /api-keys/:id/reveal failed:", err.message);
+    res.status(500).json({ error: "Failed to reveal API key" });
   }
 });
 

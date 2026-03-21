@@ -7,6 +7,7 @@ export const apiKeysTable = pgTable("api_keys", {
   name: varchar("name", { length: 100 }).notNull(),
   keyPrefix: varchar("key_prefix", { length: 20 }).notNull(),
   keyHash: text("key_hash").notNull(),
+  encryptedKey: text("encrypted_key"),
   scopes: text("scopes").notNull().default("read"),
   lastUsedAt: timestamp("last_used_at"),
   expiresAt: timestamp("expires_at"),
