@@ -4,6 +4,7 @@ import {
   Server, Plus, Trash2, TestTube, Play, Loader2, CheckCircle, XCircle,
   AlertTriangle, Terminal, ChevronDown, ChevronUp, Monitor, HardDrive,
   Wifi, Shield, RefreshCw, Clock, Info, Eye, EyeOff, ClipboardCopy, Check,
+  Download, Globe, Smartphone, Laptop, Search,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
@@ -395,6 +396,264 @@ function MachineCard({
   );
 }
 
+interface TailscaleDevice {
+  id: string;
+  hostname: string;
+  tailscaleIp: string;
+  os: string;
+  normalizedOs: string;
+  online: boolean;
+  lastSeen: string;
+  clientVersion: string;
+  updateAvailable: boolean;
+  authorized: boolean;
+  alreadyRegistered: boolean;
+}
+
+const tsOsIcons: Record<string, string> = {
+  windows: "🪟",
+  linux: "🐧",
+  macOS: "🍎",
+  iOS: "📱",
+  android: "🤖",
+};
+
+function TailscaleDiscovery({ onImported }: { onImported: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [devices, setDevices] = useState<TailscaleDevice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [filter, setFilter] = useState("");
+  const [configured, setConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/tailscale/status`)
+      .then(r => r.json())
+      .then(d => setConfigured(d.configured))
+      .catch(() => setConfigured(false));
+  }, []);
+
+  const loadDevices = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/tailscale/devices`);
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || "Failed to load devices");
+      }
+      const data = await res.json();
+      setDevices(data.devices || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpen = () => {
+    setOpen(!open);
+    if (!open && devices.length === 0) loadDevices();
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllImportable = () => {
+    const importable = devices.filter(d => !d.alreadyRegistered && d.os !== "iOS" && d.os !== "android");
+    if (selected.size === importable.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(importable.map(d => d.id)));
+    }
+  };
+
+  const handleImport = async () => {
+    if (selected.size === 0) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const toImport = devices.filter(d => selected.has(d.id)).map(d => ({
+        hostname: d.hostname,
+        tailscaleIp: d.tailscaleIp,
+        os: d.os,
+        sshPort: 22,
+        username: d.normalizedOs === "windows" ? "" : "root",
+      }));
+      const res = await fetch(`${API_BASE}/api/tailscale/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ devices: toImport }),
+      });
+      const data = await res.json();
+      setImportResult({ imported: data.imported, skipped: data.skipped });
+      setSelected(new Set());
+      await loadDevices();
+      onImported();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  if (configured === false) return null;
+
+  const filtered = devices.filter(d =>
+    !filter || d.hostname.toLowerCase().includes(filter.toLowerCase()) ||
+    d.tailscaleIp.includes(filter) || d.os.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  const onlineCount = devices.filter(d => d.online).length;
+  const importableCount = filtered.filter(d => !d.alreadyRegistered && d.os !== "iOS" && d.os !== "android").length;
+
+  return (
+    <div className="border border-violet-500/20 rounded-lg bg-violet-500/5 overflow-hidden">
+      <button onClick={handleOpen}
+        className="w-full flex items-center justify-between p-4 hover:bg-violet-500/10 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+            <Globe className="w-4 h-4 text-violet-400" />
+          </div>
+          <div className="text-left">
+            <span className="text-sm font-mono font-semibold text-violet-300">Tailscale Network Discovery</span>
+            {devices.length > 0 && (
+              <span className="ml-2 text-xs text-slate-500">
+                {devices.length} devices · {onlineCount} online
+              </span>
+            )}
+          </div>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />
+                  <span className="ml-2 text-sm text-slate-400">Scanning Tailscale network...</span>
+                </div>
+              ) : error ? (
+                <div className="flex items-center gap-2 py-4 text-red-400 text-sm">
+                  <XCircle className="w-4 h-4" /> {error}
+                  <button onClick={loadDevices} className="ml-2 text-xs text-cyan-400 hover:underline">Retry</button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                      <input
+                        value={filter}
+                        onChange={e => setFilter(e.target.value)}
+                        placeholder="Filter by name, IP, or OS..."
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50"
+                      />
+                    </div>
+                    <button onClick={() => loadDevices()}
+                      className="p-1.5 text-slate-500 hover:text-violet-400 transition-colors" title="Refresh">
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                    {importableCount > 0 && (
+                      <>
+                        <button onClick={selectAllImportable}
+                          className="px-2 py-1 text-[10px] font-mono text-violet-400 border border-violet-500/30 rounded hover:bg-violet-500/10 transition-colors">
+                          {selected.size > 0 ? "DESELECT ALL" : "SELECT ALL"}
+                        </button>
+                        <button onClick={handleImport} disabled={selected.size === 0 || importing}
+                          className="flex items-center gap-1 px-3 py-1 text-[10px] font-mono text-white bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 rounded transition-colors">
+                          {importing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                          IMPORT {selected.size > 0 ? `(${selected.size})` : ""}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {importResult && (
+                    <div className="flex items-center gap-2 p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Imported {importResult.imported} device{importResult.imported !== 1 ? "s" : ""}.
+                      {importResult.skipped > 0 && ` ${importResult.skipped} skipped (already registered).`}
+                    </div>
+                  )}
+
+                  <div className="max-h-80 overflow-y-auto space-y-1 scrollbar-thin">
+                    {filtered.map(dev => {
+                      const isMobile = dev.os === "iOS" || dev.os === "android";
+                      return (
+                        <div key={dev.id}
+                          className={`flex items-center gap-3 p-2 rounded text-xs transition-colors ${
+                            dev.alreadyRegistered
+                              ? "bg-slate-800/30 opacity-50"
+                              : selected.has(dev.id)
+                              ? "bg-violet-500/15 border border-violet-500/30"
+                              : "bg-slate-800/50 hover:bg-slate-800 border border-transparent"
+                          } ${isMobile ? "opacity-40" : ""}`}
+                        >
+                          {!isMobile && !dev.alreadyRegistered ? (
+                            <input type="checkbox" checked={selected.has(dev.id)} onChange={() => toggleSelect(dev.id)}
+                              className="accent-violet-500 w-3.5 h-3.5 cursor-pointer" />
+                          ) : (
+                            <div className="w-3.5" />
+                          )}
+                          <span className="text-base leading-none">{tsOsIcons[dev.os] || "💻"}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-200 truncate">{dev.hostname}</span>
+                              <span className={`w-1.5 h-1.5 rounded-full ${dev.online ? "bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.6)]" : "bg-slate-600"}`} />
+                            </div>
+                          </div>
+                          <span className="font-mono text-cyan-400 text-[11px] shrink-0">{dev.tailscaleIp}</span>
+                          <span className="text-slate-500 w-14 text-right">{dev.os}</span>
+                          {dev.alreadyRegistered && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+                              REGISTERED
+                            </span>
+                          )}
+                          {isMobile && (
+                            <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-500 text-[10px] font-mono">
+                              NO SSH
+                            </span>
+                          )}
+                          {dev.updateAvailable && !isMobile && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 text-[10px] font-mono border border-amber-500/20">
+                              UPDATE
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {filtered.length === 0 && (
+                    <p className="text-center text-xs text-slate-500 py-4">No devices match your filter.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function RemoteMaintenance() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
@@ -433,6 +692,8 @@ export default function RemoteMaintenance() {
         security settings, and analyzing performance. All SSH credentials are encrypted with
         AES-256-GCM. Commands run on the remote machine and results stream back here.
       </WhyThisMatters>
+
+      <TailscaleDiscovery onImported={loadData} />
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

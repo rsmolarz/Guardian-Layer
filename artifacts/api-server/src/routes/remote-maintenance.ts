@@ -568,4 +568,153 @@ router.get("/remote-maintenance/history/:machineId", async (req, res) => {
   }
 });
 
+const TS_API_BASE = "https://api.tailscale.com/api/v2";
+
+async function tailscaleFetch(path: string) {
+  const key = process.env.TAILSCALE_API_KEY;
+  if (!key) throw new Error("TAILSCALE_API_KEY not configured");
+  const res = await fetch(`${TS_API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${key}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Tailscale API error: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function mapTailscaleOs(os: string): string {
+  if (!os) return "unknown";
+  const lower = os.toLowerCase();
+  if (lower === "macos") return "darwin";
+  if (lower === "windows") return "windows";
+  if (lower === "linux") return "linux";
+  if (lower === "ios" || lower === "android") return lower;
+  return lower;
+}
+
+router.get("/tailscale/devices", async (_req, res): Promise<void> => {
+  try {
+    const data = await tailscaleFetch("/tailnet/-/devices");
+    const existingMachines = await db.select({ hostname: remoteMachinesTable.hostname })
+      .from(remoteMachinesTable);
+    const registeredIps = new Set(existingMachines.map((m) => m.hostname));
+
+    const devices = data.devices.map((d: any) => ({
+      id: d.id,
+      nodeId: d.nodeId,
+      name: d.name,
+      hostname: d.hostname,
+      tailscaleIp: d.addresses?.[0] || null,
+      ipv6: d.addresses?.[1] || null,
+      os: d.os,
+      normalizedOs: mapTailscaleOs(d.os),
+      online: d.connectedToControl ?? false,
+      lastSeen: d.lastSeen,
+      clientVersion: d.clientVersion,
+      updateAvailable: d.updateAvailable ?? false,
+      authorized: d.authorized ?? false,
+      expires: d.expires,
+      keyExpiryDisabled: d.keyExpiryDisabled ?? false,
+      created: d.created,
+      alreadyRegistered: registeredIps.has(d.addresses?.[0]),
+    }));
+
+    const summary = {
+      total: devices.length,
+      online: devices.filter((d: any) => d.online).length,
+      offline: devices.filter((d: any) => !d.online).length,
+      registered: devices.filter((d: any) => d.alreadyRegistered).length,
+      osCounts: {} as Record<string, number>,
+    };
+
+    for (const d of devices) {
+      const os = (d as any).os || "unknown";
+      summary.osCounts[os] = (summary.osCounts[os] || 0) + 1;
+    }
+
+    res.json({ devices, summary });
+  } catch (err: any) {
+    console.error("[tailscale] GET /devices failed:", err.message);
+    const status = err.message.includes("not configured") ? 503 : 502;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+router.post("/tailscale/import", async (req, res): Promise<void> => {
+  try {
+    const { devices } = req.body;
+    if (!Array.isArray(devices) || devices.length === 0) {
+      res.status(400).json({ error: "devices array required" });
+      return;
+    }
+
+    const results: { hostname: string; status: string; id?: number }[] = [];
+
+    for (const dev of devices) {
+      const { hostname, tailscaleIp, os, username, sshPort } = dev;
+      if (!tailscaleIp || !hostname) {
+        results.push({ hostname: hostname || "unknown", status: "skipped: missing data" });
+        continue;
+      }
+
+      const existing = await db.select({ id: remoteMachinesTable.id })
+        .from(remoteMachinesTable)
+        .where(eq(remoteMachinesTable.hostname, tailscaleIp))
+        .limit(1);
+
+      if (existing.length > 0) {
+        results.push({ hostname, status: "already_registered", id: existing[0].id });
+        continue;
+      }
+
+      const [machine] = await db.insert(remoteMachinesTable).values({
+        name: hostname,
+        hostname: tailscaleIp,
+        port: sshPort || 22,
+        username: username || "root",
+        authMethod: "password",
+        encryptedCredential: encrypt(""),
+        os: mapTailscaleOs(os),
+        active: true,
+        tags: ["tailscale", "auto-imported"],
+      }).returning({ id: remoteMachinesTable.id });
+
+      await logActivity({
+        type: "system_change",
+        severity: "low",
+        title: `Imported Tailscale device: ${hostname}`,
+        details: `Auto-imported ${hostname} (${tailscaleIp}) from Tailscale network. OS: ${os}`,
+      });
+
+      results.push({ hostname, status: "imported", id: machine.id });
+    }
+
+    res.json({
+      imported: results.filter((r) => r.status === "imported").length,
+      skipped: results.filter((r) => r.status !== "imported").length,
+      results,
+    });
+  } catch (err: any) {
+    console.error("[tailscale] POST /import failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/tailscale/status", async (_req, res): Promise<void> => {
+  try {
+    const key = process.env.TAILSCALE_API_KEY;
+    if (!key) {
+      res.json({ configured: false });
+      return;
+    }
+    const data = await tailscaleFetch("/tailnet/-/devices");
+    res.json({
+      configured: true,
+      deviceCount: data.devices?.length ?? 0,
+      onlineCount: data.devices?.filter((d: any) => d.connectedToControl).length ?? 0,
+    });
+  } catch (err: any) {
+    res.json({ configured: true, error: err.message });
+  }
+});
+
 export default router;
