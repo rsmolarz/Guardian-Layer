@@ -73,7 +73,7 @@ if (isProduction) {
     index: false,
   }));
 
-  app.get("*", (_req, res) => {
+  app.get("/{*splat}", (_req, res) => {
     res.sendFile(path.join(frontendDist, "index.html"));
   });
 }
