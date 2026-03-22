@@ -1,0 +1,182 @@
+Original Message
+Message ID	<bd520660e4295d2ba9e25a22ba56586d@teccaapp.com>
+Created at:	Sat, Mar 21, 2026 at 7:14 AM (Delivered after 4 seconds)
+From:	Vlad from Tecca <v@teccaapp.com>
+To:	rsmolarz@medmoneyshow.com
+Subject:	Late-night thoughts - wsn
+SPF:	NONE with IP 209.85.220.41 Learn more
+DKIM:	'PASS' with domain teccaapp.com Learn more
+DMARC:	'PASS' Learn more
+
+
+Download Original	Copy to clipboard	
+Delivered-To: rsmolarz@rsmolarz.com
+Received: by 2002:a17:906:fe4e:b0:b97:c52d:3f72 with SMTP id wz14csp122620ejb;
+        Sat, 21 Mar 2026 04:14:38 -0700 (PDT)
+X-Forwarded-Encrypted: i=4; AJvYcCXrLHviVJKCyaxEKDTfM598m6Udapt3R143477vqTp4hsy/1kGDSNNaUo25u10Lu45bMpienIiAsA==@rsmolarz.com
+X-Received: by 2002:a05:6512:3193:b0:5a2:820a:3844 with SMTP id 2adb3069b0e04-5a285b5d3b8mr2350632e87.38.1774091678592;
+        Sat, 21 Mar 2026 04:14:38 -0700 (PDT)
+ARC-Seal: i=3; a=rsa-sha256; t=1774091678; cv=pass;
+        d=google.com; s=arc-20240605;
+        b=FK3q+dL0cigszm/gqyNHtQDyDPgV6qqlTk5fq8psELQOXSoN7hYXDhBOwsVh/OzaXi
+         NmBrclQQM6B7awUrEsPuwnKAnkLTHLiRFfZ0wfdp3iF7JBXLcV4kwAyp9+QGFN242fe4
+         zauuagJGlZSsRcr7Coa5lsXqWwDWAWu5qgTUo+ymFmi9f/8VDbZcovkbiGdZvGM2s+WU
+         34suKe6Upizx47DhDHFN+mW4G0KUMLl81dAC5CuTjcUqPA0v2Sk1tAAto1wyuTQ1Cg+1
+         7C8yndpfcnw/eje4nBItbfyi4z9jrEA30yz+SHLpQbu3IU8pUtuD0FrOAJGFLIp9QkES
+         cQ0Q==
+ARC-Message-Signature: i=3; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=content-transfer-encoding:date:mime-version:message-id:subject:to
+         :from:dkim-signature:delivered-to;
+        bh=6I2kPE15AAMdHSCpAjBICTgwgBBp/CYNYZL4F6zKOzY=;
+        fh=vh+FpaGiCgbO+Yk9vaAjNZFE7Qw619HadxMu4DGWEoQ=;
+        b=kx7KqZJZEd1406GnloSxRz4z5+cOeOiET5WnzAZcYX2S8twMKi3qnewgfQmpPgBWv/
+         7uvQe+El0B4PifsMB+q94LQBN8Prv0/I/EBEd1WYJXk+p59kfli0g654ZhR9LktBDZQn
+         1tQ3ZevB5MWa2N53xOMMKLil6RzAe57Qe74bd52R3J0BmDpOmP8lmgP8ytIC8ssYVY2n
+         FR/kiuGv2kNEsrzeRBirYdfjh5tGv/4FHqSZcYm6kifFu4Ta3V/oqm88UyjYLUKM3u7F
+         rqcajK9GyIdt1tFLpsULDjJnHdaHKfcaY8nY6/wlorjD35baYTeLSK87Lp3rPTl5Bzad
+         JW+g==;
+        dara=google.com
+ARC-Authentication-Results: i=3; mx.google.com;
+       dkim=pass header.i=@teccaapp.com header.s=google header.b=fwR8saBb;
+       arc=pass (i=2 spf=pass spfdomain=teccaapp.com dkim=pass dkdomain=teccaapp.com dmarc=pass fromdomain=teccaapp.com);
+       spf=none (google.com: rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com does not designate permitted sender hosts) smtp.mailfrom="rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com";
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=teccaapp.com;
+       dara=neutral header.i=@rsmolarz.com
+Return-Path: <rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 2adb3069b0e04-5a285189f27sor657912e87.5.2026.03.21.04.14.38
+        for <rsmolarz@rsmolarz.com>
+        (Google Transport Security);
+        Sat, 21 Mar 2026 04:14:38 -0700 (PDT)
+Received-SPF: none (google.com: rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com does not designate permitted sender hosts) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@teccaapp.com header.s=google header.b=fwR8saBb;
+       arc=pass (i=2 spf=pass spfdomain=teccaapp.com dkim=pass dkdomain=teccaapp.com dmarc=pass fromdomain=teccaapp.com);
+       spf=none (google.com: rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com does not designate permitted sender hosts) smtp.mailfrom="rsmolarz+caf_=rsmolarz=rsmolarz.com@medmoneyshow.com";
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=teccaapp.com;
+       dara=neutral header.i=@rsmolarz.com
+ARC-Seal: i=2; a=rsa-sha256; t=1774091678; cv=pass;
+        d=google.com; s=arc-20240605;
+        b=SzLicJQ81fS8eHBi05BuW/A8WntA+KDEhCIEpDJ/aTja9YqgPiNdULsRzWwuThCaUy
+         i+eRJv7mOenCv35yi+iHB37hT0J5ace04NgW/siIVM5BAhO6kX0kwI84wvu3jEVjT9HI
+         qjoJ9pCk+bSzr10gwGXtQ0WZm06ulGQ0xWyQBLicAqd/D7zAP+ROnldsnjLM+RHWzhLB
+         aXNUZfJxcEucX0Izue8/NwhfULzy3XsLwSaZZQ7UXH3JQRdFwXhN8iIEHAmY43/Yzudf
+         KNeM6Pq6ZqPkdf155mNIquSKuBmFK25YMPKwTyuaS9867aJ4Op1wCUpELg0Z09M2a9J/
+         u7eA==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=content-transfer-encoding:date:mime-version:message-id:subject:to
+         :from:dkim-signature:delivered-to;
+        bh=6I2kPE15AAMdHSCpAjBICTgwgBBp/CYNYZL4F6zKOzY=;
+        fh=vh+FpaGiCgbO+Yk9vaAjNZFE7Qw619HadxMu4DGWEoQ=;
+        b=NrX5htfQkiWs9qczQPPQmsjI3IoNtqG+aKOmnjuzWp/xQjgE+vE6rDHfJQKywK+RNO
+         mduTlrz6qrIPbxFZ3+aUvdF7IAPbq+N7BVlh23ePZqtYtpMta1hQr9dMnO3orIAQLMNG
+         NIVP8Ptmai9eQlaQUE+/G3lejQt+IY6WNEI5uPvXaDU0GmaQ0ZG2KXxCMJPCaWQlyqjA
+         eO6+e5U28owjIVXKc5WOe8/Qtj/SMIp6IthdBNKuQyWDqCyPsG19o8UgjQoftm/eoJkk
+         mPEHKuECyFHz0z9PN8XEjJrVTjogvhJXZdtth9TM3V8d01t+HycbQeylCH32GRHPg3iv
+         9Z6Q==;
+        darn=rsmolarz.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@teccaapp.com header.s=google header.b=fwR8saBb;
+       spf=pass (google.com: domain of v@teccaapp.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=v@teccaapp.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=teccaapp.com;
+       dara=neutral header.i=@medmoneyshow.com
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1774091678; x=1774696478;
+        h=content-transfer-encoding:date:mime-version:message-id:subject:to
+         :from:x-gm-gg:dkim-signature:delivered-to:x-forwarded-for
+         :x-forwarded-to:x-gm-message-state:from:to:cc:subject:date
+         :message-id:reply-to;
+        bh=6I2kPE15AAMdHSCpAjBICTgwgBBp/CYNYZL4F6zKOzY=;
+        b=Qn5ZxkIw3Aie4YfMzOUlU/h902BphBizGr/FzM+FaDgAMuQM5zNJGqtNmHmmolJ2Vd
+         KGdUnMaTZajlYna1J6hY/ALzJg/BbD8Vs2BXeXkVPZ/8a9Mw0+1MHGpcJifQypA/3tu/
+         PjWiH4i9DgfAM0M4t7NCcwsYiWzj8q0Hc859NDbLxczAAkFh25w4VMpE2OqYHMYV+sfI
+         2lgd2tz8VG5O1KNG2nTQRXLbF/Tt0cym7rPMza0uCRSCoX3Z/HKUGvN6xQKwp1ZmHrkr
+         MMMmoyJokdRzvFNCs2K/w1wQ9lLOjhGbcypNY3YwVhrEZ8BV4YYNf/qtPml3BZkpsj0C
+         CqvA==
+X-Forwarded-Encrypted: i=2; AJvYcCVe436dlBncrKgvNw5wfItkaya6xIyAV8FxCl+7PHH3yI3gA6opM6XPGD+U5kTVdBGggv2LufnDSA==@rsmolarz.com
+X-Gm-Message-State: AOJu0Yy+MJJrcE29VpzgMCKSaPKzxyFAVuMG/xGLA/Va3FsyB70LhSGA JcY2ZM8JER6ChlpI0q6Xi+Yy+qTAppiseKBBm6lS6WEEICyhx9ZAOfLaG1o3sbIPh9+rDfDzRcI T2P/qsfs/Sn9p/FyvuqUmwwbEWTnpd7xM+vZxEsVW0kmXxOeIpvYlxl5h/LruqOm3SMbgeVgI5C 9zhMmVgDyzFw==
+X-Received: by 2002:a05:6512:3f22:b0:5a2:77d9:c52b with SMTP id 2adb3069b0e04-5a285af6dd8mr1900876e87.16.1774091677349;
+        Sat, 21 Mar 2026 04:14:37 -0700 (PDT)
+X-Forwarded-To: rsmolarz@rsmolarz.com
+X-Forwarded-For: rsmolarz@medmoneyshow.com rsmolarz@rsmolarz.com
+Delivered-To: rsmolarz@medmoneyshow.com
+Received: by 2002:a05:651c:d3:b0:38b:f750:49bc with SMTP id 19csp97036ljr;
+        Sat, 21 Mar 2026 04:14:36 -0700 (PDT)
+X-Received: by 2002:ad4:5968:0:b0:880:88cf:59ff with SMTP id 6a1803df08f44-89c854ec41amr93305086d6.22.1774091675779;
+        Sat, 21 Mar 2026 04:14:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1774091675; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Yw4NlBbxEEJwldLRHU61QoZT42kURZTiQ9oD1t/ZRPdHfZO/pdFTLp4ViWI5FXNMeE
+         PVaXiMaya3NkL9dnw6DDOW2tcId3nb+FnQUExxH5cjvA9R67eXq7WG7bgAvlX3s5qTqi
+         OEzphy0UZwgLPlQHu8U069CJMffBSXEWmKSqKNF/AbfQ/EAmvr7/8q0TkqSmf8XzSRfj
+         nVVdLzOfZKHbTCjJTVuaaB1bAW5RSL7QxgEh53onFDOLeN7n7RpHsgPuei5N+5lFPsop
+         y1hKtf91AV4KwFYxayxI60EMPSU+040QOk/5eMlR/Xk12O9z62whvyt5iUfkPXaRNucK
+         wZaQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=content-transfer-encoding:date:mime-version:message-id:subject:to
+         :from:dkim-signature;
+        bh=6I2kPE15AAMdHSCpAjBICTgwgBBp/CYNYZL4F6zKOzY=;
+        fh=gf35x/boSX/y6pl2PND8gA4un4v1p34E1I0CbATub2Y=;
+        b=b+Gmo15aYiycyPAP/VcnHQXmayO+W3n77xRGfagGn4eDT06/T0H/e/kjZWMfFMRhWQ
+         LnZy4Wc/oL458ln5M5FfQHvOHPXqYQ5Wpx5FylVJ535dcmgypxPzxJL6fqcIqe3tuxie
+         bqi6szwbX3YFkeweFbB7YTluraatLMIz6/nwwhlc3L7UzB7HDlt74o6GVbsbWIraY9NN
+         FhjmsQcEKN+gchgWUincPZDJ33v2JNMe1rzEc8grNMDJ0mTl80AXiyjuzcxK32Bipy08
+         yLEBry/Dgznl+qYt0cXlZuaYIIxZJhvpDYW9+e5A/AdxI9ZTcgprt7pTMQVfnK0uk5Kq
+         mUPQ==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@teccaapp.com header.s=google header.b=fwR8saBb;
+       spf=pass (google.com: domain of v@teccaapp.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=v@teccaapp.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=teccaapp.com;
+       dara=neutral header.i=@medmoneyshow.com
+Return-Path: <v@teccaapp.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 6a1803df08f44-89c77509f13sor44072796d6.5.2026.03.21.04.14.35
+        for <rsmolarz@medmoneyshow.com>
+        (Google Transport Security);
+        Sat, 21 Mar 2026 04:14:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of v@teccaapp.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=teccaapp.com; s=google; t=1774091675; x=1774696475; darn=medmoneyshow.com;
+        h=content-transfer-encoding:date:mime-version:message-id:subject:to
+         :from:from:to:cc:subject:date:message-id:reply-to;
+        bh=6I2kPE15AAMdHSCpAjBICTgwgBBp/CYNYZL4F6zKOzY=;
+        b=fwR8saBbz/qBeJMcQeLjBb6xiwHqBGYNiLCYWJW5GT5RTs+R0tkKTJ37ayuhhnuSYq
+         wBJA3UHDJwkbKANhhuQn78rBq6H1de0Tk6WA0XiHKhv4s3DZlQ+2acNTlEyaY68m4YF3
+         xB8f7JM9C1j6bOveTvJVROTTKO4LWOCiT3qnqF/lI/TlelTDSH0e+LGZYbqliJGFaBb3
+         oZPqPmbZyRgnRnIF6PG/stmV0q7jsDZf1/2w0zqNsL5B/zFT8we6JMgW/mF6H9ejqb0+
+         95jteKR7Ei55BqJLDrSaJ9SVEYvuvr703URBNHHVRgJ6caTXs+jcRPEQ8xSO3ceKCXA6
+         R8ug==
+X-Gm-Gg: ATEYQzyEIOy+EeDNKZI56koM4ANzerdX6ZcMQVRpv5R9hCHtJzD3z4yfDghPpMo7Sxr SFyrNBs7pLM+o2M/WnbOomOB25m7yhEKczGi1DYqKWxZj8Ck5v3PzH9CZrPG1MU00ctHfRwl+rs Gzmn6pO2h4RjrQxCSNtss+xjm14kkMNUKHzrfyrO55nk2h7VeO47HmCuwDcrrrHdlKJoRVufXM4 8th+k5svvde3wL53ZKjXb3KTjFBkEE77cA2wxbpHUr6EjihQgyj5Ce3rRiuYoDXyyN61C+F/4La ylqQRWQogBLYiQenArz0l1w/SG3JPS4MQyavxd0A0SUS3l0AkgagvVrA1k5pnDeybf+I9ByaEOG vhP+B0G+bmgvV/F662KjOupdMbX5ozXPAkSS4nSa/UKQOXA8n8sK9Fj9EcdZbm92/wS+DI3nod3 5YR4iKlh4wImpxgGB+2pCx2tY/WxDk2+Q40ttrFG8CMExPySUyTl1a6f07ITSA6iV4S7F/UpRIi sb0GbmtzgRLbMrCmvfObV3Qy3A=
+X-Received: by 2002:a05:6214:2a8f:b0:89c:6263:3c25 with SMTP id 6a1803df08f44-89c8543eb1amr94225646d6.2.1774091674795;
+        Sat, 21 Mar 2026 04:14:34 -0700 (PDT)
+Return-Path: <v@teccaapp.com>
+Received: from ec2-3-88-53-89.compute-1.amazonaws.com (ec2-3-88-53-89.compute-1.amazonaws.com. [3.88.53.89])
+        by smtp.gmail.com with ESMTPSA id 6a1803df08f44-89c85215210sm41942416d6.2.2026.03.21.04.14.33
+        for <rsmolarz@medmoneyshow.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sat, 21 Mar 2026 04:14:34 -0700 (PDT)
+From: Vlad from Tecca <v@teccaapp.com>
+To: rsmolarz@medmoneyshow.com
+Subject: Late-night thoughts - wsn
+Message-ID: <bd520660e4295d2ba9e25a22ba56586d@teccaapp.com>
+MIME-Version: 1.0
+Date: Sat, 21 Mar 2026 11:14:34 +0000
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Hello Joseph, hope you=E2=80=99ve had a pleasant and productive day.<br>
+<br>
+I was up late last night and found myself thinking about our conversation f=
+rom last month. It's interesting how some ideas just stick with you. Have y=
+ou had any similar moments recently where a thought or idea just won't let =
+go?<br>
+<br>
+You can learn more by following this link - <a href=3D"https://track.teccaa=
+pp.com">track.teccaapp.com</a><br>
+<br>
+Many thanks,<br>
+Vlad from Tecca<br>
+Ardune<br>
+<br>
+Sent date # 2026-03-21 11:14:33

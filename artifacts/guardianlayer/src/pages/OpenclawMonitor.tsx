@@ -81,7 +81,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks" | "breach-alerts" | "ssh-fleet";
+type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks" | "breach-alerts" | "ssh-fleet" | "tailscale";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -117,6 +117,7 @@ export default function OpenclawMonitor() {
           { id: "bookmarks" as Tab, label: "Bookmarks", icon: Bookmark },
           { id: "breach-alerts" as Tab, label: "Breach Alerts", icon: Siren },
           { id: "ssh-fleet" as Tab, label: "SSH Fleet", icon: Monitor },
+          { id: "tailscale" as Tab, label: "Tailscale", icon: Globe },
         ]).map((t) => (
           <button
             key={t.id}
@@ -140,6 +141,7 @@ export default function OpenclawMonitor() {
       {tab === "bookmarks" && <BookmarksPanel />}
       {tab === "breach-alerts" && <BreachAlertsPanel />}
       {tab === "ssh-fleet" && <SSHFleetPanel />}
+      {tab === "tailscale" && <TailscaleAdminPanel />}
     </div>
   );
 }
@@ -1902,6 +1904,189 @@ function SSHFleetPanel() {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+interface TailscaleDeviceInfo {
+  id: string;
+  hostname: string;
+  tailscaleIp: string;
+  ipv6: string | null;
+  os: string;
+  online: boolean;
+  lastSeen: string;
+  clientVersion: string;
+  updateAvailable: boolean;
+  authorized: boolean;
+  expires: string;
+  keyExpiryDisabled: boolean;
+  created: string;
+  alreadyRegistered: boolean;
+}
+
+const TS_OS_ICON: Record<string, string> = { windows: "🪟", linux: "🐧", macOS: "🍎", iOS: "📱", android: "🤖" };
+
+function TailscaleAdminPanel() {
+  const [devices, setDevices] = useState<TailscaleDeviceInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [osFilter, setOsFilter] = useState<string | null>(null);
+  const [onlineFilter, setOnlineFilter] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/tailscale/devices")
+      .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+      .then(d => { setDevices(d.devices || []); setError(null); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading label="Connecting to Tailscale..." />;
+  if (error) return <div className="glass-panel p-6 text-red-400">{error}</div>;
+
+  const filtered = devices.filter(d => {
+    if (search && !d.hostname.toLowerCase().includes(search.toLowerCase()) && !d.tailscaleIp.includes(search)) return false;
+    if (osFilter && d.os !== osFilter) return false;
+    if (onlineFilter !== null && d.online !== onlineFilter) return false;
+    return true;
+  });
+
+  const onlineCount = devices.filter(d => d.online).length;
+  const offlineCount = devices.length - onlineCount;
+  const osList = [...new Set(devices.map(d => d.os))].sort();
+  const updateCount = devices.filter(d => d.updateAvailable).length;
+  const expiringCount = devices.filter(d => {
+    if (d.keyExpiryDisabled) return false;
+    const exp = new Date(d.expires);
+    const daysLeft = (exp.getTime() - Date.now()) / (1000*60*60*24);
+    return daysLeft < 30 && daysLeft > 0;
+  }).length;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-cyan-400">{devices.length}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Total Devices</div>
+        </div>
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-emerald-400">{onlineCount}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Online</div>
+        </div>
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-slate-400">{offlineCount}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Offline</div>
+        </div>
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-amber-400">{updateCount}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Updates Available</div>
+        </div>
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-rose-400">{expiringCount}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Keys Expiring</div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by hostname or IP..."
+            className="w-full pl-3 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-muted-foreground focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div className="flex gap-1">
+          <button onClick={() => setOnlineFilter(onlineFilter === true ? null : true)}
+            className={clsx("px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              onlineFilter === true ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-white/5 text-muted-foreground border-white/10 hover:text-white")}>
+            Online
+          </button>
+          <button onClick={() => setOnlineFilter(onlineFilter === false ? null : false)}
+            className={clsx("px-3 py-1.5 rounded-lg text-xs font-display uppercase tracking-wider border transition-colors",
+              onlineFilter === false ? "bg-slate-500/20 text-slate-400 border-slate-500/30" : "bg-white/5 text-muted-foreground border-white/10 hover:text-white")}>
+            Offline
+          </button>
+        </div>
+        <div className="flex gap-1">
+          {osList.map(os => (
+            <button key={os} onClick={() => setOsFilter(osFilter === os ? null : os)}
+              className={clsx("px-2 py-1.5 rounded-lg text-xs border transition-colors",
+                osFilter === os ? "bg-violet-500/20 text-violet-400 border-violet-500/30" : "bg-white/5 text-muted-foreground border-white/10 hover:text-white")}>
+              {TS_OS_ICON[os] || "💻"} {os}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-panel overflow-hidden rounded-xl">
+        <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-x-4 p-3 border-b border-white/5 text-[10px] uppercase tracking-wider text-muted-foreground font-display">
+          <div>Status</div>
+          <div>Device</div>
+          <div>Tailscale IP</div>
+          <div>OS</div>
+          <div>Version</div>
+          <div>Key Expiry</div>
+          <div>Flags</div>
+        </div>
+        <div className="max-h-[500px] overflow-y-auto divide-y divide-white/5">
+          {filtered.map(dev => {
+            const daysToExpiry = dev.keyExpiryDisabled ? Infinity : Math.floor((new Date(dev.expires).getTime() - Date.now()) / (1000*60*60*24));
+            const expired = daysToExpiry < 0;
+            return (
+              <div key={dev.id} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-x-4 p-3 items-center text-xs hover:bg-white/[0.02] transition-colors">
+                <div>
+                  <span className={clsx("w-2 h-2 rounded-full inline-block",
+                    dev.online ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "bg-slate-600")} />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-display text-white truncate">{dev.hostname}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {dev.online ? "Connected" : `Last seen ${format(new Date(dev.lastSeen), "MMM d, h:mm a")}`}
+                  </div>
+                </div>
+                <div className="font-mono text-cyan-400 text-[11px]">{dev.tailscaleIp}</div>
+                <div className="text-center">{TS_OS_ICON[dev.os] || "💻"}</div>
+                <div className={clsx("text-[10px] font-mono", dev.updateAvailable ? "text-amber-400" : "text-muted-foreground")}>
+                  {dev.clientVersion.split("-")[0]}
+                </div>
+                <div className={clsx("text-[10px]",
+                  dev.keyExpiryDisabled ? "text-muted-foreground" :
+                  expired ? "text-rose-400" :
+                  daysToExpiry < 30 ? "text-amber-400" : "text-muted-foreground")}>
+                  {dev.keyExpiryDisabled ? "Never" : expired ? "Expired" : `${daysToExpiry}d`}
+                </div>
+                <div className="flex gap-1">
+                  {dev.alreadyRegistered && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-display">SSH</span>
+                  )}
+                  {dev.updateAvailable && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/20 font-display">UPD</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {filtered.length === 0 && (
+          <div className="p-6 text-center text-muted-foreground text-sm">No devices match your filters.</div>
+        )}
+      </div>
+
+      <div className="mt-4 glass-panel p-4 text-xs text-muted-foreground space-y-1">
+        <div className="font-display text-white text-sm mb-2">Network Summary</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {osList.map(os => {
+            const count = devices.filter(d => d.os === os).length;
+            const onl = devices.filter(d => d.os === os && d.online).length;
+            return (
+              <div key={os} className="flex items-center gap-2">
+                <span>{TS_OS_ICON[os] || "💻"}</span>
+                <span>{os}: {count} ({onl} online)</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 }
