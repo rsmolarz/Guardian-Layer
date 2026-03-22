@@ -33,6 +33,7 @@ import threatDetectionRouter from "./threat-detection";
 import usersRouter from "./users";
 import virustotalRouter from "./virustotal";
 import travelSecurityRouter from "./travel-security";
+import remoteMaintenanceRouter from "./remote-maintenance";
 
 const router: IRouter = Router();
 
@@ -70,6 +71,7 @@ router.use(threatDetectionRouter);
 router.use(usersRouter);
 router.use(virustotalRouter);
 router.use(travelSecurityRouter);
+router.use(remoteMaintenanceRouter);
 
 router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
 router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));

@@ -35,6 +35,7 @@ import ThreatDetection from "@/pages/ThreatDetection";
 import UserManagement from "@/pages/UserManagement";
 import VirusMalwareScanner from "@/pages/VirusMalwareScanner";
 import TravelSecurity from "@/pages/TravelSecurity";
+import RemoteMaintenance from "@/pages/RemoteMaintenance";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -108,6 +109,7 @@ function ProtectedRouter() {
         <Route path="/threat-detection" component={ThreatDetection} />
         <Route path="/virus-scanner" component={VirusMalwareScanner} />
         <Route path="/travel-security" component={TravelSecurity} />
+        <Route path="/remote-maintenance" component={RemoteMaintenance} />
         <Route path="/user-management">{() =>
           user?.role === "superadmin" ? <UserManagement /> : <Redirect to="/" />
         }</Route>

@@ -4,7 +4,7 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane,
+  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane, Wrench,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -70,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/monitoring", label: "System Health", icon: Monitor },
       { href: "/openclaw", label: "Contract Monitor", icon: Scale },
       { href: "/integrations", label: "Connected Services", icon: Plug2 },
+      { href: "/remote-maintenance", label: "Remote Maintenance", icon: Wrench },
       { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
     ],
   },

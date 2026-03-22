@@ -21,3 +21,4 @@ export * from "./security-settings";
 export * from "./domain-monitor";
 export * from "./secure-vault";
 export * from "./users";
+export * from "./remote-machines";
