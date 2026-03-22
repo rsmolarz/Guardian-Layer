@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PWAInstallPrompt } from "@/components/ui/PWAInstallPrompt";
 import Dashboard from "@/pages/Dashboard";
 import Transactions from "@/pages/Transactions";
 import Approvals from "@/pages/Approvals";
@@ -120,6 +121,7 @@ function ProtectedRouter() {
       </Switch>
       <QuickHelpWrapper />
       <SecurityAgent />
+      <PWAInstallPrompt />
       <ThreatChatButton onClick={() => setChatOpen(true)} />
       <ThreatChat isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </AppLayout>
