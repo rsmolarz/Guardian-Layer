@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
-import { db, openclawContractsTable, monitoredUrlsTable, activityLogsTable, lockdownSessionsTable } from "@workspace/db";
+import { db, openclawContractsTable, monitoredUrlsTable, activityLogsTable, lockdownSessionsTable, remoteMachinesTable, maintenanceJobsTable } from "@workspace/db";
 import {
   ListOpenclawContractsQueryParams,
   ListOpenclawContractsResponse,
@@ -571,6 +571,66 @@ router.get("/openclaw/breach-alerts", async (_req, res): Promise<void> => {
   } catch (err: any) {
     console.error("[openclaw] GET /breach-alerts failed:", err.message);
     res.status(500).json({ error: "Failed to retrieve breach alerts" });
+  }
+});
+
+router.get("/openclaw/ssh-fleet", async (_req, res): Promise<void> => {
+  try {
+    const machines = await db.select({
+      id: remoteMachinesTable.id,
+      name: remoteMachinesTable.name,
+      hostname: remoteMachinesTable.hostname,
+      port: remoteMachinesTable.port,
+      username: remoteMachinesTable.username,
+      os: remoteMachinesTable.os,
+      osVersion: remoteMachinesTable.osVersion,
+      lastSeen: remoteMachinesTable.lastSeen,
+      lastMaintenanceAt: remoteMachinesTable.lastMaintenanceAt,
+      active: remoteMachinesTable.active,
+      tags: remoteMachinesTable.tags,
+      createdAt: remoteMachinesTable.createdAt,
+    }).from(remoteMachinesTable).orderBy(desc(remoteMachinesTable.createdAt));
+
+    const machinesWithJobs = await Promise.all(machines.map(async (m) => {
+      const [jobCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(maintenanceJobsTable)
+        .where(eq(maintenanceJobsTable.machineId, m.id));
+      const [lastJob] = await db.select()
+        .from(maintenanceJobsTable)
+        .where(eq(maintenanceJobsTable.machineId, m.id))
+        .orderBy(desc(maintenanceJobsTable.createdAt))
+        .limit(1);
+      return {
+        ...m,
+        totalJobs: jobCount?.count ?? 0,
+        lastJob: lastJob ? {
+          taskType: lastJob.taskType,
+          status: lastJob.status,
+          completedAt: lastJob.completedAt,
+        } : null,
+      };
+    }));
+
+    const [totalCount] = await db.select({ count: sql<number>`count(*)::int` }).from(remoteMachinesTable);
+    const [activeCount] = await db.select({ count: sql<number>`count(*)::int` }).from(remoteMachinesTable).where(eq(remoteMachinesTable.active, true));
+
+    const osCounts: Record<string, number> = {};
+    for (const m of machines) {
+      const os = m.os || "unknown";
+      osCounts[os] = (osCounts[os] || 0) + 1;
+    }
+
+    res.json({
+      summary: {
+        total: totalCount?.count ?? 0,
+        active: activeCount?.count ?? 0,
+        osCounts,
+      },
+      machines: machinesWithJobs,
+    });
+  } catch (err: any) {
+    console.error("[openclaw] GET /ssh-fleet failed:", err.message);
+    res.status(500).json({ error: "Failed to retrieve SSH fleet" });
   }
 });
 

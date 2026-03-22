@@ -81,7 +81,7 @@ const COMPLIANCE_BADGE: Record<string, string> = {
   review_required: "bg-amber-500/20 text-amber-400 border-amber-500/30",
 };
 
-type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks" | "breach-alerts";
+type Tab = "contracts" | "health" | "api-security" | "sessions" | "config-drift" | "bookmarks" | "breach-alerts" | "ssh-fleet";
 type RiskFilter = "low" | "medium" | "high" | "critical" | undefined;
 type StatusFilter = "active" | "expired" | "expiring_soon" | "draft" | undefined;
 
@@ -116,6 +116,7 @@ export default function OpenclawMonitor() {
           { id: "config-drift" as Tab, label: "Config Changes", icon: Scan },
           { id: "bookmarks" as Tab, label: "Bookmarks", icon: Bookmark },
           { id: "breach-alerts" as Tab, label: "Breach Alerts", icon: Siren },
+          { id: "ssh-fleet" as Tab, label: "SSH Fleet", icon: Monitor },
         ]).map((t) => (
           <button
             key={t.id}
@@ -138,6 +139,7 @@ export default function OpenclawMonitor() {
       {tab === "config-drift" && <ConfigDriftPanel />}
       {tab === "bookmarks" && <BookmarksPanel />}
       {tab === "breach-alerts" && <BreachAlertsPanel />}
+      {tab === "ssh-fleet" && <SSHFleetPanel />}
     </div>
   );
 }
@@ -1726,6 +1728,175 @@ function BookmarksPanel() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface SSHMachine {
+  id: number;
+  name: string;
+  hostname: string;
+  port: number;
+  username: string;
+  os: string | null;
+  osVersion: string | null;
+  lastSeen: string | null;
+  lastMaintenanceAt: string | null;
+  active: boolean;
+  tags: string[] | null;
+  createdAt: string;
+  totalJobs: number;
+  lastJob: { taskType: string; status: string; completedAt: string | null } | null;
+}
+
+interface SSHFleetData {
+  summary: { total: number; active: number; osCounts: Record<string, number> };
+  machines: SSHMachine[];
+}
+
+const OS_ICONS: Record<string, string> = {
+  linux: "🐧",
+  darwin: "🍎",
+  windows: "🪟",
+  unknown: "❓",
+};
+
+const OS_LABELS: Record<string, string> = {
+  linux: "Linux",
+  darwin: "macOS",
+  windows: "Windows",
+  unknown: "Unknown",
+};
+
+function SSHFleetPanel() {
+  const [data, setData] = useState<SSHFleetData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/openclaw/ssh-fleet")
+      .then((r) => { if (!r.ok) throw new Error("Failed to load"); return r.json(); })
+      .then((d) => { setData(d); setError(null); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <CyberLoading label="Loading SSH fleet..." />;
+  if (error) return <div className="glass-panel p-6 text-red-400">{error}</div>;
+  if (!data) return null;
+
+  const { summary, machines } = data;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-cyan-400">{summary.total}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Total Machines</div>
+        </div>
+        <div className="glass-panel p-4 text-center">
+          <div className="text-3xl font-display text-emerald-400">{summary.active}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Active</div>
+        </div>
+        {Object.entries(summary.osCounts).map(([os, count]) => (
+          <div key={os} className="glass-panel p-4 text-center">
+            <div className="text-3xl font-display text-white">{OS_ICONS[os] || "❓"} {count}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">{OS_LABELS[os] || os}</div>
+          </div>
+        ))}
+      </div>
+
+      {machines.length === 0 ? (
+        <div className="glass-panel p-8 text-center">
+          <Monitor className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+          <p className="text-muted-foreground">No machines registered yet.</p>
+          <p className="text-xs text-muted-foreground mt-1">Go to <a href="/remote-maintenance" className="text-cyan-400 hover:underline">Remote Maintenance</a> to add machines.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {machines.map((m) => (
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel p-4 group hover:border-cyan-500/30 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="text-2xl">{OS_ICONS[m.os || "unknown"]}</div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-white truncate">{m.name}</span>
+                      <span className={clsx(
+                        "px-2 py-0.5 rounded text-[10px] font-display uppercase border",
+                        m.active
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
+                      )}>
+                        {m.active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                      {m.username}@{m.hostname}:{m.port}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 space-y-1">
+                  <div className="text-xs text-muted-foreground">
+                    {m.os ? `${OS_LABELS[m.os] || m.os}${m.osVersion ? ` ${m.osVersion}` : ""}` : "OS not detected"}
+                  </div>
+                  {m.lastSeen && (
+                    <div className="text-[10px] text-muted-foreground">
+                      Last seen: {format(new Date(m.lastSeen), "MMM d, h:mm a")}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-4">
+                  <span className="text-muted-foreground">
+                    <Wrench className="w-3 h-3 inline mr-1" />
+                    {m.totalJobs} job{m.totalJobs !== 1 ? "s" : ""} run
+                  </span>
+                  {m.tags && m.tags.length > 0 && (
+                    <div className="flex gap-1">
+                      {m.tags.map((tag) => (
+                        <span key={tag} className="px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground text-[10px]">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {m.lastJob && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span>Last: <span className="text-white">{m.lastJob.taskType.replace(/-/g, " ")}</span></span>
+                    <span className={clsx(
+                      "px-1.5 py-0.5 rounded text-[10px] border",
+                      m.lastJob.status === "completed"
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                        : m.lastJob.status === "failed"
+                        ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                        : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                    )}>
+                      {m.lastJob.status}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground font-mono bg-white/5 px-2 py-1 rounded">
+                  Tailscale IP: <span className="text-cyan-400">{m.hostname}</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Added {format(new Date(m.createdAt), "MMM d, yyyy")}
+                </span>
               </div>
             </motion.div>
           ))}
