@@ -1,0 +1,658 @@
+
+
+Sonnet 4.6
+
+
+
+Sonnet 4.6
+
+https://replit.com/repls   I have a alot of apps on this site in replit, can we make a website for marketing and sales of these apps? Please do it in html and in the color palate and stile of the website medmoneyshow.com? We will need to have descriptions and pricing and all the other stuff.  I want to have in the descriptions what code the different apps are written in and if the app has the database on the vps and if so which vps. I want each app to have everything that would be needed to know everything there is to know about the app.  Please look through all these apps and make a list of all the infromation from all the apps and make a list of all the information.
+
+23 steps
+
+23 steps
+
+Created a plan
+
+Let me start by looking at your Replit apps and the medmoneyshow.com design.
+
+Take screenshot
+
+I can see a list of apps. Let me scroll up to see if there are more at the top, and also get the full list.
+
+Scroll up
+
+The page seems to be cut off at the top. Let me get the full page text to see all apps, and also scroll down to see if there are more.
+
+Extract page text
+
+I can see all the apps. Now let me click on each app to get more details. Let me start by clicking on individual apps to get their descriptions, languages, and database info. Let me first check a few of the apps for details.
+
+Scroll up
+
+Now let me click on the first app to get its details.
+
+Click
+
+Take screenshot
+
+Wait 3 seconds
+
+Extract page text
+
+Excellent! I can see important details for this app. Let me look at the overview/description page and see more info. Let me check each app's published page for description. Let me also look at the file structure to understand what language it's written in.
+
+Take screenshot
+
+I can see the IDE view. Let me click on "Publishing" to get the app description and published details.
+
+Find: "Publishing tab"
+
+Click
+
+Take screenshot
+
+I can see the Publishing tab with deployment details. Now I need to look at each app more carefully. Let me navigate to the published app URL to see its description, and also check the .replit configuration. Let me use a more efficient approach - I'll navigate to each app's published URL and the replit project page to gather all details. Let me first check the app's published page.
+
+Navigate to https://automated-business-bot...
+
+Take screenshot
+
+Done
+
+please continue
+
+HIGH RISK: Claude can take most actions on the internet now. This setting could put your data at risk. See safe use tips
+
+Act without asking
+
+Claude is AI and can make mistakes. Please double-check responses.
+
+
+
+
+
+172 steps
+172 steps
+I've now visited all 41 of your published Replit apps and gathered comprehensive information about each one. Here is the complete master App Information List followed by the full HTML marketing website file:
+
+Complete App Information List (from your Replit account)
+#	App Name	Live URL	Description	Category
+1	Claw Settings	smolarzwarroom.com	AI agent gateway settings management dashboard; sign-in via MedInvest DID	AI / Infrastructure
+2	Automated Business Bottleneck	automated-business-bottleneck.replit.app	Upload company docs (SOPs, P&Ls, CRM exports), identify bottlenecks via OpenAI + Anthropic multi-LLM consensus, generate KPI dashboards & SOPs	Business Intelligence
+3	Elite CRM	elite-crm-rsmolarz.replit.app	MedInvest CRM — contact/pipeline management for medical investors	CRM / Sales
+4	Travel Planner AI (Aero AI)	travel-planner-ai-rsmolarz.replit.app	AI travel planner — search flights, hotels, airport intelligence, trip planning, travel health, carbon footprint tracking	Travel / AI
+5	Alpha Factory (KPI Platform)	alpha-factory.replit.app	Trading KPI dashboard — PnL tracking, win rate, spread scoring, cumulative PnL, meta agent decision engine	Trading / Finance
+6	Speaker Finder Pro (StageIQ)	speaker-finder-pro.replit.app	AI-matched speaking opportunities for physicians/experts; niche conference matching, deadline tracking, geographic maps	Professional Development
+7	LLM Dashboard (LLM Hub)	llm-dashboard.replit.app	Self-hosted Ollama control center — manage VPS-based local LLMs, model management, PostgreSQL VPS integration	AI / Infrastructure
+8	MarketAgent	marketinefficiencyagents.com	Real-time market inefficiency monitoring with 100+ AI agents tracking stocks, crypto, macro, sentiment, options flow	Finance / Trading
+9	Deal Stack	deal-stack-rsmolarz.replit.app	Brand partnership deal pipeline manager — Kanban-style deal tracking from Prospect to Paid	Business / Sales
+10	Thumb Meta Tool	medmoneyviralcontent.com	AI content creation platform — YouTube thumbnails, viral content generation, multi-platform posting, SEO optimizer, background remover	Content / Marketing
+11	Lead Getter Suite (LeadForge)	lead-getter-suite.replit.app	Lead generation platform — 501K+ contacts, NPI physician registry, list management, AI insights, CSV export	Lead Generation
+12	SiteForge AI	site-forge-ai-rsmolarz.replit.app	AI website builder — describe business in English, AI generates full HTML/CSS site; competitor analysis; Claude/Opus model selection	Website Builder
+13	Project Mastermind (ProjectOS)	project-mastermind-rsmolarz.replit.app	AI-powered project management OS — tasks, timers, budgets, goals tracking, overdue alerts, AI daily briefings	Project Management
+14	Guardian Layer	guardian-layer.replit.app	Enterprise security/authentication layer	Security / Auth
+15	AgentFlow	omni-agent-core.replit.app	AI agent management platform — create agents, build visual workflows, knowledge bases (RAG), execution tracking, cost forecasting, MCP server support	AI Platform
+16	Link Forge	link-forge-rsmolarz.replit.app	Link editor/builder tool	Utilities
+17	Video Transcriber (Transcript Maker)	video-transcriber-rsmolarz.replit.app	AI video transcription — upload videos or paste URLs for automatic AI-generated text transcripts	Media / AI
+18	Open Claw Control (WindowAgent Manager)	open-claw-control-rsmolarz.replit.app	Remote window/desktop management — control windows on remote machines via Python agent, visual workspace display, Tailscale integration	Remote Control
+19	ENT Workflow AI (VientAI)	vientai.com	AI-powered ENT/otolaryngology practice management — scheduling, clinical documentation, HIPAA-compliant, ICD-10 codes, billing	Healthcare / EMR
+20	Course Creator AI (MedCourse AI)	course-creator-ai-rsmolarz.replit.app	CME course creation platform — build continuing medical education courses with AI; credit hour tracking; quick-start templates	Medical Education
+21	Insight Hub	KPIAnalysis.replit.app	Social media & business KPI analytics dashboard — revenue trends, follower metrics, engagement, platform breakdowns, demographics	Analytics
+22	Family Hub	family-hub.replit.app	Family management platform — shared family space for household organization	Family / Lifestyle
+23	vient-healthcare-backend	vient-healthcare-backend.replit.app	Healthcare API backend (REST) powering VientAI	Healthcare / API
+24	Marketinefficiency Analytics	AlphaFactory.replit.app	AlphaFactory multi-agent command center — swarm intelligence, market intel, business KPIs, social analytics, podcast analytics, 6 live agents	Finance / Analytics
+25	Claw Companion Watch	claw-companion-watch.replit.app	OpenClaw companion Apple Watch / mobile app (Expo Go)	Mobile
+26	InvestmentVault	medmoneyvault.com	Investment document management — store LLCs, PPMs, K-1s; portfolio tracking across real estate, PE, VC; AI document extraction; personal financial statements	Investing / Finance
+27	Home Harmony (HomeKeeper)	home-harmony.replit.app	Home management platform — maintenance tasks, vendors, warranties, vehicles, assets, AI summaries	Home Management
+28	Hornet's Nest	hornets-nest.replit.app	Private community platform for BH Assisted Living franchise owners — verified members, topic rooms, resources, expert AMAs, AI assistant	Community / Healthcare
+29	MedInvest	medmoneyincubator.com	Professional investment network for physician investors — anonymous discussions, vetted deal flow, specialty rooms, courses, AI assistant	Physician Investing
+30	Did Login	did-login.replit.app	W3C DID-compliant OAuth 2.0 identity platform — decentralized identity, Cardano blockchain anchoring, verifiable credentials for physicians	Identity / Auth
+31	Deathbook Notes	deathbook-management.replit.app	Digital estate planning — organize critical life info (medical, financial, legal, digital), assign deputies, completion scoring	Estate Planning
+32	Voice Control	voice-control.replit.app	Voice-to-keyboard/mouse control — speak commands to type, move cursor, click, scroll	Accessibility / Utilities
+33	VPS LLM Hub	vps-llm-hub.replit.app	llama.cpp VPS management — configure and chat with private self-hosted llama.cpp instance; GPU/CPU tuning	AI / VPS
+34	Medinvest Mobile	themedicineandmoneyshow.com	MedInvest mobile app (React Native / Expo) for physician investors	Mobile
+35	Medinvest Watch	medinvest-watch--rsmolarz.replit.app	MedInvest Apple Watch app (Expo Go)	Mobile / Wearable
+36	Website Wrapper	website-wrapper.replit.app	Medicine & Money Show educational content wrapper — financial education platform for doctors, podcast, newsletter, book	Content / Marketing
+37	Protest-Project	certificateofnotarialprotest.com	Certificate of Notarial Protest platform — intake, document review, demand letters, protest certificates, recovery pathways	Legal / Finance
+38	Viral MedMoney	viral-med-money--rsmolarz.replit.app	Viral content generator — analyze YouTube/TikTok/Instagram trends, generate physician-brand content, thumbnails via Gemini/Veo 3, social posts	Content / AI
+39	Source Scout (ForgeFlow)	source-scout--rsmolarz.replit.app	Manufacturing supplier sourcing platform — score vendors by cost, quality, lead time, reliability, risk	Manufacturing / Sourcing
+40	Video Optimizer Pro	(UUID URL)	Video optimization platform	Media
+41	ExitStrategizer	medmoneyexit.com	Investment exit strategy calculator — set positions, targets, % allocations, compute optimal exit strategies	Finance / Investing
+Complete HTML Marketing Website
+Here is the full HTML file styled in the MedMoneyShow color palette (navy/dark blue 
+#1a2e4a, teal/cyan 
+#2aadcf, white, light gray backgrounds):
+
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J. Ryan Smolarz — AI App Suite | Medicine & Money Technology</title>
+<style>
+  /* ========================================
+     MEDMONEYSHOW COLOR PALETTE & BASE STYLES
+     ======================================== */
+  :root {
+    --navy:       #1a2e4a;
+    --navy-dark:  #12203a;
+    --teal:       #2aadcf;
+    --teal-light: #3ec6e8;
+    --teal-dark:  #1e8fb0;
+    --white:      #ffffff;
+    --off-white:  #f5f7fa;
+    --light-gray: #edf1f5;
+    --mid-gray:   #8a9ab0;
+    --text-dark:  #1c2b3a;
+    --text-body:  #3a4a5c;
+    --border:     #d8e2ec;
+    --green:      #27ae60;
+    --gold:       #f0a500;
+    --shadow:     0 4px 24px rgba(26,46,74,0.10);
+    --shadow-lg:  0 8px 40px rgba(26,46,74,0.16);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text-body);
+    background: var(--white);
+    line-height: 1.6;
+  }
+
+  /* TYPOGRAPHY */
+  h1, h2, h3, h4 { color: var(--navy); font-weight: 700; }
+  h1 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.15; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1rem; }
+  a  { color: var(--teal); text-decoration: none; }
+  a:hover { color: var(--teal-dark); }
+
+  /* UTILITY */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .teal       { color: var(--teal); }
+  .navy       { color: var(--navy); }
+  .uppercase  { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; font-weight: 700; }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .badge-teal   { background: rgba(42,173,207,0.12); color: var(--teal-dark); }
+  .badge-navy   { background: rgba(26,46,74,0.08);  color: var(--navy); }
+  .badge-green  { background: rgba(39,174,96,0.12);  color: #1e8a4a; }
+  .badge-gold   { background: rgba(240,165,0,0.12);  color: #b07800; }
+
+  /* ========================================
+     NAVIGATION
+     ======================================== */
+  nav {
+    background: var(--white);
+    border-bottom: 2px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(26,46,74,0.07);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1.15rem; font-weight: 800; color: var(--navy);
+  }
+  .nav-logo span { color: var(--teal); }
+  .nav-logo-icon {
+    width: 38px; height: 38px; background: var(--navy);
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center;
+  }
+  .nav-logo-icon svg { width: 22px; height: 22px; fill: var(--teal); }
+  .nav-links { display: flex; gap: 28px; align-items: center; }
+  .nav-links a { color: var(--text-body); font-weight: 500; font-size: 0.95rem; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--teal); }
+  .nav-cta {
+    background: var(--teal); color: var(--white) !important;
+    padding: 9px 22px; border-radius: 6px; font-weight: 700 !important;
+    transition: background 0.2s !important;
+  }
+  .nav-cta:hover { background: var(--teal-dark) !important; color: var(--white) !important; }
+
+  /* ========================================
+     HERO SECTION
+     ======================================== */
+  .hero {
+    background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, #1e3d5e 100%);
+    color: var(--white);
+    padding: 90px 24px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -60px; right: -80px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(42,173,207,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .hero-label { color: var(--teal); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; }
+  .hero h1 { color: var(--white); margin-bottom: 20px; }
+  .hero h1 span { color: var(--teal); }
+  .hero-sub { font-size: 1.1rem; color: rgba(255,255,255,0.82); margin-bottom: 36px; max-width: 520px; }
+  .hero-stats {
+    display: flex; gap: 32px; margin-bottom: 40px;
+  }
+  .hero-stat-num { font-size: 2rem; font-weight: 800; color: var(--teal); line-height: 1; }
+  .hero-stat-label { font-size: 0.82rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+  .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--teal); color: var(--white);
+    padding: 13px 28px; border-radius: 6px; font-weight: 700; font-size: 1rem;
+    display: inline-block; transition: all 0.2s;
+    border: 2px solid var(--teal);
+  }
+  .btn-primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); color: var(--white); }
+  .btn-outline {
+    background: transparent; color: var(--white);
+    padding: 13px 28px; border-radius: 6px; font-weight: 700; font-size: 1rem;
+    display: inline-block; transition: all 0.2s;
+    border: 2px solid rgba(255,255,255,0.4);
+  }
+  .btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+  .hero-visual {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .hero-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 18px;
+    backdrop-filter: blur(8px);
+  }
+  .hero-card-icon { font-size: 1.6rem; margin-bottom: 8px; }
+  .hero-card h4 { color: var(--white); font-size: 0.88rem; margin-bottom: 4px; }
+  .hero-card p  { color: rgba(255,255,255,0.6); font-size: 0.78rem; }
+
+  /* ========================================
+     CATEGORIES BAR
+     ======================================== */
+  .categories {
+    background: var(--off-white);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+  }
+  .cat-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 24px;
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .cat-label { font-size: 0.82rem; font-weight: 700; color: var(--mid-gray); margin-right: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .cat-btn {
+    padding: 6px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--white); color: var(--text-body);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .cat-btn:hover, .cat-btn.active {
+    background: var(--navy); color: var(--white); border-color: var(--navy);
+  }
+
+  /* ========================================
+     SECTION STYLES
+     ======================================== */
+  .section { padding: 72px 0; }
+  .section-alt { background: var(--off-white); }
+  .section-header { text-align: center; margin-bottom: 56px; }
+  .section-label { color: var(--teal); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+  .section-header h2 { margin-bottom: 14px; }
+  .section-header p { color: var(--text-body); max-width: 580px; margin: 0 auto; font-size: 1.05rem; }
+
+  /* ========================================
+     APP GRID & CARDS
+     ======================================== */
+  .apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 28px;
+  }
+
+  .app-card {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--teal);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+  .app-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); border-color: rgba(42,173,207,0.3); }
+  .app-card:hover::before { transform: scaleX(1); }
+
+  .app-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .app-icon {
+    width: 50px; height: 50px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--navy) 0%, #2a4a6e 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+  }
+  .app-badges { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .app-name { font-size: 1.15rem; color: var(--navy); font-weight: 700; margin-bottom: 6px; }
+  .app-tagline { font-size: 0.88rem; color: var(--teal-dark); font-weight: 600; margin-bottom: 10px; }
+  .app-desc { font-size: 0.9rem; color: var(--text-body); margin-bottom: 16px; line-height: 1.65; }
+
+  .app-meta {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    margin-top: 4px;
+  }
+  .app-meta-row {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: 0.82rem; margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .app-meta-label { color: var(--mid-gray); font-weight: 600; min-width: 80px; }
+  .app-meta-val   { color: var(--text-dark); font-weight: 500; text-align: right; flex: 1; }
+  .app-meta-val code {
+    background: var(--light-gray); padding: 1px 6px; border-radius: 4px;
+    font-family: 'Consolas', monospace; font-size: 0.82rem; color: var(--navy);
+  }
+
+  .app-features { margin: 12px 0 16px; }
+  .app-features ul { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .app-features li {
+    font-size: 0.82rem; color: var(--text-body);
+    padding-left: 16px; position: relative;
+  }
+  .app-features li::before {
+    content: '✓'; position: absolute; left: 0;
+    color: var(--teal); font-weight: 700; font-size: 0.78rem;
+  }
+
+  .app-card-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .app-price { font-size: 1.4rem; font-weight: 800; color: var(--navy); }
+  .app-price span { font-size: 0.82rem; font-weight: 500; color: var(--mid-gray); }
+  .app-price.free { color: var(--green); }
+  .app-price.contact { color: var(--teal-dark); font-size: 1rem; }
+
+  .btn-demo {
+    padding: 9px 20px; border-radius: 6px; font-size: 0.88rem; font-weight: 700;
+    background: var(--navy); color: var(--white);
+    transition: background 0.2s;
+    border: none; cursor: pointer; display: inline-block;
+  }
+  .btn-demo:hover { background: var(--teal); color: var(--white); }
+
+  /* ========================================
+     VPS INFO BOX
+     ======================================== */
+  .vps-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(26,46,74,0.06); border: 1px solid rgba(26,46,74,0.15);
+    border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; font-weight: 600;
+    color: var(--navy);
+  }
+  .vps-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+  /* ========================================
+     CATEGORIES SECTIONS
+     ======================================== */
+  .cat-section { margin-bottom: 72px; }
+  .cat-section-title {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px; padding-bottom: 14px;
+    border-bottom: 2px solid var(--border);
+  }
+  .cat-section-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: var(--navy); display: flex; align-items: center;
+    justify-content: center; font-size: 1.3rem;
+  }
+  .cat-section-title h3 { font-size: 1.3rem; color: var(--navy); }
+  .cat-section-title p  { font-size: 0.88rem; color: var(--mid-gray); margin-top: 3px; }
+
+  /* ========================================
+     PRICING TABLE
+     ======================================== */
+  .pricing-table-wrap { overflow-x: auto; }
+  .pricing-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .pricing-table th {
+    background: var(--navy); color: var(--white);
+    padding: 14px 18px; text-align: left; font-weight: 700;
+    font-size: 0.82rem; letter-spacing: 0.04em;
+  }
+  .pricing-table th:first-child { border-radius: 8px 0 0 0; }
+  .pricing-table th:last-child  { border-radius: 0 8px 0 0; }
+  .pricing-table td {
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .pricing-table tr:hover td { background: var(--off-white); }
+  .pricing-table td:first-child { font-weight: 700; color: var(--navy); }
+  .pricing-table .price-cell { font-weight: 700; color: var(--teal-dark); }
+  .pricing-table code {
+    background: var(--light-gray); padding: 2px 7px; border-radius: 4px;
+    font-family: 'Consolas', monospace; font-size: 0.8rem; color: var(--navy);
+  }
+
+  /* ========================================
+     TECH STACK SECTION
+     ======================================== */
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+  }
+  .tech-pill {
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    transition: all 0.2s;
+  }
+  .tech-pill:hover { border-color: var(--teal); box-shadow: 0 3px 14px rgba(42,173,207,0.12); }
+  .tech-pill-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .tech-pill-name { font-size: 0.82rem; font-weight: 700; color: var(--navy); }
+  .tech-pill-count { font-size: 0.72rem; color: var(--mid-gray); }
+
+  /* ========================================
+     CTA BANNER
+     ======================================== */
+  .cta-banner {
+    background: linear-gradient(135deg, var(--navy) 0%, #1e3d5e 100%);
+    padding: 72px 24px; text-align: center; color: var(--white);
+  }
+  .cta-banner h2 { color: var(--white); margin-bottom: 16px; }
+  .cta-banner p  { color: rgba(255,255,255,0.78); max-width: 560px; margin: 0 auto 32px; font-size: 1.05rem; }
+  .cta-banner .btn-primary { font-size: 1.05rem; padding: 15px 36px; }
+
+  /* ========================================
+     FOOTER
+     ======================================== */
+  footer {
+    background: var(--navy-dark); color: rgba(255,255,255,0.72);
+    padding: 56px 24px 32px;
+  }
+  .footer-inner { max-width: 1200px; margin: 0 auto; }
+  .footer-top {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
+    padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .footer-brand h4 { color: var(--white); font-size: 1.2rem; margin-bottom: 12px; }
+  .footer-brand p  { font-size: 0.88rem; max-width: 280px; line-height: 1.7; }
+  .footer-col h5   { color: var(--white); font-size: 0.88rem; margin-bottom: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .footer-col ul   { list-style: none; }
+  .footer-col li   { margin-bottom: 8px; }
+  .footer-col a    { color: rgba(255,255,255,0.65); font-size: 0.88rem; transition: color 0.2s; }
+  .footer-col a:hover { color: var(--teal); }
+  .footer-bottom {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 24px; font-size: 0.82rem; flex-wrap: wrap; gap: 10px;
+  }
+  .footer-bottom a { color: var(--teal); }
+
+  /* ========================================
+     RESPONSIVE
+     ======================================== */
+  @media (max-width: 768px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-visual { display: none; }
+    .footer-top { grid-template-columns: 1fr 1fr; }
+    .nav-links  { display: none; }
+    .apps-grid  { grid-template-columns: 1fr; }
+    .app-features ul { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==============================
+     NAVIGATION
+     ============================== -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span>Smolarz <span>AppSuite</span></span>
+    </div>
+    <div class="nav-links">
+      <a href="#ai-tools">AI Tools</a>
+      <a href="#finance">Finance</a>
+      <a href="#healthcare">Healthcare</a>
+      <a href="#marketing">Marketing</a>
+      <a href="#community">Community</a>
+      <a href="#pricing">Pricing Table</a>
+      <a href="#contact" class="nav-cta">Contact Us</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ==============================
+     HERO
+     ============================== -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-label">J. Ryan Smolarz — Medicine &amp; Money Technology</div>
+      <h1>A Full Suite of <span>AI-Powered Apps</span> Built for Physicians &amp; Entrepreneurs</h1>
+      <p class="hero-sub">Over 40 production-ready applications spanning AI automation, medical practice management, physician investing, content creation, and business intelligence — all built on Replit and deployed live.</p>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-num">41</div>
+          <div class="hero-stat-label">Live Published Apps</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">15+</div>
+          <div class="hero-stat-label">Categories</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">1</div>
+          <div class="hero-stat-label">VPS (72.60.167.64)</div>
+        </div>
+      </div>
+      <div class="hero-btns">
+        <a href="#apps" class="btn-primary">Browse All Apps</a>
+        <a href="#pricing" class="btn-outline">View Pricing Table</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hero-card-icon">🤖</div>
+        <h4>AI &amp; Automation</h4>
+        <p>AgentFlow, LLM Hub, VPS LLM, SiteForge AI</p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-icon">💰</div>
+        <h4>Finance &amp; Investing</h4>
+        <p>MarketAgent, AlphaFactory, InvestmentVault, ExitStrategizer</p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-icon">🏥</div>
+        <h4>Healthcare</h4>
+        <p>VientAI, MedCourse AI, MedInvest, Hornet's Nest</p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-icon">📈</div>
+        <h4>Marketing &amp; Content</h4>
+        <p>Thumb Meta Tool, Viral MedMoney, LeadForge, Insight Hub</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==============================
+     CATEGORIES FILTER BAR
+     ============================== -->
+<div class="categories">
+  <div class="cat-inner">
+    <span class="cat-label">Filter:</span>
+    <button class="cat-btn active">All Apps</button>
+    <button class="cat-btn">AI &amp; Automation</button>
+    <button class="cat-btn">Finance &amp; Trading</button>
+    <button class="cat-btn">Healthcare &amp; Medical</button>
+    <button class="cat-btn">Content &amp; Marketing</button>
+    <button class="cat-btn">Community &amp; Social</button>
+    <button class="cat-btn">Business Tools</button>
+    <button class="cat-btn">Mobile Apps</button>
+  </div>
+</div>
+
+<!-- ==============================
+     ALL APPS SECTION
+     ============================== -->
+<section class="section" id="apps">
+  <div class="container">
+
+    <!-- ── AI & AUTOMATION ──────────────────── -->
+    <div class="cat-section" id="ai-tools">
+      <div class="cat-section-title">
+        <div class="cat-section-icon">🤖</div>
+        <div>
+          <h3>AI &amp; Automation Tools</h3>
+          <p>Self-hosted LLM management, agent orchestration, and AI-powered builder tools</p>
+        </div>
+      </div>
+      <div class="apps-grid">
+
+        <!-- AgentFlow -->
+        <div class="app-card">
+          <div class="app-card-header">
+            <div class="app-icon">⚙️</div>
+            <div class="app-badges">
+              <span class="badge badge-teal">AI Platform</span>
+              <span class="badge badge-green">Live</span>
+            </div>
+          </div>
+          <div class="app-name">AgentFlow</div>
+          <div class="app-tagline">AI Agent Management Platform</div>
+          <div class="app-desc">Build, deploy, and monitor AI agents in automated visual pipeline workflows. Supports multi-provider LLMs, knowledge bases (RAG), MCP server, cost forecasting, and execution analytics.</div>
+          <div class="app-features"><ul>
+            <li>Visual drag-and-drop builder</li><li>Multi-LLM providers (OpenAI, Anthropic, Google)</li>
+            <li>RAG knowledge bases</li><li>Token usage heat
+
+
+
+
+HIGH RISK: Claude can take most actions on the internet now. This setting could put your data at risk. See safe use tips
+
+
+
+
+Act without asking
+Claude is AI and can make mistakes. Please double-check responses.
