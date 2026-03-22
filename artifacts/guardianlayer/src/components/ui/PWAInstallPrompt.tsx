@@ -13,6 +13,15 @@ export function PWAInstallPrompt() {
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+
+    if (isStandalone) {
+      setInstalled(true);
+      return;
+    }
+
+    localStorage.removeItem("gl_pwa_dismissed");
+
     if (localStorage.getItem("gl_pwa_dismissed") === "true") {
       setDismissed(true);
     }
@@ -26,10 +35,6 @@ export function PWAInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handler);
     window.addEventListener("appinstalled", installedHandler);
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setInstalled(true);
-    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
