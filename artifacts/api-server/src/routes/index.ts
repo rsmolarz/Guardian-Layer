@@ -35,6 +35,7 @@ import virustotalRouter from "./virustotal";
 import travelSecurityRouter from "./travel-security";
 import remoteMaintenanceRouter from "./remote-maintenance";
 import appFleetRouter from "./app-fleet";
+import creditProtectionRouter from "./credit-protection";
 
 const router: IRouter = Router();
 
@@ -74,6 +75,7 @@ router.use(virustotalRouter);
 router.use(travelSecurityRouter);
 router.use(remoteMaintenanceRouter);
 router.use(appFleetRouter);
+router.use(creditProtectionRouter);
 
 router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
 router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));
