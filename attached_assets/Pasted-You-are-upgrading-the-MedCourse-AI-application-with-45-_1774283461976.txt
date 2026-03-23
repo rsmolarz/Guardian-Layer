@@ -1,0 +1,207 @@
+You are upgrading the MedCourse AI application with 45 new features organized into 8 phases. Work through each phase completely before moving to the next. For every feature, create the necessary database tables/migrations, backend API routes, and frontend UI. Use the existing tech stack (Node.js/Express or whatever is already in use). Do not break any existing functionality.
+
+---
+
+## PHASE 1 — CRITICAL BUG FIXES (do these first)
+
+### Fix 1: Cloud File Storage
+Migrate all file uploads from the local filesystem to Cloudinary. Install the 'cloudinary' npm package. Create a /server/utils/storage.js utility module. Update every upload endpoint (profile photos, lesson images, course thumbnails, document uploads) to upload to Cloudinary and store the returned secure_url in the database. Remove all local /uploads folder dependencies. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to the .env file with placeholder values.
+
+### Fix 2: PDF and DOCX Upload Parsing
+Fix document upload and parsing. Configure 'multer' with a 10MB limit accepting application/pdf and application/vnd.openxmlformats-officedocument.wordprocessingml.document. Use 'pdf-parse' for PDFs and 'mammoth' for DOCX files. Add proper error handling returning a 400 with a descriptive message if parsing fails. Log all parsing errors server-side with the filename and error message.
+
+### Fix 3: Quiz Score Persistence
+Fix quiz score saving. Ensure the POST /api/quiz-submissions endpoint writes to the database with: user_id, quiz_id, score, answers (JSON), attempt_number, and submitted_at. Add a unique constraint on (user_id, quiz_id, attempt_number). On the quiz results page, always fetch from GET /api/quiz-submissions/:quizId/my-result — never from local state only. Return the saved record in the POST response.
+
+### Fix 4: Video Embedding
+Fix YouTube and Vimeo embedding in the lesson editor. Write a parseVideoUrl(url) utility that detects YouTube (youtube.com/watch?v=, youtu.be/) and Vimeo (vimeo.com/) links and converts them to proper embed URLs (https://www.youtube.com/embed/VIDEO_ID with rel=0&modestbranding=1). Sanitize all URLs to prevent XSS. Render as a responsive 16:9 iframe wrapper (padding-bottom: 56.25%) in the lesson viewer.
+
+### Fix 5: User Registration and Email Verification
+Fix user registration: (1) hash all passwords with bcrypt at 10 rounds, (2) generate a UUID verification token on registration, (3) store token with a 24-hour expiry in a email_verification_tokens table, (4) send a verification email using Nodemailer with a link to /verify?token=TOKEN, (5) clicking the link marks the user's email_verified field as true. Block unverified users from enrolling in courses with a friendly prompt to verify. Add a "Resend verification email" button on the learner dashboard.
+
+### Fix 6: Password Reset Flow
+Implement a complete password reset flow: (1) POST /api/auth/forgot-password accepts an email, generates a secure token via crypto.randomBytes(32).toString('hex'), stores it with a 1-hour expiry in a password_reset_tokens table, and sends a reset email, (2) GET /reset-password?token=TOKEN shows a form, (3) POST /api/auth/reset-password validates the token is unexpired, accepts a new password (min 8 chars), hashes it, updates the user, deletes the token, and redirects to login with a success message.
+
+### Fix 7: Role-Based Access Control
+Implement RBAC. Add a role column to the users table with values: learner, instructor, admin (default: learner). Create a requireRole(...roles) middleware that checks req.user.role and returns 403 if unauthorized. Apply requireRole('admin') to all /admin/* routes. Apply requireRole('instructor','admin') to course creation and editing routes. Add a Users Management page in the admin panel to view all users and change their roles. Seed one default admin user using credentials from .env (ADMIN_EMAIL, ADMIN_PASSWORD).
+
+### Fix 8: Course Progress Calculation
+Fix progress tracking. Create a lesson_completions table (user_id, lesson_id, completed_at, PRIMARY KEY(user_id, lesson_id)). When a learner clicks "Mark Complete" on a lesson, upsert a record. Calculate progress as: (COUNT of completed lessons for this user in this course) / (total published lessons in course) * 100. Display the correct % on the learner dashboard and inside each course. Trigger certificate generation automatically when a course reaches 100% and the learner has a passing quiz score (>= course passing_score setting, default 70%).
+
+---
+
+## PHASE 2 — AI FEATURES
+
+### Feature 1: AI Course Generator from URL or Document
+On the "Create Course" page add two import options: "Import from URL" and "Upload Document (PDF/DOCX)". For URLs, scrape content using axios + cheerio. For documents, parse with pdf-parse/mammoth. Send extracted text to Claude/OpenAI with this system prompt: "You are an expert medical instructional designer. Analyze the provided content and structure it into a course with: a title, description, 3-7 modules, and 2-5 lessons per module. Each lesson needs a title, learning objectives, and detailed content. Return valid JSON only." Auto-populate the course editor with the AI response. Show a loading progress bar during generation.
+
+### Feature 2: AI Quiz Generator
+In the lesson editor, add a "Generate Quiz with AI" button. POST /api/ai/generate-quiz with the lesson text and difficulty level. The AI returns 8-10 questions in JSON format: each question has a type (multiple_choice, true_false, short_answer), question_text, options array (for MC), correct_answer, and explanation. Render a review screen where the instructor can edit, delete, or add questions before saving. Save to the quizzes table linked to the lesson_id.
+
+### Feature 3: AI Chatbot Tutor per Course
+Add a per-course AI chatbot tutor. Create a chat_messages table (id, course_id, user_id, role, content, created_at). Add a floating chat widget (speech bubble icon, bottom-right) that appears when a learner is inside a course player. POST /api/ai/chat/:courseId sends the user message + the last 10 conversation messages + the full course syllabus as context to the AI. System prompt: "You are a medical education tutor for the course [COURSE TITLE]. Answer questions based on the course content. Be concise, accurate, and cite specific lessons when relevant." Store and display conversation history per session.
+
+### Feature 4: AI Image Generation
+In the lesson editor toolbar, add an "AI Image" button. A modal opens where the instructor types a prompt. POST /api/ai/generate-image calls DALL-E 3 (or returns a placeholder if no key). Generate 3 image options shown as a grid. The instructor selects one, it uploads to Cloudinary, and the URL is inserted into the lesson as an <img> tag. Add OPENAI_API_KEY to .env. Include proper error handling if the API is unavailable.
+
+### Feature 5: AI Avatar Training Video Generator
+Add an AI video generation feature using the D-ID API (placeholder mode if no key). In the course editor, add a "Generate Video" tab per lesson. The instructor types or pastes a script (max 500 words), selects an avatar from a grid of 6 preset options, and clicks "Generate Video." POST /api/ai/generate-video calls the D-ID /talks endpoint. Poll for completion every 5 seconds. When done, show a video player and save the video URL to the lesson. Add DID_API_KEY to .env. Show a clear "Placeholder Mode" banner if the key is missing.
+
+### Feature 6: Medical Content Safety Filter
+Before saving any AI-generated lesson content, run a validation step. POST /api/ai/validate-medical sends the content to the AI with this prompt: "Review this medical education content. Check: (1) Are medical claims accurate and evidence-based? (2) Is there any dangerous or misleading medical information? (3) Is the content appropriate for the stated audience level? Return JSON: {safe: boolean, warnings: string[], suggestions: string[]}." If warnings exist, show them to the instructor in a yellow alert banner before saving. Always add a "This content was AI-generated and should be reviewed by a qualified medical professional" disclaimer to AI-generated lessons.
+
+### Feature 7: Adaptive Difficulty by Audience Level
+Add a Target Audience Level field to course settings: Medical Student (MS1-MS4), Resident (PGY1-PGY3), Fellow, Attending, or Specialist. When generating quizzes, pass the level as context: MS1-MS2 → USMLE Step 1 style basic science questions; MS3-MS4 → USMLE Step 2 CK clinical vignettes; Resident → clinical management questions; Fellow/Attending → expert-level case analysis with nuance. Display the audience level badge prominently on the course card and landing page.
+
+---
+
+## PHASE 3 — LMS CORE FEATURES
+
+### Feature 8: Automated Certificate Generation
+When a learner completes a course (100% lessons + passing quiz score), auto-generate a PDF certificate using Puppeteer or pdfkit. The certificate includes: learner full name, course title, completion date, instructor name, CME credits (if set), and a unique certificate ID (UUID). Allow admins to upload a custom certificate logo and set brand colors in Course Settings. Store certificates in a certificates table (user_id, course_id, certificate_id, issued_at, pdf_url). Add a "My Certificates" page on the learner dashboard with download links. Certificates should be verifiable at /verify-certificate/:certificateId.
+
+### Feature 9: Drip Content / Scheduled Lesson Release
+Add drip scheduling to the course editor. Each lesson/module gets a Release Settings option: Immediate, Specific Date, or Days After Enrollment (e.g., unlock on Day 3). Store delay_days and release_date on the lesson record. Install node-cron and create a daily job at midnight that checks and unlocks lessons. In the learner course view, show locked lessons with a lock icon and "Available in X days" or "Available on [date]" text. Send an email notification when a new lesson unlocks.
+
+### Feature 10: Group / Cohort Management
+Create a full Groups management system. Create tables: groups (id, name, description, admin_user_id, created_at), group_members (group_id, user_id, role[manager,member], joined_at), group_courses (group_id, course_id). Add a Groups section in the admin panel: create/edit/delete groups, add learners by email (single or bulk), assign courses to groups. Add a Group Manager role that can view all members' progress, send announcements, and add members. On course access middleware, check if the user is in a group assigned to the course.
+
+### Feature 11: Bulk Learner Import via CSV
+In the admin Users page, add "Import Learners" button. Accept a CSV with columns: first_name, last_name, email, role (optional, default learner), group_name (optional), course_id (optional). Parse server-side with 'csv-parse'. For each row: check if user exists (skip if duplicate), create account with a random temp password, send a welcome email with the temp password and a link to set a new password. Enroll in specified course/group. After processing, show a summary: X imported, X skipped (duplicates), X errors (with reasons). Allow downloading the error report as CSV.
+
+### Feature 12: SCORM Export
+Add SCORM 1.2 export. When an instructor clicks "Export as SCORM" on a course, the server: (1) generates an imsmanifest.xml describing the course structure, (2) creates an HTML file for each lesson wrapping the content, (3) includes the SCORM API wrapper (scorm-again library), (4) packages everything into a .zip using the 'archiver' npm package. The zip downloads automatically. Add a note that SCORM packages can be uploaded to Moodle, Canvas, Blackboard, etc.
+
+### Feature 13: LTI 1.3 Integration
+Implement LTI 1.3 using the 'ltijs' npm package. Create routes: POST /api/lti/launch, GET /api/lti/keyset, GET /api/lti/auth. Add an LTI Configuration page in admin settings where the admin sets: Platform URL, Client ID, Deployment ID, and Auth/JWKS/Token URLs. When a learner launches via LTI, auto-create or log in the user, enroll them in the linked course, and track their progress. On course completion, send the grade back to the LMS gradebook using the AGS (Assignment and Grade Services) extension.
+
+### Feature 14: iFrame Embed
+Add course embed functionality. On the course management page, add an "Embed" button that opens a modal with: a preview iframe, customizable width (default 100%) and height (default 600px), and the generated embed code. Create a /embed/:courseSlug route that renders the course player in a minimal frameless layout (no main navbar, no footer). Set appropriate CORS headers (configurable per course). Add an option to require an enrollment token for private embeds.
+
+### Feature 15: Direct Messaging
+Create a direct messaging system. Create a messages table (id, sender_id, receiver_id, body, read_at, created_at) and a conversations view. Add a /messages page with a conversation list on the left and chat thread on the right. Instructors can message any of their enrolled learners. Learners can message their course instructors. Implement polling every 5 seconds for new messages. Show unread message count badge on the nav icon. Send email notification for new messages (configurable: immediately or digest).
+
+### Feature 16: Discussion Forums per Course
+Add per-course discussion forums. Create tables: forum_threads (id, course_id, user_id, title, body, pinned, locked, created_at), forum_replies (id, thread_id, user_id, body, is_official_answer, upvotes, created_at). Each course has a "Discussion" tab. Learners can create threads, reply, and upvote replies. Instructors can: pin important threads, lock threads, delete inappropriate posts, and mark one reply as the official answer. Sort by: Most Recent, Most Active, Pinned first. Send email digest to subscribers daily.
+
+### Feature 17: Real-Time Notifications
+Add an in-app notification system. Create a notifications table (id, user_id, type, title, body, read, link, created_at). Generate notifications for: new enrollment, quiz submitted, course completed, certificate earned, new forum reply in your thread, new direct message, new lesson unlocked, payment received. Show a bell icon in the navbar with unread count badge (red). Clicking opens a dropdown with the last 20 notifications, timestamps, and a "Mark all read" button. Clicking a notification navigates to the relevant page. Add GET /api/notifications and PATCH /api/notifications/:id/read endpoints.
+
+### Feature 18: Course Completion Emails (Full Email System)
+Implement a full transactional email system using Nodemailer (SMTP) with Handlebars HTML templates. Create /server/emails/ folder with templates for: welcome (with verification link), enrollment confirmation, new lesson available (drip), quiz result (pass/fail with score), course completion (with certificate link), new message received, and password reset. Add Email Settings in admin panel to configure: SMTP host/port/user/pass or SendGrid API key. Log all sent emails in an email_logs table (recipient, type, subject, sent_at, status). Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS to .env.
+
+---
+
+## PHASE 4 — CONTENT & INTERACTIVITY
+
+### Feature 19: Drag-and-Drop Course Builder
+Replace the current linear lesson editor with a block-based drag-and-drop builder using 'dnd-kit'. The lesson content is a JSON array of blocks. Block types: Text (rich text with Quill.js editor), Heading (H2/H3), Image (with upload), Video (URL embed), Quiz (linked quiz), Flipcard Set, Accordion, Divider, Code Block (with syntax highlight), and Info Box (tip/warning/danger callout). Each block has an Edit, Duplicate, and Delete button. Dragging reorders blocks. Save the JSON to the lesson content field on every change (debounced 2 seconds).
+
+### Feature 20: Flipcard Interactive Element
+Add a Flipcard block type to the course builder. When added, the instructor can create multiple flipcard pairs (front: question/term, back: answer/definition). Each card is a square with a smooth CSS 3D flip animation on click. Cards in a set are displayed in a horizontal scroll row. Add navigation arrows for card sets with more than 3 cards. Show progress "3 of 8 cards" below. Learners can shuffle the deck. Store as JSON in the block content.
+
+### Feature 21: Accordion / Expandable Sections
+Add an Accordion block type to the course builder. Instructors add items with a header (bold, clickable) and body text (can include HTML). Click to expand/collapse with a smooth CSS max-height transition. Instructors can reorder items via drag-and-drop within the accordion. One or multiple items can be open at a time (configurable setting: "single" or "multiple"). Store as JSON in the block.
+
+### Feature 22: Case-Based Learning Module
+Add a "Clinical Case Study" block type to the course builder. The instructor creates a multi-step case: (1) Patient presentation (history, exam, labs shown as formatted cards with colored sections), (2) Each step has a question (MC or short answer), (3) After answering each step, show the correct answer + explanation + next step reveal, (4) Final summary with diagnosis, management, and key learning points. Store cases as structured JSON. Track case completion per user. This is separate from regular quizzes and tracked independently.
+
+---
+
+## PHASE 5 — MONETIZATION
+
+### Feature 23: eCommerce / Course Selling with Stripe
+Integrate Stripe Payments. Install 'stripe' npm package. Add a Pricing section to course settings: Free, One-Time Purchase (set price), or Subscription (monthly/annual). Create a public course landing page at /courses/:slug with a "Enroll Now" or "Buy Now" button. For paid courses: create a Stripe Checkout session via POST /api/payments/checkout, redirect to Stripe, handle success at /payment/success?session_id= (auto-enroll the user), and handle cancellations. Add a Stripe webhook at POST /api/webhooks/stripe to handle checkout.session.completed and payment_intent.payment_failed. Add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to .env. Add a Revenue Dashboard for instructors showing total revenue, transactions list, and monthly revenue chart.
+
+### Feature 24: Subscription / Recurring Billing
+Extend the Stripe integration to support subscriptions. Create Stripe Products and Prices for monthly and annual course subscriptions. Handle subscription lifecycle via webhooks: customer.subscription.created, customer.subscription.updated, customer.subscription.deleted. Restrict course access if subscription is not active. Add a "Manage Subscription" button on the learner dashboard that opens the Stripe Customer Portal (use stripe.billingPortal.sessions.create). Send renewal reminder email 7 days before renewal using a daily cron job.
+
+---
+
+## PHASE 6 — ANALYTICS & TRACKING
+
+### Feature 25: Instructor Analytics Dashboard
+Create a comprehensive /instructor/analytics page. Show metrics: total enrolled learners (all courses), total revenue (if selling), average quiz scores per course, lesson dropout rate (which lesson has the highest abandonment), course completion rates, average time-to-complete, and learner satisfaction (average star rating). Use Chart.js for: bar chart (completions per course), line chart (new enrollments over time), funnel chart (lesson dropout). Add date range filter: 7 days, 30 days, 90 days, all time. Add CSV export button for raw data.
+
+### Feature 26: Learner Progress Dashboard
+Create a dedicated /learner/dashboard page showing: all enrolled courses with % completion progress bars, time spent per course (sum of session durations from a sessions table), quiz history (all attempts, scores, pass/fail), next incomplete lesson quick-access buttons, earned certificates, CME credits earned, upcoming lesson unlock dates (for drip courses), and a weekly activity heatmap (GitHub-style). Track time-on-page per lesson using beforeunload event + POST /api/analytics/time-spent.
+
+---
+
+## PHASE 7 — MEDICAL-SPECIFIC FEATURES
+
+### Feature 27: CME Credit Tracking
+Add Continuing Medical Education (CME) credit support. Add a cme_credits field (decimal, e.g., 1.5) and cme_category field (AMA PRA Category 1, Category 2, Nursing CE, etc.) to courses. When a learner completes a course, log to a cme_credits_log table (user_id, course_id, credits, category, course_title, completion_date, certificate_id). Create a CME Transcript page on the learner dashboard showing: credits by year, credits by category (pie chart), credits by specialty, total credits this year vs goal (configurable). Add a "Print Transcript" button that generates a formatted PDF using pdfkit with the user's name, NPI number (if set in profile), and all credit records. Add NPI_NUMBER field to user profile.
+
+### Feature 28: HIPAA Compliance & Audit Logging
+Implement HIPAA compliance features: (1) Create an audit_logs table (id, user_id, action, resource_type, resource_id, ip_address, user_agent, timestamp) — log all data access, updates, deletes, and login events using a middleware, (2) Add automatic session timeout: after 15 minutes of inactivity show a modal "Your session will expire in 2 minutes — click to continue." On timeout, clear session and redirect to login, (3) Add a Privacy Policy page at /privacy and Terms of Service at /terms, (4) Show a HIPAA notice banner on any page where patient-related content could be uploaded, (5) Add data export (GDPR/HIPAA right-to-access): users can request all their data as a JSON download from account settings, (6) Add HIPAA_NOTICE=true to .env to toggle the banner.
+
+### Feature 29: Medical Specialty Tagging & Course Discovery
+Create a browse/discovery system. Create tables: specialties (id, name, slug) seeded with 25+ medical specialties (Cardiology, Neurology, Emergency Medicine, Surgery, Pediatrics, Oncology, Psychiatry, Radiology, Anesthesiology, Internal Medicine, OB/GYN, Dermatology, Ophthalmology, Orthopedics, Pathology, Urology, ENT, Rheumatology, Endocrinology, Nephrology, Gastroenterology, Pulmonology, Hematology, Infectious Disease, Family Medicine). Create course_specialties join table. In the course editor, allow selecting multiple specialties. Create a /browse page with: search bar (full-text on title/description), filter by specialty (pill checkboxes), filter by difficulty level, filter by CME credits (yes/no), filter by price (free/paid), and sort by (newest, most enrolled, highest rated). Show course cards with specialty badges.
+
+### Feature 30: Learner Satisfaction Ratings
+Add a post-course rating system. After a learner completes a course, show a rating modal: 1-5 star rating + optional text comment. Store in course_ratings table (user_id, course_id, rating, comment, created_at). Show average rating (with star display) on course cards, landing pages, and the instructor analytics dashboard. Add a Reviews tab on the course landing page showing individual reviews with names and dates. Allow instructors to publicly respond to reviews. Instructors can see all reviews in their analytics dashboard.
+
+---
+
+## PHASE 8 — GAMIFICATION, BRANDING & API ACCESS
+
+### Feature 31: Gamification (Points, Badges, Leaderboard)
+Implement a full gamification system. Create tables: user_points (user_id, points, updated_at), point_transactions (id, user_id, amount, reason, created_at), user_badges (id, user_id, badge_id, earned_at). Award points: complete a lesson (+10), pass a quiz (+25), complete a course (+100), post in a forum (+5), get a forum reply marked as official answer (+50), 7-day streak (+75). Create 12 badges: First Step (first lesson), Quiz Ace (first 100% quiz), Course Completer, Speed Learner (complete course in 1 day), Scholar (5 courses complete), Forum Star (10 forum posts), Streak Master (30-day streak), CME Champion (50+ CME credits), Perfect Score (3 perfect quizzes), Early Bird (first 100 users), Specialist (complete 3 courses in same specialty), and Mentor (10 helpful forum replies). Add a Leaderboard page showing top 20 learners by points. Show points and badges on the learner profile page and dashboard.
+
+### Feature 32: White-Label / Custom Branding
+Add a full white-label Branding settings page at /admin/branding. Allow: uploading a custom logo (stored in Cloudinary), setting primary color, secondary color, and accent color (with a color picker), custom platform name (replaces "MedCourse AI" across the UI), custom favicon upload, custom footer text, and custom domain support (show instructions for CNAME to point to the platform). Store all branding settings in a platform_settings table (key, value). Apply branding dynamically: serve a /api/branding endpoint, load it on startup, inject colors as CSS variables in :root, replace logo/favicon at runtime. Show a live preview on the branding settings page.
+
+### Feature 33: Course Landing Page Builder
+Create a public course landing page at /courses/:slug. The page should show: hero section with course title, subtitle, and thumbnail, an instructor bio section (name, photo, credentials), a course curriculum preview (accordion of modules/lessons, locked content grayed out), a highlights section (key learning points, CME credits, difficulty, duration, language), a learner testimonials/reviews section (from ratings), a pricing/enrollment section with a clear CTA button, and social sharing buttons (Twitter, LinkedIn, copy link). Add Open Graph and Twitter Card meta tags for rich social previews. Instructors can edit the landing page content (subtitle, highlights, instructor bio) in Course Settings.
+
+### Feature 34: Developer API with API Key Management
+Add developer API access. Create an api_keys table (id, user_id, key_hash, label, last_used_at, created_at, revoked). Add an API Keys section in user settings: generate a new key (show it once, never again), label keys, copy key, revoke key. Generate keys as "mca_" + crypto.randomBytes(32).toString('hex'). Hash keys with SHA-256 for storage. Create an API auth middleware that checks the Authorization: Bearer <key> header (in addition to session auth) for all /api/* routes. Implement rate limiting: 100 requests/minute per key using 'express-rate-limit'. Create a Swagger/OpenAPI 3.0 spec at /api/docs (use 'swagger-ui-express'). Track API usage in an api_usage_logs table. Show a usage stats panel in the API Keys page.
+
+### Feature 35: Peer Review / Assignments
+Add a Peer Review assignment type. Create tables: assignments (id, course_id, lesson_id, title, instructions, rubric_json, submission_deadline, review_deadline, reviews_per_submission), assignment_submissions (id, assignment_id, user_id, content_text, file_url, submitted_at), peer_reviews (id, submission_id, reviewer_id, rubric_scores_json, feedback, total_score, submitted_at). In the course editor, add an Assignment block type. Instructors define: assignment prompt, file upload option, grading rubric (criteria + max points), submission deadline, and number of reviews required. After the submission deadline, the system randomly assigns reviewers (excluding self). Reviewers see a blind version (no name). Final grade = average of peer scores + optional instructor override. Notify users at each stage.
+
+### Feature 36: Full Multi-Language Support (100+ Languages)
+Add comprehensive multi-language support. Install 'i18next' and 'react-i18next' (or equivalent for current stack). Create /locales/en.json as the source. Add a "Translate Course" button in the course editor that calls OpenAI to translate all lesson titles, lesson content, and quiz questions into the selected language. Support a language selector dropdown (globe icon in top nav) for UI strings. Store translated course content in a course_translations table (course_id, language_code, field_name, translated_content). Learners see content in their preferred language if a translation exists, otherwise fall back to the original. Support at least: English, Spanish, French, German, Arabic, Mandarin, Portuguese, Japanese, Korean, Hindi, Italian, and Russian as initial translations for the UI.
+
+### Feature 37: Session-Based Time Tracking Analytics
+Implement detailed time-on-platform analytics. Create a learning_sessions table (id, user_id, course_id, lesson_id, started_at, ended_at, duration_seconds). When a learner opens a lesson, start a session (POST /api/sessions/start). When they leave (beforeunload, visibilitychange, or navigate away), end the session (POST /api/sessions/end with session_id). Calculate total time per learner per course. Show in instructor analytics: average time per lesson (helps identify where learners spend or rush). Show in learner dashboard: total learning time today, this week, this month with a chart.
+
+### Feature 38: Course Rating & Testimonials
+Add a post-completion course rating system (if not already added in Feature 30). After completing a course, prompt the learner: 5-star rating, a text testimonial (optional, max 500 chars), and three quick tags they can select: "Well structured", "Great content", "Good quizzes", "Easy to follow", "Relevant", "Would recommend". Store in course_ratings. Show average rating with star display on all course cards. Allow instructors to feature selected testimonials on the landing page by toggling "featured" on a review. Show featured reviews in a carousel on the landing page.
+
+### Feature 39: Mobile-Responsive PWA
+Convert MedCourse AI to a full Progressive Web App. (1) Add a /public/manifest.json with: name "MedCourse AI", short_name, start_url, display:standalone, theme_color (from branding settings), and icon URLs at 192x192 and 512x512 (generate placeholder icons), (2) Register a service worker (/public/sw.js) that caches: the app shell, all visited course pages, and lesson content using a Cache-First strategy, (3) Ensure all pages are fully responsive with a mobile-first CSS approach — test layouts at 375px, 768px, and 1280px, (4) Add touch-friendly elements: swipe gesture support on lesson navigation (left/right), larger tap targets (min 44px), bottom navigation bar on mobile for: Home, My Courses, Messages, Profile, (5) Add an "Install App" banner prompt for eligible browsers.
+
+### Feature 40: Social Sharing & Referral System
+Add social sharing and a referral/affiliate system. (1) Add "Share Certificate" buttons on the certificate page: LinkedIn (with course and credential details pre-filled), Twitter, and a copy-link option, (2) Create a referral system: each user gets a unique referral code. Add a Refer a Friend section in the dashboard. When a new user signs up via a referral link (/join?ref=CODE), log it in a referrals table. If the referred user purchases a course, credit the referrer with a configurable reward (discount code or a percentage — set in admin), (3) Add Open Graph meta tags on certificate pages so sharing them on social shows a rich preview with course name, learner name, and a certificate graphic.
+
+---
+
+## FINAL STEPS — ENVIRONMENT & DOCUMENTATION
+
+After implementing all features:
+
+1. Update the .env.example file to include ALL new environment variables with clear comments:
+   - OPENAI_API_KEY (for AI generation)
+   - ANTHROPIC_API_KEY (alternative AI)
+   - DID_API_KEY (for avatar videos)
+   - CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+   - STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
+   - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+   - SENDGRID_API_KEY (alternative email)
+   - ADMIN_EMAIL, ADMIN_PASSWORD
+   - SESSION_SECRET
+   - DATABASE_URL
+   - HIPAA_NOTICE (true/false)
+   - APP_URL (for email links)
+
+2. Create or update all database migrations. If using Prisma, run `prisma migrate dev`. If using raw SQL, create a /migrations folder with numbered .sql files.
+
+3. Add a /admin/setup page (accessible only if no admin exists) for first-time configuration: set admin credentials, upload logo, set platform name, configure email settings, and connect Stripe.
+
+4. Update the main README.md with: feature list, setup instructions, all environment variables explained, and a "Deploy to Replit" button.
+
+5. Seed the database with: 25+ medical specialties, 12 badge definitions, the default admin user, and 1 sample course with 2 modules and 3 lessons each to demonstrate the platform.
+
+Do not remove or break any features that are already working. For any feature where a third-party API key is required but not yet configured, show a graceful UI state (e.g., "Feature requires API key — configure in Admin Settings") rather than an error. Implement all 40 features as described above.
