@@ -22,6 +22,8 @@ declare global {
 
 const PUBLIC_PATHS = [
   "/api/auth/login",
+  "/api/auth/webauthn/login/options",
+  "/api/auth/webauthn/login/verify",
   "/api/health",
   "/api/healthz",
   "/metrics",

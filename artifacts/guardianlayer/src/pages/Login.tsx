@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Shield, Lock, User, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Shield, Lock, User, AlertTriangle, Eye, EyeOff, Key, Loader2 } from "lucide-react";
+import { startAuthentication } from "@simplewebauthn/browser";
+import { API_BASE } from "@/lib/constants";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [webauthnLoading, setWebauthnLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +22,53 @@ export default function Login() {
       setError(result.error || "Login failed");
     }
     setLoading(false);
+  };
+
+  const handleWebAuthn = async () => {
+    if (!username) {
+      setError("Enter your username first, then tap the YubiKey button");
+      return;
+    }
+    setError("");
+    setWebauthnLoading(true);
+    try {
+      const optionsRes = await fetch(`${API_BASE}/api/auth/webauthn/login/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+      const optionsData = await optionsRes.json();
+
+      if (!optionsData.hasKeys) {
+        setError("No security keys registered for this account. Log in with your password first, then register a key in Security Keys settings.");
+        setWebauthnLoading(false);
+        return;
+      }
+
+      const authResponse = await startAuthentication({ optionsJSON: optionsData.options });
+
+      const verifyRes = await fetch(`${API_BASE}/api/auth/webauthn/login/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, credential: authResponse }),
+      });
+      const verifyData = await verifyRes.json();
+
+      if (!verifyRes.ok) {
+        setError(verifyData.error || "YubiKey authentication failed");
+        setWebauthnLoading(false);
+        return;
+      }
+
+      loginWithToken(verifyData.token, verifyData.user);
+    } catch (err: any) {
+      if (err.name === "NotAllowedError") {
+        setError("Security key authentication was cancelled");
+      } else {
+        setError(err.message || "YubiKey authentication failed");
+      }
+    }
+    setWebauthnLoading(false);
   };
 
   return (
@@ -47,9 +97,9 @@ export default function Login() {
           <h2 className="text-xl font-semibold text-white mb-6 text-center">Secure Access</h2>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2 text-red-400 text-sm">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {error}
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2 text-red-400 text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -99,7 +149,7 @@ export default function Login() {
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Authenticating...
                 </span>
               ) : (
@@ -108,9 +158,37 @@ export default function Login() {
             </button>
           </form>
 
+          <div className="mt-4 relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-800" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-gray-900/80 px-3 text-gray-500">or</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleWebAuthn}
+            disabled={webauthnLoading || !username}
+            className="mt-4 w-full bg-amber-600/20 hover:bg-amber-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-amber-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-amber-600/30 hover:border-amber-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
+          >
+            {webauthnLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Tap your YubiKey...
+              </>
+            ) : (
+              <>
+                <Key className="w-4 h-4" />
+                Sign In with YubiKey
+              </>
+            )}
+          </button>
+
           <div className="mt-6 pt-4 border-t border-gray-800">
             <p className="text-xs text-gray-500 text-center">
-              Protected by multi-factor authentication and AES-256 encryption
+              Protected by FIDO2/WebAuthn hardware key authentication and AES-256 encryption
             </p>
           </div>
         </div>

@@ -9,6 +9,7 @@ import {
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { API_BASE } from "@/lib/constants";
+import { authFetch } from "@/lib/auth";
 import { clsx } from "clsx";
 import {
   Key,
@@ -74,7 +75,7 @@ const EVENT_BADGE: Record<string, string> = {
   key_revoked: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen" | "mfa-compliance" | "anomaly-detector";
+type Tab = "devices" | "events" | "enrollment" | "failed-auth" | "policies" | "lost-stolen" | "mfa-compliance" | "anomaly-detector" | "register-key" | "app-coverage";
 type StatusFilter = "active" | "suspended" | "revoked" | "unassigned" | undefined;
 type EventFilter = "auth_success" | "auth_failure" | "key_enrolled" | "key_revoked" | undefined;
 
@@ -183,6 +184,8 @@ function YubikeySecurityInner() {
           { id: "lost-stolen" as Tab, label: "Lost/Stolen", icon: ShieldAlert },
           { id: "mfa-compliance" as Tab, label: "Compliance", icon: ShieldCheck },
           { id: "anomaly-detector" as Tab, label: "Unusual Activity", icon: Brain },
+          { id: "register-key" as Tab, label: "Register Key", icon: Fingerprint },
+          { id: "app-coverage" as Tab, label: "App Coverage", icon: Globe },
         ]).map((t) => (
           <button
             key={t.id}
@@ -206,6 +209,8 @@ function YubikeySecurityInner() {
       {tab === "lost-stolen" && <LostStolenPanel />}
       {tab === "mfa-compliance" && <MfaCompliancePanel />}
       {tab === "anomaly-detector" && <AnomalyDetectorPanel />}
+      {tab === "register-key" && <RegisterKeyPanel />}
+      {tab === "app-coverage" && <AppCoveragePanel />}
     </div>
   );
 }
@@ -1847,6 +1852,291 @@ function AnomalyDetectorPanel() {
           <div className="text-center py-12 text-muted-foreground">
             <Brain className="w-8 h-8 mx-auto mb-3 text-primary" />
             <p className="font-display text-sm uppercase tracking-wider">No anomalies match this filter</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+interface WebAuthnCred {
+  id: number;
+  credentialId: string;
+  createdAt: string;
+  lastUsed: string | null;
+  deviceName: string | null;
+}
+
+function RegisterKeyPanel() {
+  const [creds, setCreds] = useState<WebAuthnCred[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
+  const [keyName, setKeyName] = useState("");
+  const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchCreds = async () => {
+    try {
+      const res = await authFetch(`${API_BASE}/api/auth/webauthn/credentials`);
+      if (res.ok) {
+        const data = await res.json();
+        setCreds(data.credentials || []);
+      }
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCreds(); }, []);
+
+  const handleRegister = async () => {
+    setRegistering(true);
+    setMsg(null);
+    try {
+      const { startRegistration } = await import("@simplewebauthn/browser");
+      const optRes = await authFetch(`${API_BASE}/api/auth/webauthn/register/options`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!optRes.ok) throw new Error((await optRes.json()).error || "Failed to get options");
+      const options = await optRes.json();
+      const credential = await startRegistration({ optionsJSON: options });
+      const verRes = await authFetch(`${API_BASE}/api/auth/webauthn/register/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential, deviceName: keyName || "YubiKey" }),
+      });
+      if (!verRes.ok) throw new Error((await verRes.json()).error || "Verification failed");
+      setMsg({ type: "success", text: "Security key registered successfully!" });
+      setKeyName("");
+      fetchCreds();
+    } catch (e: any) {
+      setMsg({ type: "error", text: e.message || "Registration failed" });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const handleDelete = async (credId: number) => {
+    if (!confirm("Remove this security key? You won't be able to use it to log in anymore.")) return;
+    try {
+      const res = await authFetch(`${API_BASE}/api/auth/webauthn/credentials/${credId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setCreds((prev) => prev.filter((c) => c.id !== credId));
+        setMsg({ type: "success", text: "Key removed" });
+      }
+    } catch { setMsg({ type: "error", text: "Failed to delete" }); }
+  };
+
+  if (loading) return <CyberLoading text="Loading credentials..." />;
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-xl p-6 mb-6">
+        <h3 className="font-display uppercase tracking-widest text-sm text-primary mb-4 flex items-center gap-2">
+          <Fingerprint className="w-5 h-5" /> Register a New Security Key
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Insert your YubiKey and click Register to add it as a passwordless login method.
+          Supports FIDO2/WebAuthn compatible keys.
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            placeholder="Key name (e.g. YubiKey 5 NFC)"
+            value={keyName}
+            onChange={(e) => setKeyName(e.target.value)}
+            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+          />
+          <button
+            onClick={handleRegister}
+            disabled={registering}
+            className="px-6 py-2.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary font-display uppercase tracking-widest text-xs transition-all disabled:opacity-50"
+          >
+            {registering ? "Touch Your Key..." : "Register Key"}
+          </button>
+        </div>
+        {msg && (
+          <div className={`mt-3 text-sm ${msg.type === "success" ? "text-emerald-400" : "text-rose-400"}`}>
+            {msg.type === "success" ? <CheckCircle2 className="w-4 h-4 inline mr-1" /> : <XCircle className="w-4 h-4 inline mr-1" />}
+            {msg.text}
+          </div>
+        )}
+      </motion.div>
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel rounded-xl p-6">
+        <h3 className="font-display uppercase tracking-widest text-sm text-primary mb-4 flex items-center gap-2">
+          <Key className="w-5 h-5" /> Registered Keys ({creds.length})
+        </h3>
+        {creds.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Usb className="w-8 h-8 mx-auto mb-3 text-primary/40" />
+            <p className="font-display text-sm uppercase tracking-wider">No keys registered yet</p>
+            <p className="text-xs mt-1">Register your first YubiKey above to enable passwordless login</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {creds.map((c) => (
+              <div key={c.id} className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5 hover:border-primary/20 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Key className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <span className="text-sm font-medium text-white">{c.deviceName || "Security Key"}</span>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[10px] font-mono text-muted-foreground">ID: {c.credentialId.slice(0, 12)}...</span>
+                      <span className="text-[10px] text-muted-foreground">Added: {format(new Date(c.createdAt), "MMM d, yyyy")}</span>
+                      {c.lastUsed && <span className="text-[10px] text-muted-foreground">Last used: {format(new Date(c.lastUsed), "MMM d, HH:mm")}</span>}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDelete(c.id)}
+                  className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                  title="Remove key"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </>
+  );
+}
+
+interface CoverageApp {
+  id: number;
+  appName: string;
+  appUrl: string;
+  hasHardwareKey: boolean;
+  protectionType: string;
+  keySerials: string | null;
+  notes: string | null;
+  updatedAt: string;
+}
+
+function AppCoveragePanel() {
+  const [apps, setApps] = useState<CoverageApp[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchApps = async () => {
+    try {
+      const res = await authFetch(`${API_BASE}/api/yubikey/coverage`);
+      if (res.ok) {
+        const data = await res.json();
+        setApps(data.apps || []);
+      }
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchApps(); }, []);
+
+  const toggleProtected = async (app: CoverageApp) => {
+    try {
+      const res = await authFetch(`${API_BASE}/api/yubikey/coverage/${app.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hasHardwareKey: !app.hasHardwareKey }),
+      });
+      if (res.ok) {
+        setApps((prev) => prev.map((a) => a.id === app.id ? { ...a, hasHardwareKey: !a.hasHardwareKey } : a));
+        setMsg({ type: "success", text: `${app.appName} updated` });
+        setTimeout(() => setMsg(null), 2000);
+      }
+    } catch { setMsg({ type: "error", text: "Update failed" }); }
+  };
+
+  if (loading) return <CyberLoading text="Loading app coverage..." />;
+
+  const protectedCount = apps.filter((a) => a.hasHardwareKey).length;
+  const percentage = apps.length > 0 ? Math.round((protectedCount / apps.length) * 100) : 0;
+  const filtered = apps.filter((a) => a.appName.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-5 rounded-xl">
+          <span className="font-display uppercase text-[10px] tracking-widest text-muted-foreground block mb-1">Total Apps</span>
+          <span className="text-2xl font-mono font-bold text-white">{apps.length}</span>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-panel p-5 rounded-xl">
+          <span className="font-display uppercase text-[10px] tracking-widest text-muted-foreground block mb-1">Hardware Key Protected</span>
+          <span className="text-2xl font-mono font-bold text-emerald-400">{protectedCount}</span>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-panel p-5 rounded-xl">
+          <span className="font-display uppercase text-[10px] tracking-widest text-muted-foreground block mb-1">Coverage</span>
+          <span className={`text-2xl font-mono font-bold ${percentage >= 75 ? "text-emerald-400" : percentage >= 50 ? "text-amber-400" : "text-rose-400"}`}>{percentage}%</span>
+        </motion.div>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search apps..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-80 bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+        />
+      </div>
+
+      {msg && (
+        <div className={`mb-4 text-sm ${msg.type === "success" ? "text-emerald-400" : "text-rose-400"}`}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {filtered.map((app, i) => (
+          <motion.div
+            key={app.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.02 }}
+            className={`glass-panel rounded-xl p-4 border transition-colors ${app.hasHardwareKey ? "border-emerald-500/20 hover:border-emerald-500/40" : "border-white/5 hover:border-rose-500/20"}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 flex-1">
+                <button onClick={() => toggleProtected(app)} title="Toggle hardware key status">
+                  {app.hasHardwareKey ? (
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  ) : (
+                    <ShieldX className="w-5 h-5 text-rose-400" />
+                  )}
+                </button>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-white">{app.appName}</span>
+                    {app.appUrl && (
+                      <a href={app.appUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-display uppercase tracking-widest ${app.hasHardwareKey ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                      {app.hasHardwareKey ? "Protected" : "Unprotected"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] text-muted-foreground">{app.protectionType}</span>
+                    {app.keySerials && <span className="text-[10px] font-mono text-amber-400/70">Keys: {app.keySerials}</span>}
+                    {app.notes && <span className="text-[10px] text-muted-foreground italic">{app.notes}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <Globe className="w-8 h-8 mx-auto mb-3 text-primary/40" />
+            <p className="font-display text-sm uppercase tracking-wider">No apps match this search</p>
           </div>
         )}
       </div>
