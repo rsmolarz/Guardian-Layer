@@ -73,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/integrations", label: "Connected Services", icon: Plug2 },
       { href: "/remote-maintenance", label: "Remote Maintenance", icon: Wrench },
       { href: "/app-fleet", label: "App Fleet Monitor", icon: Signal },
+      { href: "/aperture", label: "Aperture AI Gateway", icon: Radio },
       { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
     ],
   },

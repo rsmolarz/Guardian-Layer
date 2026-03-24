@@ -38,6 +38,7 @@ import appFleetRouter from "./app-fleet";
 import creditProtectionRouter from "./credit-protection";
 import webauthnRouter from "./webauthn";
 import yubikeyCoverageRouter from "./yubikey-coverage";
+import apertureRouter from "./aperture";
 
 const router: IRouter = Router();
 
@@ -80,6 +81,7 @@ router.use(appFleetRouter);
 router.use(creditProtectionRouter);
 router.use(webauthnRouter);
 router.use(yubikeyCoverageRouter);
+router.use(apertureRouter);
 
 router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
 router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));
