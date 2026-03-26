@@ -4,7 +4,7 @@ import {
   Shield, LayoutDashboard, Activity, CheckSquare, Bell, Plug2, Monitor, Eye,
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
-  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane, Wrench, Signal, CreditCard,
+  Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane, Wrench, Signal, CreditCard, Rocket,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -75,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/app-fleet", label: "App Fleet Monitor", icon: Signal },
       { href: "/aperture", label: "Aperture AI Gateway", icon: Radio },
       { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
+      { href: "/devops", label: "DevOps Control Plane", icon: Rocket },
     ],
   },
   {

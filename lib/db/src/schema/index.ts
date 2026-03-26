@@ -24,3 +24,4 @@ export * from "./users";
 export * from "./remote-machines";
 export * from "./webauthn";
 export * from "./aperture";
+export * from "./devops";

@@ -1,0 +1,54 @@
+# ─── GuardianLayer Environment Variables ───────────────────────────────────────
+# Copy these into Replit Secrets (NOT into .env directly in production).
+# In Replit: click the 🔒 Secrets tab and add each KEY=VALUE pair.
+
+# ─── Required ───────────────────────────────────────────────────────────────────
+
+# PostgreSQL connection string (Supabase, Neon, Railway, etc.)
+# Format: postgresql://user:password@host:port/dbname
+DATABASE_URL=postgresql://user:password@host:5432/guardianLayer
+
+# Redis connection (Upstash Redis works great with Replit — free tier available)
+# Format: redis://default:password@host:port
+REDIS_URL=redis://localhost:6379
+
+# Long random string for JWT/token signing
+SECRET_KEY=replace-with-a-long-random-secret-string
+
+# ─── SSH Deploy ──────────────────────────────────────────────────────────────────
+
+# Base64-encoded SSH private key for VPS access.
+# Generate: cat ~/.ssh/id_rsa | base64 -w 0
+SSH_PRIVATE_KEY_B64=
+
+# ─── GitHub Integration ──────────────────────────────────────────────────────────
+
+# Fine-grained PAT with: Contents (read), Pull Requests (write), Code scanning (read)
+GITHUB_TOKEN=ghp_...
+
+# Optional: used to verify GitHub webhook signatures
+GITHUB_WEBHOOK_SECRET=
+
+# ─── Backup Storage (S3 or Cloudflare R2) ───────────────────────────────────────
+
+BACKUP_BUCKET=my-guardianLayer-backups
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+
+# Cloudflare R2 endpoint (leave blank for AWS S3)
+# Format: https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+S3_ENDPOINT_URL=
+
+# ─── Telegram Alerts ─────────────────────────────────────────────────────────────
+
+# Get token from @BotFather, get chat_id from @userinfobot
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# ─── Twilio SMS ──────────────────────────────────────────────────────────────────
+
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_FROM_NUMBER=+1...
+TWILIO_TO_NUMBER=+1...
