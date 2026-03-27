@@ -11,6 +11,15 @@ export async function seedSuperadmin() {
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, SUPERADMIN_EMAIL)).limit(1);
 
   if (existing.length > 0) {
+    const envPassword = process.env.SUPERADMIN_INITIAL_PASSWORD;
+    if (envPassword) {
+      const match = await bcrypt.compare(envPassword, existing[0].passwordHash);
+      if (!match) {
+        const newHash = await bcrypt.hash(envPassword, 12);
+        await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, existing[0].id));
+        console.log("[seed-users] Superadmin password synced with SUPERADMIN_INITIAL_PASSWORD env var.");
+      }
+    }
     console.log("[seed-users] Superadmin account already exists.");
     return;
   }
