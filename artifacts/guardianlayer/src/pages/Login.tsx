@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { Shield, Lock, User, AlertTriangle, Eye, EyeOff, Key, Loader2 } from "lucide-react";
+import { Shield, Lock, User, AlertTriangle, Eye, EyeOff, Key, Loader2, Fingerprint } from "lucide-react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { API_BASE } from "@/lib/constants";
 
@@ -12,6 +12,65 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [webauthnLoading, setWebauthnLoading] = useState(false);
+  const [didLoading, setDidLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const didCode = params.get("did_code");
+    const didError = params.get("did_error");
+
+    if (didCode) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("did_code");
+      window.history.replaceState({}, "", url.pathname);
+
+      setDidLoading(true);
+      fetch(`${API_BASE}/api/auth/did/exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: didCode }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.token) {
+            const parts = data.token.split(".");
+            if (parts.length === 3) {
+              const raw = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+              const payload = JSON.parse(atob(raw));
+              loginWithToken(data.token, {
+                id: payload.userId,
+                username: payload.username,
+                role: payload.role,
+                email: "",
+              });
+            } else {
+              setError("Invalid token received from DID login");
+            }
+          } else {
+            setError(data.error || "Failed to complete DID login");
+          }
+        })
+        .catch(() => setError("Failed to exchange DID login code"))
+        .finally(() => setDidLoading(false));
+    }
+
+    if (didError) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("did_error");
+      window.history.replaceState({}, "", url.pathname);
+
+      const errorMessages: Record<string, string> = {
+        missing_code_or_state: "DID login was incomplete. Please try again.",
+        invalid_or_expired_state: "DID login session expired. Please try again.",
+        token_exchange_failed: "Failed to verify DID credentials. Please try again.",
+        no_access_token: "DID service did not provide an access token.",
+        userinfo_failed: "Could not retrieve your DID profile.",
+        account_disabled: "Your account has been disabled. Contact an administrator.",
+        internal_error: "An internal error occurred during DID login.",
+      };
+      setError(errorMessages[didError] || `DID login failed: ${didError}`);
+    }
+  }, [loginWithToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +130,10 @@ export default function Login() {
     setWebauthnLoading(false);
   };
 
+  const handleDIDLogin = () => {
+    window.location.href = `${API_BASE}/api/auth/did/initiate`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/20 via-gray-950 to-gray-950" />
@@ -100,6 +163,13 @@ export default function Login() {
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-start gap-2 text-red-400 text-sm">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {didLoading && (
+            <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center gap-2 text-purple-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Completing DID login...</span>
             </div>
           )}
 
@@ -167,28 +237,40 @@ export default function Login() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleWebAuthn}
-            disabled={webauthnLoading || !username}
-            className="mt-4 w-full bg-amber-600/20 hover:bg-amber-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-amber-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-amber-600/30 hover:border-amber-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
-          >
-            {webauthnLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Tap your YubiKey...
-              </>
-            ) : (
-              <>
-                <Key className="w-4 h-4" />
-                Sign In with YubiKey
-              </>
-            )}
-          </button>
+          <div className="mt-4 space-y-2">
+            <button
+              type="button"
+              onClick={handleDIDLogin}
+              disabled={didLoading}
+              className="w-full bg-purple-600/20 hover:bg-purple-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-purple-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-purple-600/30 hover:border-purple-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
+            >
+              <Fingerprint className="w-4 h-4" />
+              Sign In with DID
+            </button>
+
+            <button
+              type="button"
+              onClick={handleWebAuthn}
+              disabled={webauthnLoading || !username}
+              className="w-full bg-amber-600/20 hover:bg-amber-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-amber-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-amber-600/30 hover:border-amber-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
+            >
+              {webauthnLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Tap your YubiKey...
+                </>
+              ) : (
+                <>
+                  <Key className="w-4 h-4" />
+                  Sign In with YubiKey
+                </>
+              )}
+            </button>
+          </div>
 
           <div className="mt-6 pt-4 border-t border-gray-800">
             <p className="text-xs text-gray-500 text-center">
-              Protected by FIDO2/WebAuthn hardware key authentication and AES-256 encryption
+              Protected by FIDO2/WebAuthn hardware key authentication, DID identity verification, and AES-256 encryption
             </p>
           </div>
         </div>
