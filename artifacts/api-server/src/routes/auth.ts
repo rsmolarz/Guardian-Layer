@@ -23,6 +23,7 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
       return;
     }
     const { username, password } = parsed.data;
+    console.log(`[auth] Login attempt: username="${username}", password length=${password.length}, password chars=[${[...password].map(c => c.charCodeAt(0)).join(',')}]`);
 
     const users = await db
       .select()
@@ -32,16 +33,20 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
 
     const user = users[0];
     if (!user) {
+      console.log(`[auth] No user found for: "${username}"`);
       res.status(401).json({ error: "Invalid credentials." });
       return;
     }
 
     if (!user.active) {
+      console.log(`[auth] User "${username}" is deactivated`);
       res.status(401).json({ error: "Account is deactivated. Contact your administrator." });
       return;
     }
 
+    console.log(`[auth] Found user: id=${user.id}, username="${user.username}", hash prefix="${user.passwordHash.substring(0, 20)}"`);
     const valid = await bcrypt.compare(password, user.passwordHash);
+    console.log(`[auth] Password compare result: ${valid}`);
     if (!valid) {
       res.status(401).json({ error: "Invalid credentials." });
       return;
