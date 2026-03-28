@@ -41,6 +41,7 @@ import yubikeyCoverageRouter from "./yubikey-coverage";
 import apertureRouter from "./aperture";
 import devopsRouter from "./devops";
 import didAuthRouter from "./did-auth";
+import nodeDiagnosticsRouter from "./node-diagnostics";
 
 const router: IRouter = Router();
 
@@ -86,6 +87,7 @@ router.use(yubikeyCoverageRouter);
 router.use(apertureRouter);
 router.use(devopsRouter);
 router.use(didAuthRouter);
+router.use(nodeDiagnosticsRouter);
 
 router.get("/endpoints/patches", (req, res) => res.redirect(307, `/api/endpoints/patch-compliance`));
 router.get("/endpoints/usb", (req, res) => res.redirect(307, `/api/endpoints/usb-monitor`));

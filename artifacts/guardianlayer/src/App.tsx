@@ -41,6 +41,7 @@ import AppFleetMonitor from "@/pages/AppFleetMonitor";
 import CreditProtection from "@/pages/CreditProtection";
 import ApertureMonitor from "@/pages/ApertureMonitor";
 import DevOpsControlPlane from "@/pages/DevOpsControlPlane";
+import NodeDiagnostics from "@/pages/NodeDiagnostics";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -119,6 +120,7 @@ function ProtectedRouter() {
         <Route path="/credit-protection" component={CreditProtection} />
         <Route path="/aperture" component={ApertureMonitor} />
         <Route path="/devops" component={DevOpsControlPlane} />
+        <Route path="/node-diagnostics" component={NodeDiagnostics} />
         <Route path="/user-management">{() =>
           user?.role === "superadmin" ? <UserManagement /> : <Redirect to="/" />
         }</Route>
