@@ -4,7 +4,7 @@ const sharedValidate = { default: true, xForwardedForHeader: false, keyGenerator
 
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   validate: sharedValidate,
