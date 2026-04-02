@@ -757,9 +757,9 @@ async function runScheduledBackup() {
 
 export function startBackupScheduler() {
   if (scheduledBackupTimer) return;
-  scheduledBackupTimer = setInterval(runScheduledBackup, 5 * 60 * 1000);
-  console.log("[Backup Scheduler] Started — checking every 5 minutes");
-  setTimeout(runScheduledBackup, 10000);
+  scheduledBackupTimer = setInterval(runScheduledBackup, 30 * 60 * 1000);
+  console.log("[Backup Scheduler] Started — checking every 30 minutes");
+  setTimeout(runScheduledBackup, 60000);
 }
 
 export function stopBackupScheduler() {

@@ -36,7 +36,9 @@ export function recordRequest(method: string, path: string, statusCode: number, 
   currentBucket.methods[method] = (currentBucket.methods[method] || 0) + 1;
 
   const normalizedPath = path.replace(/\/[0-9a-f-]{8,}/g, "/:id").replace(/\/\d+/g, "/:id");
-  currentBucket.paths[normalizedPath] = (currentBucket.paths[normalizedPath] || 0) + 1;
+  if (Object.keys(currentBucket.paths).length < 200) {
+    currentBucket.paths[normalizedPath] = (currentBucket.paths[normalizedPath] || 0) + 1;
+  }
 
   if (statusCode >= 400) {
     totalErrors++;

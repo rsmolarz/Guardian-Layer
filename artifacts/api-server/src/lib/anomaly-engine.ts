@@ -757,15 +757,15 @@ export function startAnomalyEngine(): void {
   engineIntervals.push(setInterval(() => {
     runDatabaseAnomalyCheck();
     runThreatCorrelation();
-  }, 2 * 60 * 1000));
+  }, 10 * 60 * 1000));
 
   engineIntervals.push(setInterval(() => {
     runNetworkTrafficAnomalyCheck();
-  }, 3 * 60 * 1000));
+  }, 15 * 60 * 1000));
 
   engineIntervals.push(setInterval(() => {
     runPeriodicIPReputationCheck();
-  }, 10 * 60 * 1000));
+  }, 30 * 60 * 1000));
 
   console.log("[Anomaly Engine] Started — monitoring requests, errors, auth failures, network traffic, IP reputation, and threat correlations");
 }
