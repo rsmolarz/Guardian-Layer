@@ -25,7 +25,9 @@ app.listen(port, async () => {
   } catch (err) {
     console.error("Seed error:", err);
   }
-  startBackupScheduler();
-  startAnomalyEngine();
   initEventListeners();
+  setTimeout(() => {
+    startBackupScheduler();
+    startAnomalyEngine();
+  }, 30000);
 });
