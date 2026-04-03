@@ -285,6 +285,15 @@ export async function customFetch<T = unknown>(
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
 
+  if (!headers.has("authorization")) {
+    try {
+      const token = typeof localStorage !== "undefined" ? localStorage.getItem("gl_auth_token") : null;
+      if (token) {
+        headers.set("authorization", `Bearer ${token}`);
+      }
+    } catch {}
+  }
+
   if (
     typeof init.body === "string" &&
     !headers.has("content-type") &&
