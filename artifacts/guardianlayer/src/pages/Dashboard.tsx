@@ -126,8 +126,8 @@ const CORRELATIONS = [
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
 export default function Dashboard() {
-  const { data: stats, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useGetDashboardStats();
-  const { data: timeline, isLoading: isTimelineLoading, refetch: refetchTimeline } = useGetRiskTimeline({ days: 7 });
+  const { data: stats, isLoading: isStatsLoading, isError: isStatsError, error: statsError, refetch: refetchStats } = useGetDashboardStats();
+  const { data: timeline, isLoading: isTimelineLoading, error: timelineError, refetch: refetchTimeline } = useGetRiskTimeline({ days: 7 });
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -155,17 +155,21 @@ export default function Dashboard() {
   };
 
   if (isStatsLoading || isTimelineLoading) return <CyberLoading text="Loading your security overview..." />;
-  if (isStatsError || (!isStatsLoading && !stats)) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-      <CyberError title="Couldn't Load Dashboard" message="We couldn't load your security overview. Please try again." />
-      <button
-        onClick={() => { refetchStats(); refetchTimeline(); }}
-        className="px-6 py-2 bg-primary/20 border border-primary/40 rounded text-primary hover:bg-primary/30 transition-colors font-mono tracking-wider"
-      >
-        RETRY
-      </button>
-    </div>
-  );
+  if (isStatsError || (!isStatsLoading && !stats)) {
+    const errMsg = statsError ? String((statsError as any)?.message || statsError) : "Unknown error";
+    const errStatus = (statsError as any)?.response?.status || (statsError as any)?.status || "";
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <CyberError title="Couldn't Load Dashboard" message={`${errStatus ? `HTTP ${errStatus} — ` : ""}${errMsg}. Try a hard refresh (Ctrl+Shift+R).`} />
+        <button
+          onClick={() => { refetchStats(); refetchTimeline(); }}
+          className="px-6 py-2 bg-primary/20 border border-primary/40 rounded text-primary hover:bg-primary/30 transition-colors font-mono tracking-wider"
+        >
+          RETRY
+        </button>
+      </div>
+    );
+  }
 
   const healthGrade = calculateHealthGrade({
     totalBlocked: stats.totalBlocked,
