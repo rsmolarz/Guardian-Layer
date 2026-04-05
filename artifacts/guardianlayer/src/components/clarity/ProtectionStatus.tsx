@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ShieldCheck, ShieldAlert, Mail, Network, Laptop, Key, Eye, CreditCard, Scale,
@@ -39,16 +39,14 @@ const SEVERITY_STYLES = {
   info: { color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/30", icon: Shield },
 };
 
-function IssueCard({ issue, onFix }: { issue: ProtectionIssue; onFix: (id: string) => void }) {
+function IssueCard({ issue, isFixed, onFix }: { issue: ProtectionIssue; isFixed: boolean; onFix: (id: string) => void }) {
   const [fixing, setFixing] = useState(false);
-  const [fixed, setFixed] = useState(false);
   const sev = SEVERITY_STYLES[issue.severity];
   const SevIcon = sev.icon;
 
   const handleFix = async () => {
     setFixing(true);
     await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
-    setFixed(true);
     setFixing(false);
     onFix(issue.id);
   };
@@ -59,14 +57,18 @@ function IssueCard({ issue, onFix }: { issue: ProtectionIssue; onFix: (id: strin
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10, height: 0 }}
-      className={`p-3 rounded-lg border ${sev.bg} flex items-start gap-3`}
+      className={`p-3 rounded-lg border ${isFixed ? "bg-emerald-500/10 border-emerald-500/30" : sev.bg} flex items-start gap-3`}
     >
-      <SevIcon className={`w-4 h-4 mt-0.5 shrink-0 ${sev.color}`} />
+      {isFixed ? (
+        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+      ) : (
+        <SevIcon className={`w-4 h-4 mt-0.5 shrink-0 ${sev.color}`} />
+      )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white font-medium">{issue.title}</p>
+        <p className={`text-sm font-medium ${isFixed ? "text-emerald-400 line-through opacity-70" : "text-white"}`}>{issue.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{issue.description}</p>
       </div>
-      {issue.fixable && !fixed && (
+      {issue.fixable && !isFixed && (
         <button
           onClick={handleFix}
           disabled={fixing}
@@ -85,7 +87,7 @@ function IssueCard({ issue, onFix }: { issue: ProtectionIssue; onFix: (id: strin
           )}
         </button>
       )}
-      {fixed && (
+      {isFixed && (
         <span className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-display uppercase tracking-wider flex items-center gap-1.5">
           <CheckCircle2 className="w-3 h-3" />
           Fixed
@@ -95,10 +97,12 @@ function IssueCard({ issue, onFix }: { issue: ProtectionIssue; onFix: (id: strin
   );
 }
 
-function DetailPanel({ area, onClose }: { area: ProtectionArea; onClose: () => void }) {
-  const style = STATUS_STYLES[area.status];
-  const Icon = area.icon;
-  const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
+function DetailPanel({ area, fixedIds, onFix, onClose }: {
+  area: ProtectionArea;
+  fixedIds: Set<string>;
+  onFix: (issueId: string) => void;
+  onClose: () => void;
+}) {
   const [fixingAll, setFixingAll] = useState(false);
 
   const issues = area.issues || [];
@@ -106,15 +110,17 @@ function DetailPanel({ area, onClose }: { area: ProtectionArea; onClose: () => v
   const fixableIssues = unfixedIssues.filter(i => i.fixable);
   const allFixed = unfixedIssues.length === 0 && issues.length > 0;
 
-  const handleFix = (id: string) => {
-    setFixedIds(prev => new Set(prev).add(id));
-  };
+  const effectiveStatus = allFixed ? "protected" : area.status;
+  const style = STATUS_STYLES[effectiveStatus];
+  const Icon = area.icon;
 
   const handleFixAll = async () => {
     setFixingAll(true);
+    const idsToFix: string[] = [];
     for (const issue of fixableIssues) {
       await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
-      setFixedIds(prev => new Set(prev).add(issue.id));
+      idsToFix.push(issue.id);
+      onFix(issue.id);
     }
     setFixingAll(false);
   };
@@ -171,8 +177,9 @@ function DetailPanel({ area, onClose }: { area: ProtectionArea; onClose: () => v
               {issues.map(issue => (
                 <IssueCard
                   key={issue.id}
-                  issue={{ ...issue, fixable: issue.fixable && !fixedIds.has(issue.id) }}
-                  onFix={handleFix}
+                  issue={issue}
+                  isFixed={fixedIds.has(issue.id)}
+                  onFix={onFix}
                 />
               ))}
             </AnimatePresence>
@@ -211,6 +218,27 @@ function DetailPanel({ area, onClose }: { area: ProtectionArea; onClose: () => v
 
 export function ProtectionStatus({ areas }: ProtectionStatusProps) {
   const [selectedArea, setSelectedArea] = useState<ProtectionArea | null>(null);
+  const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
+
+  const handleFix = useCallback((issueId: string) => {
+    setFixedIds(prev => new Set(prev).add(issueId));
+  }, []);
+
+  const getEffectiveStatus = useCallback((area: ProtectionArea) => {
+    const issues = area.issues || [];
+    if (issues.length === 0) return area.status;
+    const unfixed = issues.filter(i => !fixedIds.has(i.id));
+    if (unfixed.length === 0) return "protected";
+    return area.status;
+  }, [fixedIds]);
+
+  const getEffectiveDetail = useCallback((area: ProtectionArea) => {
+    const issues = area.issues || [];
+    if (issues.length === 0) return area.detail;
+    const unfixed = issues.filter(i => !fixedIds.has(i.id));
+    if (unfixed.length === 0) return "All clear";
+    return area.detail;
+  }, [fixedIds]);
 
   return (
     <>
@@ -226,7 +254,9 @@ export function ProtectionStatus({ areas }: ProtectionStatusProps) {
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {areas.map((area, i) => {
-            const style = STATUS_STYLES[area.status];
+            const effectiveStatus = getEffectiveStatus(area);
+            const effectiveDetail = getEffectiveDetail(area);
+            const style = STATUS_STYLES[effectiveStatus];
             const Icon = area.icon;
             return (
               <motion.button
@@ -241,7 +271,7 @@ export function ProtectionStatus({ areas }: ProtectionStatusProps) {
               >
                 <Icon className={`w-5 h-5 mx-auto mb-2 ${style.color}`} />
                 <p className="text-xs font-display uppercase tracking-wider text-white mb-0.5">{area.name}</p>
-                <p className={`text-[10px] ${style.color}`}>{area.detail}</p>
+                <p className={`text-[10px] ${style.color}`}>{effectiveDetail}</p>
               </motion.button>
             );
           })}
@@ -250,7 +280,12 @@ export function ProtectionStatus({ areas }: ProtectionStatusProps) {
 
       <AnimatePresence>
         {selectedArea && (
-          <DetailPanel area={selectedArea} onClose={() => setSelectedArea(null)} />
+          <DetailPanel
+            area={selectedArea}
+            fixedIds={fixedIds}
+            onFix={handleFix}
+            onClose={() => setSelectedArea(null)}
+          />
         )}
       </AnimatePresence>
     </>
