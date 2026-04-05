@@ -25,6 +25,8 @@ interface ProtectionArea {
 
 interface ProtectionStatusProps {
   areas: ProtectionArea[];
+  fixedIds?: Set<string>;
+  onFix?: (issueId: string) => void;
 }
 
 const STATUS_STYLES = {
@@ -216,13 +218,19 @@ function DetailPanel({ area, fixedIds, onFix, onClose }: {
   );
 }
 
-export function ProtectionStatus({ areas }: ProtectionStatusProps) {
+export function ProtectionStatus({ areas, fixedIds: externalFixedIds, onFix: externalOnFix }: ProtectionStatusProps) {
   const [selectedArea, setSelectedArea] = useState<ProtectionArea | null>(null);
-  const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
+  const [internalFixedIds, setInternalFixedIds] = useState<Set<string>>(new Set());
+
+  const fixedIds = externalFixedIds ?? internalFixedIds;
 
   const handleFix = useCallback((issueId: string) => {
-    setFixedIds(prev => new Set(prev).add(issueId));
-  }, []);
+    if (externalOnFix) {
+      externalOnFix(issueId);
+    } else {
+      setInternalFixedIds(prev => new Set(prev).add(issueId));
+    }
+  }, [externalOnFix]);
 
   const getEffectiveStatus = useCallback((area: ProtectionArea) => {
     const issues = area.issues || [];

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
@@ -132,13 +132,13 @@ function useDashboardData() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (isRefresh = false) => {
     if (!token) {
       setError("Not authenticated");
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (!isRefresh) setIsLoading(true);
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${token}` };
@@ -166,7 +166,7 @@ function useDashboardData() {
     fetchData();
   }, [token]);
 
-  return { stats, timeline, isLoading, error, refetch: fetchData };
+  return { stats, timeline, isLoading, error, refetch: () => fetchData(true) };
 }
 
 export default function Dashboard() {
@@ -196,6 +196,12 @@ export default function Dashboard() {
       setChatMessages((prev) => [...prev, { role: "assistant", text: getAIResponse(userMsg) }]);
     }, 600);
   };
+
+  const protectionAreas = useMemo(() => generateProtectionAreas(), []);
+  const [protectionFixedIds, setProtectionFixedIds] = useState<Set<string>>(new Set());
+  const handleProtectionFix = useCallback((issueId: string) => {
+    setProtectionFixedIds(prev => new Set(prev).add(issueId));
+  }, []);
 
   if (isStatsLoading) return <CyberLoading text="Loading your security overview..." />;
   if (statsError || !stats) {
@@ -236,7 +242,7 @@ export default function Dashboard() {
 
       <div className="space-y-6 mb-10">
         <SecurityHealthScore grade={healthGrade.grade} summary={healthGrade.summary} issuesCount={healthGrade.issuesCount} />
-        <ProtectionStatus areas={generateProtectionAreas()} />
+        <ProtectionStatus areas={protectionAreas} fixedIds={protectionFixedIds} onFix={handleProtectionFix} />
         <ThreatComparison currentCount={stats.totalBlocked} previousCount={Math.max(1, stats.totalBlocked - 2)} />
       </div>
 
