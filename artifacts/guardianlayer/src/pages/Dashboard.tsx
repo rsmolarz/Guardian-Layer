@@ -203,6 +203,11 @@ export default function Dashboard() {
     setProtectionFixedIds(prev => new Set(prev).add(issueId));
   }, []);
 
+  const protectionIssuesTotal = useMemo(() =>
+    protectionAreas.reduce((sum, a) => sum + (a.issues?.length ?? 0), 0),
+    [protectionAreas]
+  );
+
   if (isStatsLoading) return <CyberLoading text="Loading your security overview..." />;
   if (statsError || !stats) {
     return (
@@ -222,6 +227,8 @@ export default function Dashboard() {
     totalBlocked: stats.totalBlocked,
     totalHeld: stats.totalHeld,
     averageRiskScore: stats.averageRiskScore,
+    protectionIssuesTotal,
+    protectionIssuesFixed: protectionFixedIds.size,
   });
 
   const statCards = [

@@ -50,17 +50,26 @@ export function calculateHealthGrade(stats: {
   totalBlocked: number;
   totalHeld: number;
   averageRiskScore: number;
+  protectionIssuesTotal?: number;
+  protectionIssuesFixed?: number;
 }): { grade: "A" | "B" | "C" | "D" | "F"; summary: string; issuesCount: number } {
   const avgRisk = stats.averageRiskScore;
-  const issuesCount = stats.totalBlocked + stats.totalHeld;
+  const apiIssues = stats.totalBlocked + stats.totalHeld;
+  const protectionTotal = stats.protectionIssuesTotal ?? 0;
+  const protectionFixed = stats.protectionIssuesFixed ?? 0;
+  const protectionRemaining = Math.max(0, protectionTotal - protectionFixed);
+  const issuesCount = apiIssues + protectionRemaining;
 
-  if (avgRisk < 0.2 && issuesCount === 0) {
+  const riskReduction = protectionTotal > 0 ? (protectionFixed / protectionTotal) * 0.15 : 0;
+  const effectiveRisk = Math.max(0, avgRisk - riskReduction);
+
+  if (effectiveRisk < 0.2 && issuesCount === 0) {
     return { grade: "A", summary: "Your organization is well-protected. No immediate threats detected.", issuesCount: 0 };
-  } else if (avgRisk < 0.3 && issuesCount <= 2) {
+  } else if (effectiveRisk < 0.3 && issuesCount <= 2) {
     return { grade: "B", summary: `Your security is strong, but ${issuesCount} minor ${issuesCount === 1 ? "issue needs" : "issues need"} attention.`, issuesCount };
-  } else if (avgRisk < 0.5) {
+  } else if (effectiveRisk < 0.5) {
     return { grade: "C", summary: `Your organization is mostly safe, but ${issuesCount} ${issuesCount === 1 ? "issue needs" : "issues need"} attention.`, issuesCount };
-  } else if (avgRisk < 0.7) {
+  } else if (effectiveRisk < 0.7) {
     return { grade: "D", summary: `Several security concerns need prompt attention. ${issuesCount} active ${issuesCount === 1 ? "issue" : "issues"} detected.`, issuesCount };
   } else {
     return { grade: "F", summary: `Critical security issues require immediate action. ${issuesCount} ${issuesCount === 1 ? "threat" : "threats"} detected.`, issuesCount };
