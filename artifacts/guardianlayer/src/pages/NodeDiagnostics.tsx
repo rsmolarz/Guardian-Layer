@@ -37,6 +37,7 @@ interface ScanResult {
   score: number;
   summary: { critical: number; warning: number; healthy: number; total: number };
   checks: Record<string, CheckResult>;
+  source?: string;
 }
 
 interface OptAction {
@@ -293,7 +294,7 @@ export default function NodeDiagnostics() {
                 })}
 
                 <div className="col-span-3 bg-gray-900/30 border border-gray-800 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
                     <span className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       Scanned {new Date(scanResult.scanTime).toLocaleString()}
@@ -306,6 +307,12 @@ export default function NodeDiagnostics() {
                       <Activity className="w-4 h-4" />
                       {scanResult.summary.total} checks
                     </span>
+                    {scanResult.source === "cached-telemetry" && (
+                      <span className="flex items-center gap-1 text-violet-400 text-xs bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                        <Server className="w-3 h-3" />
+                        Cached Telemetry
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={runScan}
