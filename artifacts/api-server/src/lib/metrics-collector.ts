@@ -148,7 +148,7 @@ setInterval(() => {
   cachedCPUPercent = Math.round((totalCPU / elapsed) * 100 * 100) / 100;
   lastCPUUsage = process.cpuUsage();
   lastCPUTime = now;
-}, 5000);
+}, 60000);
 
 function getCPUPercent(): number {
   return cachedCPUPercent;
