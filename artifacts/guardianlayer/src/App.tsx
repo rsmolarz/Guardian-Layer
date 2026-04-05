@@ -43,6 +43,14 @@ import ApertureMonitor from "@/pages/ApertureMonitor";
 import DevOpsControlPlane from "@/pages/DevOpsControlPlane";
 import NodeDiagnostics from "@/pages/NodeDiagnostics";
 import VientMonitor from "@/pages/VientMonitor";
+import EDRDashboard from "@/pages/EDRDashboard";
+import SIEMDashboard from "@/pages/SIEMDashboard";
+import VulnerabilityScanner from "@/pages/VulnerabilityScanner";
+import PasswordManager from "@/pages/PasswordManager";
+import DNSFiltering from "@/pages/DNSFiltering";
+import EmailGateway from "@/pages/EmailGateway";
+import BackupSolution from "@/pages/BackupSolution";
+import MDMDashboard from "@/pages/MDMDashboard";
 import NotFound from "@/pages/not-found";
 import { QuickHelp } from "@/components/clarity/QuickHelp";
 import { ThreatChat, ThreatChatButton } from "@/components/ThreatChat";
@@ -125,6 +133,14 @@ function ProtectedRouter() {
         <Route path="/devops" component={DevOpsControlPlane} />
         <Route path="/node-diagnostics" component={NodeDiagnostics} />
         <Route path="/vient-monitor" component={VientMonitor} />
+        <Route path="/edr" component={EDRDashboard} />
+        <Route path="/siem" component={SIEMDashboard} />
+        <Route path="/vulnerability-scanner" component={VulnerabilityScanner} />
+        <Route path="/password-manager" component={PasswordManager} />
+        <Route path="/dns-filtering" component={DNSFiltering} />
+        <Route path="/email-gateway" component={EmailGateway} />
+        <Route path="/backup-solution" component={BackupSolution} />
+        <Route path="/mdm" component={MDMDashboard} />
         <Route path="/user-management">{() =>
           user?.role === "superadmin" ? <UserManagement /> : <Redirect to="/" />
         }</Route>

@@ -5,6 +5,7 @@ import {
   Mail, Laptop, Network, Key, Scale, RefreshCw, Crosshair, BookOpen, HardDrive,
   ShieldOff, ShieldAlert, FileSearch, Radar, Siren, Radio, BellRing, ChevronDown,
   Settings, Zap, Globe, Lock, ScanSearch, LogOut, Users, Bug, Plane, Wrench, Signal, CreditCard, Rocket, Stethoscope,
+  Target, Database, Filter, Cloud, Smartphone,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useGetLockdownStatus } from "@workspace/api-client-react";
@@ -78,6 +79,20 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/aperture", label: "Aperture AI Gateway", icon: Radio },
       { href: "/workspace-monitor", label: "Workspace Monitor", icon: FileSearch },
       { href: "/devops", label: "DevOps Control Plane", icon: Rocket },
+    ],
+  },
+  {
+    label: "Security Tools",
+    icon: Target,
+    items: [
+      { href: "/edr", label: "EDR", icon: Crosshair },
+      { href: "/siem", label: "SIEM", icon: Database },
+      { href: "/vulnerability-scanner", label: "Vuln Scanner", icon: Target },
+      { href: "/password-manager", label: "Password Manager", icon: Key },
+      { href: "/dns-filtering", label: "DNS Filtering", icon: Filter },
+      { href: "/email-gateway", label: "Email Gateway", icon: Mail },
+      { href: "/backup-solution", label: "Backup Solution", icon: Cloud },
+      { href: "/mdm", label: "MDM", icon: Smartphone },
     ],
   },
   {
