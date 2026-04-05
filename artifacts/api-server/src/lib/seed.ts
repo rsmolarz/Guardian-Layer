@@ -9,6 +9,7 @@ import { seedOpenclawContracts } from "./seed-openclaw";
 import { seedLockdown } from "./seed-lockdown";
 import { seedDisasterRecovery } from "./seed-disaster-recovery";
 import { seedSuperadmin } from "./seed-users";
+import { seedRemoteMachines } from "./seed-remote-machines";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -141,6 +142,7 @@ export async function seedAllModules() {
   await seedOpenclawContracts();
   await seedLockdown();
   await seedDisasterRecovery();
+  await seedRemoteMachines();
 }
 
 async function seedRecoveryData() {
