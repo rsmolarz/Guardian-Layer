@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { useGetDashboardStats, useGetRiskTimeline } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CyberLoading } from "@/components/ui/CyberLoading";
 import { CyberError } from "@/components/ui/CyberError";
+import { useAuth } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, ShieldAlert, ShieldCheck, Zap, Ban, Database, Bot, Send, AlertTriangle, Link2, Radio, MessageSquare, X, Crosshair, Landmark } from "lucide-react";
 import { ThreatEvaluator } from "@/components/ThreatEvaluator";
@@ -125,9 +125,52 @@ const CORRELATIONS = [
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
+function useDashboardData() {
+  const { token } = useAuth();
+  const [stats, setStats] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    if (!token) {
+      setError("Not authenticated");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [statsRes, timelineRes] = await Promise.all([
+        fetch("/api/dashboard/stats", { headers }),
+        fetch("/api/dashboard/risk-timeline?days=7", { headers }),
+      ]);
+      if (!statsRes.ok) {
+        throw new Error(`Dashboard stats: HTTP ${statsRes.status}`);
+      }
+      const statsData = await statsRes.json();
+      setStats(statsData);
+      if (timelineRes.ok) {
+        const timelineData = await timelineRes.json();
+        setTimeline(timelineData);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load dashboard");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [token]);
+
+  return { stats, timeline, isLoading, error, refetch: fetchData };
+}
+
 export default function Dashboard() {
-  const { data: stats, isLoading: isStatsLoading, isError: isStatsError, error: statsError, refetch: refetchStats } = useGetDashboardStats();
-  const { data: timeline, isLoading: isTimelineLoading, error: timelineError, refetch: refetchTimeline } = useGetRiskTimeline({ days: 7 });
+  const { stats, timeline, isLoading: isStatsLoading, error: statsError, refetch: refetchStats } = useDashboardData();
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -154,15 +197,13 @@ export default function Dashboard() {
     }, 600);
   };
 
-  if (isStatsLoading || isTimelineLoading) return <CyberLoading text="Loading your security overview..." />;
-  if (isStatsError || (!isStatsLoading && !stats)) {
-    const errMsg = statsError ? String((statsError as any)?.message || statsError) : "Unknown error";
-    const errStatus = (statsError as any)?.response?.status || (statsError as any)?.status || "";
+  if (isStatsLoading) return <CyberLoading text="Loading your security overview..." />;
+  if (statsError || !stats) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <CyberError title="Couldn't Load Dashboard" message={`${errStatus ? `HTTP ${errStatus} — ` : ""}${errMsg}. Try a hard refresh (Ctrl+Shift+R).`} />
+        <CyberError title="Couldn't Load Dashboard" message={statsError || "Unable to load data. Please try again."} />
         <button
-          onClick={() => { refetchStats(); refetchTimeline(); }}
+          onClick={refetchStats}
           className="px-6 py-2 bg-primary/20 border border-primary/40 rounded text-primary hover:bg-primary/30 transition-colors font-mono tracking-wider"
         >
           RETRY
