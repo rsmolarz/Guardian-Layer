@@ -44,6 +44,7 @@ The project is built as a pnpm monorepo using TypeScript. The frontend uses Reac
 *   **Security Hardening Middleware:** A three-layer request protection stack including Helmet, rate limiting, and IP Guard.
 *   **JWT Authentication & User Management:** Database-backed authentication with role-based access control (superadmin/admin/user) and FIDO2/WebAuthn YubiKey authentication.
 *   **DID Login (OAuth Integration):** Decentralized Identity login via the external DID Login service at `did-login.replit.app` using OAuth 2.0.
+*   **Firebase Authentication:** Social sign-in via Firebase with Google, GitHub, Facebook, and Apple providers. Frontend uses `firebase` SDK with popup-based auth; backend uses `firebase-admin` to verify ID tokens and auto-provisions user accounts. Requires `VITE_FIREBASE_*` env vars (frontend) and `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` (backend). Social buttons only appear when configured.
 *   **VIENT Workflow Monitor:** A dedicated security posture and uptime monitoring page (`/vient-monitor`) for `ent-workflow-ai.replit.app`, including comprehensive scans and security scoring.
 *   **Node Diagnostics:** A comprehensive remote system health analysis and optimization page (`/node-diagnostics`) via SSH.
 *   **YubiKey App Coverage Tracker:** Tracks hardware key protection enablement across applications.
@@ -73,4 +74,5 @@ The project is built as a pnpm monorepo using TypeScript. The frontend uses Reac
 *   **API Code Generation:** Orval
 *   **AI Integration:** OpenAI (gpt-4o-mini) via Replit AI Integrations proxy
 *   **Google Workspace:** Google API integrations (Gmail, Drive)
+*   **Authentication SDKs:** Firebase (firebase, firebase-admin)
 *   **Third-Party Integrations:** Stripe, Plaid, Cloudflare, Twilio, Google Workspace Protection, NameSilo, VirusTotal, AbuseIPDB, Shodan, Have I Been Pwned, SSL Labs, Tailscale Aperture, 1Password, Backblaze B2, Veeam, CrowdStrike, SentinelOne.

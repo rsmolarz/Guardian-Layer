@@ -11,6 +11,8 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("user"),
   active: boolean("active").notNull().default(true),
+  firebaseUid: text("firebase_uid").unique(),
+  firebaseProvider: text("firebase_provider"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

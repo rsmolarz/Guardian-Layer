@@ -43,10 +43,12 @@ import devopsRouter from "./devops";
 import didAuthRouter from "./did-auth";
 import nodeDiagnosticsRouter from "./node-diagnostics";
 import vientMonitorRouter from "./vient-monitor";
+import firebaseAuthRouter from "./firebase-auth";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(firebaseAuthRouter);
 router.use(healthRouter);
 router.use(transactionsRouter);
 router.use(approvalsRouter);
