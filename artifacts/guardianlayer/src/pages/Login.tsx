@@ -3,17 +3,14 @@ import { useAuth } from "@/lib/auth";
 import { Shield, Lock, User, AlertTriangle, Eye, EyeOff, Key, Loader2, Fingerprint } from "lucide-react";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { API_BASE } from "@/lib/constants";
-import {
-  isFirebaseConfigured,
-  signInWithGoogle,
-  signInWithGitHub,
-  signInWithFacebook,
-  signInWithApple,
-  getIdToken,
-  firebaseSignOut,
-} from "@/lib/firebase";
+import { isFirebaseConfigured } from "@/lib/firebase-config";
 
 type FirebaseProvider = "google" | "github" | "facebook" | "apple";
+
+async function loadFirebaseAuth() {
+  const mod = await import("@/lib/firebase");
+  return mod;
+}
 
 export default function Login() {
   const { login, loginWithToken } = useAuth();
@@ -152,19 +149,20 @@ export default function Login() {
     setError("");
     setFirebaseLoading(provider);
     try {
+      const firebase = await loadFirebaseAuth();
       const signInFns: Record<FirebaseProvider, () => Promise<any>> = {
-        google: signInWithGoogle,
-        github: signInWithGitHub,
-        facebook: signInWithFacebook,
-        apple: signInWithApple,
+        google: firebase.signInWithGoogle,
+        github: firebase.signInWithGitHub,
+        facebook: firebase.signInWithFacebook,
+        apple: firebase.signInWithApple,
       };
 
       await signInFns[provider]();
-      const idToken = await getIdToken();
+      const idToken = await firebase.getIdToken();
 
       if (!idToken) {
         setError("Failed to get authentication token. Please try again.");
-        await firebaseSignOut();
+        await firebase.firebaseSignOut();
         setFirebaseLoading(null);
         return;
       }
@@ -179,7 +177,7 @@ export default function Login() {
 
       if (!res.ok) {
         setError(data.error || "Authentication failed");
-        await firebaseSignOut();
+        await firebase.firebaseSignOut();
         setFirebaseLoading(null);
         return;
       }
@@ -197,7 +195,7 @@ export default function Login() {
       } else {
         setError(err.message || "Authentication failed. Please try again.");
       }
-      try { await firebaseSignOut(); } catch {}
+      try { const fb = await loadFirebaseAuth(); await fb.firebaseSignOut(); } catch {}
     }
     setFirebaseLoading(null);
   };
