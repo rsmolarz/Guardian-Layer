@@ -10,6 +10,7 @@ import { seedLockdown } from "./seed-lockdown";
 import { seedDisasterRecovery } from "./seed-disaster-recovery";
 import { seedSuperadmin } from "./seed-users";
 import { seedRemoteMachines } from "./seed-remote-machines";
+import { syncTailscaleDevices } from "./seed-tailscale";
 
 export async function seedIfEmpty() {
   const [countResult] = await db
@@ -143,6 +144,7 @@ export async function seedAllModules() {
   await seedLockdown();
   await seedDisasterRecovery();
   await seedRemoteMachines();
+  await syncTailscaleDevices();
 }
 
 async function seedRecoveryData() {
