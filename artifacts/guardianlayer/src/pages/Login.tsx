@@ -142,7 +142,7 @@ export default function Login() {
   };
 
   const handleDIDLogin = () => {
-    window.location.href = `${API_BASE}/api/auth/did/initiate`;
+    window.location.href = `${API_BASE}/api/auth/medinvest/initiate`;
   };
 
   const handleFirebaseLogin = async (provider: FirebaseProvider) => {

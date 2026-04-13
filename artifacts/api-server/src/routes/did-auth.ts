@@ -7,9 +7,10 @@ import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
-const DID_BASE = process.env.MEDINVEST_BASE_URL || "https://did-login.replit.app";
-const DID_CLIENT_ID = process.env.MEDINVEST_CLIENT_ID || process.env.DID_CLIENT_ID || "";
-const DID_CLIENT_SECRET = process.env.MEDINVEST_CLIENT_SECRET || process.env.DID_CLIENT_SECRET || "";
+const MEDINVEST_BASE = process.env.MEDINVEST_BASE_URL || "https://did-login.replit.app";
+const MEDINVEST_CLIENT_ID = process.env.MEDINVEST_CLIENT_ID || process.env.DID_CLIENT_ID || "";
+const MEDINVEST_CLIENT_SECRET = process.env.MEDINVEST_CLIENT_SECRET || process.env.DID_CLIENT_SECRET || "";
+const MEDINVEST_REDIRECT_URI = process.env.MEDINVEST_REDIRECT_URI || "";
 const SCOPES = "openid profile email did:read did:verify credentials:read credentials:verify";
 
 const pendingStates = new Map<string, { createdAt: number; redirectAfter: string }>();
@@ -36,38 +37,18 @@ function getCanonicalBase(req: any): string {
   return `${proto}://${host}`;
 }
 
-router.get("/auth/did/initiate", (req, res) => {
-  if (!DID_CLIENT_ID) {
-    res.status(500).json({ error: "DID login not configured (missing DID_CLIENT_ID)" });
-    return;
-  }
-
-  const state = crypto.randomBytes(32).toString("hex");
-  const redirectAfter = (req.query.redirect as string) || "/";
-  const safePath = redirectAfter.startsWith("/") && !redirectAfter.startsWith("//") ? redirectAfter : "/";
-  pendingStates.set(state, { createdAt: Date.now(), redirectAfter: safePath });
-
+function getCallbackUrl(req: any): string {
+  if (MEDINVEST_REDIRECT_URI) return MEDINVEST_REDIRECT_URI;
   const baseUrl = getCanonicalBase(req);
-  const callbackUrl = `${baseUrl}/api/auth/did/callback`;
+  return `${baseUrl}/api/auth/medinvest/callback`;
+}
 
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: DID_CLIENT_ID,
-    redirect_uri: callbackUrl,
-    scope: SCOPES,
-    state,
-  });
-
-  const authUrl = `${DID_BASE}/api/oauth/authorize?${params.toString()}`;
-  res.redirect(authUrl);
-});
-
-router.get("/auth/did/callback", async (req, res) => {
+async function handleOAuthCallback(req: any, res: any) {
   const { code, state, error: oauthError } = req.query;
   const baseUrl = getCanonicalBase(req);
 
   if (oauthError) {
-    console.error("[DID Auth] OAuth error:", oauthError);
+    console.error("[MedInvest] OAuth error:", oauthError);
     res.redirect(`${baseUrl}/?did_error=${encodeURIComponent(String(oauthError))}`);
     return;
   }
@@ -85,22 +66,22 @@ router.get("/auth/did/callback", async (req, res) => {
   pendingStates.delete(state as string);
 
   try {
-    const callbackUrl = `${baseUrl}/api/auth/did/callback`;
-    const tokenRes = await fetch(`${DID_BASE}/api/oauth/token`, {
+    const callbackUrl = getCallbackUrl(req);
+    const tokenRes = await fetch(`${MEDINVEST_BASE}/api/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         grant_type: "authorization_code",
         code,
         redirect_uri: callbackUrl,
-        client_id: DID_CLIENT_ID,
-        client_secret: DID_CLIENT_SECRET,
+        client_id: MEDINVEST_CLIENT_ID,
+        client_secret: MEDINVEST_CLIENT_SECRET,
       }),
     });
 
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
-      console.error("[DID Auth] Token exchange failed:", tokenRes.status, errText);
+      console.error("[MedInvest] Token exchange failed:", tokenRes.status, errText);
       res.redirect(`${baseUrl}/?did_error=token_exchange_failed`);
       return;
     }
@@ -109,27 +90,27 @@ router.get("/auth/did/callback", async (req, res) => {
     const accessToken = tokenData.access_token;
 
     if (!accessToken) {
-      console.error("[DID Auth] No access_token in response:", tokenData);
+      console.error("[MedInvest] No access_token in response:", tokenData);
       res.redirect(`${baseUrl}/?did_error=no_access_token`);
       return;
     }
 
-    const userInfoRes = await fetch(`${DID_BASE}/api/oauth/userinfo`, {
+    const userInfoRes = await fetch(`${MEDINVEST_BASE}/api/oauth/userinfo`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!userInfoRes.ok) {
-      console.error("[DID Auth] UserInfo failed:", userInfoRes.status);
+      console.error("[MedInvest] UserInfo failed:", userInfoRes.status);
       res.redirect(`${baseUrl}/?did_error=userinfo_failed`);
       return;
     }
 
     const userInfo = await userInfoRes.json() as any;
-    console.log("[DID Auth] User info received:", JSON.stringify({ sub: userInfo.sub, email: userInfo.email, name: userInfo.name }));
+    console.log("[MedInvest] User info received:", JSON.stringify({ sub: userInfo.sub, email: userInfo.email, name: userInfo.name }));
 
     const didIdentifier = userInfo.sub || userInfo.did || userInfo.id;
-    const email = userInfo.email || `${didIdentifier}@did.local`;
-    const displayName = userInfo.name || userInfo.display_name || userInfo.username || "DID User";
+    const email = userInfo.email || `${didIdentifier}@medinvest.local`;
+    const displayName = userInfo.name || userInfo.display_name || userInfo.username || "MedInvest User";
 
     let user;
     const [existingByEmail] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
@@ -137,7 +118,7 @@ router.get("/auth/did/callback", async (req, res) => {
     if (existingByEmail) {
       user = existingByEmail;
     } else {
-      const username = displayName.toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 30) || `did_${Date.now()}`;
+      const username = displayName.toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 30) || `mi_${Date.now()}`;
       const randomPass = crypto.randomBytes(32).toString("hex");
       const passwordHash = await bcrypt.hash(randomPass, 12);
 
@@ -149,7 +130,7 @@ router.get("/auth/did/callback", async (req, res) => {
         active: true,
       }).returning();
       user = newUser;
-      console.log(`[DID Auth] Created new user: ${username} (${email})`);
+      console.log(`[MedInvest] Created new user: ${username} (${email})`);
     }
 
     if (!user.active) {
@@ -169,9 +150,46 @@ router.get("/auth/did/callback", async (req, res) => {
     const redirectPath = pending.redirectAfter || "/";
     res.redirect(`${baseUrl}${redirectPath}?did_code=${exchangeCode}`);
   } catch (err: any) {
-    console.error("[DID Auth] Callback error:", err.message);
+    console.error("[MedInvest] Callback error:", err.message);
     res.redirect(`${baseUrl}/?did_error=internal_error`);
   }
+}
+
+router.get("/auth/medinvest/initiate", (req, res) => {
+  if (!MEDINVEST_CLIENT_ID) {
+    res.status(500).json({ error: "MedInvest login not configured (missing MEDINVEST_CLIENT_ID)" });
+    return;
+  }
+
+  const state = crypto.randomBytes(32).toString("hex");
+  const redirectAfter = (req.query.redirect as string) || "/";
+  const safePath = redirectAfter.startsWith("/") && !redirectAfter.startsWith("//") ? redirectAfter : "/";
+  pendingStates.set(state, { createdAt: Date.now(), redirectAfter: safePath });
+
+  const callbackUrl = getCallbackUrl(req);
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: MEDINVEST_CLIENT_ID,
+    redirect_uri: callbackUrl,
+    scope: SCOPES,
+    state,
+  });
+
+  const authUrl = `${MEDINVEST_BASE}/api/oauth/authorize?${params.toString()}`;
+  res.redirect(authUrl);
+});
+
+router.get("/auth/medinvest/callback", async (req, res) => {
+  await handleOAuthCallback(req, res);
+});
+
+router.get("/auth/did/initiate", (req, res) => {
+  res.redirect(307, `/api/auth/medinvest/initiate${req.url.includes("?") ? "?" + req.url.split("?")[1] : ""}`);
+});
+
+router.get("/auth/did/callback", async (req, res) => {
+  await handleOAuthCallback(req, res);
 });
 
 router.post("/auth/did/exchange", (req, res) => {

@@ -25,6 +25,8 @@ const PUBLIC_PATHS = [
   "/api/auth/firebase",
   "/api/auth/webauthn/login/options",
   "/api/auth/webauthn/login/verify",
+  "/api/auth/medinvest/initiate",
+  "/api/auth/medinvest/callback",
   "/api/auth/did/initiate",
   "/api/auth/did/callback",
   "/api/auth/did/exchange",
