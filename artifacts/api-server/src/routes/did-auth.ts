@@ -7,9 +7,9 @@ import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
-const DID_BASE = "https://did-login.replit.app";
-const DID_CLIENT_ID = process.env.DID_CLIENT_ID || "";
-const DID_CLIENT_SECRET = process.env.DID_CLIENT_SECRET || "";
+const DID_BASE = process.env.MEDINVEST_BASE_URL || "https://did-login.replit.app";
+const DID_CLIENT_ID = process.env.MEDINVEST_CLIENT_ID || process.env.DID_CLIENT_ID || "";
+const DID_CLIENT_SECRET = process.env.MEDINVEST_CLIENT_SECRET || process.env.DID_CLIENT_SECRET || "";
 const SCOPES = "openid profile email did:read did:verify credentials:read credentials:verify";
 
 const pendingStates = new Map<string, { createdAt: number; redirectAfter: string }>();
