@@ -55,13 +55,13 @@ export default function Login() {
                 email: "",
               });
             } else {
-              setError("Invalid token received from DID login");
+              setError("Invalid token received from MedInvest login");
             }
           } else {
-            setError(data.error || "Failed to complete DID login");
+            setError(data.error || "Failed to complete MedInvest login");
           }
         })
-        .catch(() => setError("Failed to exchange DID login code"))
+        .catch(() => setError("Failed to exchange MedInvest login code"))
         .finally(() => setDidLoading(false));
     }
 
@@ -71,15 +71,15 @@ export default function Login() {
       window.history.replaceState({}, "", url.pathname);
 
       const errorMessages: Record<string, string> = {
-        missing_code_or_state: "DID login was incomplete. Please try again.",
-        invalid_or_expired_state: "DID login session expired. Please try again.",
-        token_exchange_failed: "Failed to verify DID credentials. Please try again.",
-        no_access_token: "DID service did not provide an access token.",
-        userinfo_failed: "Could not retrieve your DID profile.",
+        missing_code_or_state: "MedInvest login was incomplete. Please try again.",
+        invalid_or_expired_state: "MedInvest login session expired. Please try again.",
+        token_exchange_failed: "Failed to verify MedInvest credentials. Please try again.",
+        no_access_token: "MedInvest service did not provide an access token.",
+        userinfo_failed: "Could not retrieve your MedInvest profile.",
         account_disabled: "Your account has been disabled. Contact an administrator.",
-        internal_error: "An internal error occurred during DID login.",
+        internal_error: "An internal error occurred during MedInvest login.",
       };
-      setError(errorMessages[didError] || `DID login failed: ${didError}`);
+      setError(errorMessages[didError] || `MedInvest login failed: ${didError}`);
     }
   }, [loginWithToken]);
 
@@ -279,9 +279,9 @@ export default function Login() {
           )}
 
           {didLoading && (
-            <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center gap-2 text-purple-400 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center gap-2 text-emerald-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Completing DID login...</span>
+              <span>Completing MedInvest login...</span>
             </div>
           )}
 
@@ -386,10 +386,16 @@ export default function Login() {
               type="button"
               onClick={handleDIDLogin}
               disabled={didLoading}
-              className="w-full bg-purple-600/20 hover:bg-purple-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-purple-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-purple-600/30 hover:border-purple-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
+              className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 disabled:bg-gray-800 disabled:text-gray-600 text-emerald-400 font-medium py-2.5 rounded-lg transition-all duration-200 border border-emerald-600/30 hover:border-emerald-500/50 disabled:border-gray-700 flex items-center justify-center gap-2"
             >
-              <Fingerprint className="w-4 h-4" />
-              Sign In with DID
+              {didLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              )}
+              Sign In with MedInvest
             </button>
 
             <button
@@ -414,7 +420,7 @@ export default function Login() {
 
           <div className="mt-6 pt-4 border-t border-gray-800">
             <p className="text-xs text-gray-500 text-center">
-              Protected by FIDO2/WebAuthn hardware key authentication, DID identity verification, and AES-256 encryption
+              Protected by FIDO2/WebAuthn hardware key authentication, MedInvest identity verification, and AES-256 encryption
             </p>
           </div>
         </div>
