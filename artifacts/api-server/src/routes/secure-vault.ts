@@ -11,8 +11,22 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
+// PATCHED: APP_ENCRYPTION_KEY is the source of truth (was sha256(DATABASE_URL)).
+// Two-layer check:
+//   (1) IIFE throws at module load -- server fails fast at boot like JWT_SECRET.
+//   (2) getEncryptionKey() re-checks at call time -- defense-in-depth if (1) is ever removed.
+// No silent fallbacks.
+(() => {
+  if (!process.env.APP_ENCRYPTION_KEY) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required at startup.");
+  }
+})();
+
 function getEncryptionKey(): Buffer {
-  const raw = process.env.DATABASE_URL || "gl-vault-fallback-key-do-not-use";
+  const raw = process.env.APP_ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required for encryption operations.");
+  }
   return crypto.createHash("sha256").update(raw).digest();
 }
 

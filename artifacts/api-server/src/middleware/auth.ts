@@ -36,6 +36,8 @@ const PUBLIC_PATHS = [
 ];
 
 function isPublicPath(path: string): boolean {
+  // PATCHED: only /api/* paths go through the PUBLIC_PATHS check. SPA + static assets pass through.
+  if (!path.startsWith("/api/") && path !== "/api") return true;
   return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 }
 

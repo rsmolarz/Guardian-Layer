@@ -1,0 +1,126 @@
+
+Joseph Ryan Smolarz <rsmolarz@rsmolarz.com>
+6:45 PM (0 minutes ago)
+to me
+
+Good — here's the exact BEFORE/AFTER for each change, plus the file list. Give this to Replit Agent; it's the same content as the Python script I sent earlier but formatted as straightforward "find X, replace with Y" instructions.
+
+---
+
+## Change 1: `getEncryptionKey()` — apply in 6 files
+
+**Files to edit:**
+1. `artifacts/api-server/src/lib/seed-remote-machines.ts`
+2. `artifacts/api-server/src/lib/seed-tailscale.ts`
+3. `artifacts/api-server/src/routes/gateway.ts`
+4. `artifacts/api-server/src/routes/node-diagnostics.ts`
+5. `artifacts/api-server/src/routes/remote-maintenance.ts`
+6. `artifacts/api-server/src/routes/secure-vault.ts`
+
+**BEFORE (find this 4-line function):**
+
+```ts
+function getEncryptionKey(): Buffer {
+  const raw = process.env.DATABASE_URL || "gl-remote-fallback-key";
+  return crypto.createHash("sha256").update(raw).digest();
+}
+```
+
+Note: in `routes/gateway.ts` and `routes/secure-vault.ts` the fallback string is `"gl-vault-fallback-key-do-not-use"` instead of `"gl-remote-fallback-key"` — same transformation, different literal to match.
+
+**AFTER (replace with this):**
+
+```ts
+// PATCHED: APP_ENCRYPTION_KEY is the source of truth (was sha256(DATABASE_URL)).
+// Two-layer check:
+//   (1) IIFE throws at module load -- server fails fast at boot like JWT_SECRET.
+//   (2) getEncryptionKey() re-checks at call time -- defense-in-depth if (1) is ever removed.
+// No silent fallbacks.
+(() => {
+  if (!process.env.APP_ENCRYPTION_KEY) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required at startup.");
+  }
+})();
+
+function getEncryptionKey(): Buffer {
+  const raw = process.env.APP_ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required for encryption operations.");
+  }
+  return crypto.createHash("sha256").update(raw).digest();
+}
+```
+
+**Why:** the six files were deriving their AES-256-GCM encryption key from `sha256(DATABASE_URL)`. Rotating the DB password (which belongs in the connection string) would silently break every encrypted blob — secure-vault entries, SSH credentials, gateway secrets, etc. The new version makes `APP_ENCRYPTION_KEY` a dedicated env var with no fallback, and throws at boot if missing (matching the pattern already used for `JWT_SECRET` in `auth.ts`). The per-call check provides defense-in-depth in case the IIFE is ever removed in a future edit.
+
+---
+
+## Change 2: `isPublicPath()` — apply in 1 file
+
+**File to edit:** `artifacts/api-server/src/middleware/auth.ts`
+
+**BEFORE (find this 3-line function):**
+
+```ts
+function isPublicPath(path: string): boolean {
+  return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+}
+```
+
+**AFTER (replace with this):**
+
+```ts
+function isPublicPath(path: string): boolean {
+  // PATCHED: only /api/* paths go through the PUBLIC_PATHS check. SPA + static assets pass through.
+  if (!path.startsWith("/api/") && path !== "/api") return true;
+  return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+}
+```
+
+**Why:** `authMiddleware` was mounted globally with `app.use(authMiddleware)`, running before `express.static`. `PUBLIC_PATHS` only lists `/api/*` endpoints, so when a browser requested `/` or `/assets/index-*.js`, auth returned 401 and the SPA never loaded. The fix makes non-/api paths pass through auth entirely (SPA + static assets are public). /api/* paths continue to require auth unless explicitly in `PUBLIC_PATHS`.
+
+---
+
+## For Replit Agent: what a successful run looks like
+
+After applying both changes, the git diff should show:
+- 6 files in `artifacts/api-server/src/lib/` and `src/routes/` with `-` lines removing the old `getEncryptionKey` function body and `+` lines adding the IIFE + new function
+- 1 file `artifacts/api-server/src/middleware/auth.ts` with 2 lines added inside `isPublicPath`
+- Zero other changes
+
+Suggested commit message:
+
+```
+fix: require APP_ENCRYPTION_KEY and narrow authMiddleware to /api paths
+
+- Replaces sha256(DATABASE_URL) derivation with APP_ENCRYPTION_KEY
+  in 6 files that do AES-256-GCM: seed-remote-machines, seed-tailscale,
+  gateway, node-diagnostics, remote-maintenance, secure-vault.
+  Each now throws at module load (IIFE) and per-call if the env var
+  is missing. No more silent fallbacks.
+- Narrows authMiddleware's isPublicPath so only /api/* paths are gated.
+  Previously the SPA root and /assets/* returned 401 in production
+  mode because auth ran before express.static.
+
+Both patches are already deployed in production. This commits them
+to source so future builds are self-contained.
+```
+
+---
+
+## Optional, while you're there
+
+Two more small files to add in this same commit if possible (keeps everything in one clean commit):
+
+**Add `.env.example` at repo root** — copy the contents of what we have locally at `C:\Users\rsmol\Downloads\Claude\deploy\.env.template`. I can paste that content if you need it; just tell me.
+
+**Add `.claude/CLAUDE.md` at repo root** — same deal; I'll paste the 7KB content if you want it in this commit. Otherwise we can add it in a follow-up.
+
+---
+
+Once Replit Agent runs the changes and shows you the diff, paste back:
+- The script output or Agent's report (`[enc] OK:` × 6 and `[auth] OK`, or equivalent)
+- The first 20 lines or so of `git diff` so I can sanity-check the replacements landed correctly
+- The commit hash once committed
+
+Then we move to Piece 2.
