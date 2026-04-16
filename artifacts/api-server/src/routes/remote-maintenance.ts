@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { remoteMachinesTable, maintenanceJobsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logActivity } from "../lib/activity-logger";
+import { requireSuperadmin } from "../middleware/auth";
 import crypto from "crypto";
 import { Client } from "ssh2";
 
@@ -549,6 +550,125 @@ router.post("/remote-maintenance/run", async (req, res) => {
       task: task.label,
       machine: machine.name,
       output: fullOutput,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/remote-maintenance/run-all", requireSuperadmin, async (req, res) => {
+  try {
+    const { taskId, machineIds } = req.body;
+    if (!taskId) {
+      return res.status(400).json({ error: "taskId is required" });
+    }
+
+    const task = MAINTENANCE_TASKS.find(t => t.id === taskId);
+    if (!task) return res.status(404).json({ error: "Task not found" });
+
+    let allMachines;
+    if (machineIds && Array.isArray(machineIds) && machineIds.length > 0) {
+      const all = await db.select().from(remoteMachinesTable);
+      allMachines = all.filter(m => machineIds.includes(m.id));
+    } else {
+      allMachines = await db.select().from(remoteMachinesTable);
+    }
+
+    if (allMachines.length === 0) {
+      return res.status(400).json({ error: "No machines found" });
+    }
+
+    const results: { machineId: number; machineName: string; hostname: string; status: string; output: string; jobId: number }[] = [];
+
+    const batchSize = 5;
+    for (let i = 0; i < allMachines.length; i += batchSize) {
+      const batch = allMachines.slice(i, i + batchSize);
+      const batchResults = await Promise.allSettled(batch.map(async (machine) => {
+        try {
+          const credential = decrypt(machine.encryptedCredential);
+          const connInfo = { hostname: machine.hostname, port: machine.port, username: machine.username, authMethod: machine.authMethod, credential };
+
+          let os = machine.os || "";
+          if (!os) {
+            try {
+              os = await detectOS(connInfo);
+              await db.update(remoteMachinesTable).set({ os, updatedAt: new Date() }).where(eq(remoteMachinesTable.id, machine.id));
+            } catch {
+              os = "linux";
+            }
+          }
+
+          const commandSet = task.commands.find(c => c.os === os);
+          if (!commandSet) {
+            return { machineId: machine.id, machineName: machine.name, hostname: machine.hostname, status: "skipped", output: `Task "${task.label}" not supported on ${os}`, jobId: 0 };
+          }
+
+          const [job] = await db.insert(maintenanceJobsTable).values({
+            machineId: machine.id,
+            taskType: taskId,
+            status: "running",
+            startedAt: new Date(),
+          }).returning();
+
+          let fullOutput = "";
+          let hasError = false;
+
+          for (const cmd of commandSet.cmds) {
+            try {
+              const result = await sshExec(connInfo, cmd, 60000);
+              fullOutput += `$ ${cmd}\n${result}\n\n`;
+            } catch (err: any) {
+              fullOutput += `$ ${cmd}\n[ERROR] ${err.message}\n\n`;
+              hasError = true;
+            }
+          }
+
+          const finalStatus = hasError ? "partial" : "completed";
+          await db.update(maintenanceJobsTable).set({
+            status: finalStatus,
+            output: fullOutput,
+            completedAt: new Date(),
+          }).where(eq(maintenanceJobsTable.id, job.id));
+
+          await db.update(remoteMachinesTable).set({
+            lastMaintenanceAt: new Date(),
+            lastSeen: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(remoteMachinesTable.id, machine.id));
+
+          return { machineId: machine.id, machineName: machine.name, hostname: machine.hostname, status: finalStatus, output: fullOutput, jobId: job.id };
+        } catch (err: any) {
+          return { machineId: machine.id, machineName: machine.name, hostname: machine.hostname, status: "error", output: err.message || "Connection failed", jobId: 0 };
+        }
+      }));
+
+      for (const r of batchResults) {
+        if (r.status === "fulfilled") {
+          results.push(r.value);
+        } else {
+          results.push({ machineId: 0, machineName: "unknown", hostname: "", status: "error", output: r.reason?.message || "Unknown error", jobId: 0 });
+        }
+      }
+    }
+
+    const completed = results.filter(r => r.status === "completed").length;
+    const partial = results.filter(r => r.status === "partial").length;
+    const errors = results.filter(r => r.status === "error").length;
+    const skipped = results.filter(r => r.status === "skipped").length;
+
+    logActivity({
+      action: "remote_maintenance_run_all",
+      category: "remote_maintenance",
+      source: "system",
+      detail: `Ran "${task.label}" on ${results.length} machines — ${completed} completed, ${partial} partial, ${errors} errors, ${skipped} skipped`,
+      severity: errors > 0 ? "medium" : "info",
+    });
+
+    return res.json({
+      task: task.label,
+      totalMachines: compatibleMachines.length,
+      summary: { completed, partial, errors, skipped },
+      results,
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

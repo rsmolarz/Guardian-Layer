@@ -4,7 +4,7 @@ import {
   Server, Plus, Trash2, TestTube, Play, Loader2, CheckCircle, XCircle,
   AlertTriangle, Terminal, ChevronDown, ChevronUp, Monitor, HardDrive,
   Wifi, Shield, RefreshCw, Clock, Info, Eye, EyeOff, ClipboardCopy, Check,
-  Download, Globe, Smartphone, Laptop, Search,
+  Download, Globe, Smartphone, Laptop, Search, Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhyThisMatters } from "@/components/clarity/WhyThisMatters";
@@ -654,6 +654,278 @@ function TailscaleDiscovery({ onImported }: { onImported: () => void }) {
   );
 }
 
+interface RunAllResult {
+  machineId: number;
+  machineName: string;
+  hostname: string;
+  status: string;
+  output: string;
+  jobId: number;
+}
+
+interface RunAllResponse {
+  task: string;
+  totalMachines: number;
+  summary: { completed: number; partial: number; errors: number; skipped: number };
+  results: RunAllResult[];
+}
+
+function RunAllPanel({ machines, tasks }: { machines: Machine[]; tasks: MaintenanceTask[] }) {
+  const [open, setOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState("");
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [response, setResponse] = useState<RunAllResponse | null>(null);
+  const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const categories = [...new Set(tasks.map(t => t.category))];
+
+  const handleRunAll = async () => {
+    if (!selectedTask) return;
+    setRunning(true);
+    setResponse(null);
+    setExpandedResults(new Set());
+    const task = tasks.find(t => t.id === selectedTask);
+    setProgress(`Running "${task?.label}" across ${machines.length} machines...`);
+    try {
+      const res = await fetch(`${API_BASE}/api/remote-maintenance/run-all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: selectedTask }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Run All failed");
+      setResponse(data);
+      setProgress("");
+    } catch (err: any) {
+      setProgress("");
+      setResponse({ task: task?.label || selectedTask, totalMachines: 0, summary: { completed: 0, partial: 0, errors: 1, skipped: 0 }, results: [{ machineId: 0, machineName: "Error", hostname: "", status: "error", output: err.message, jobId: 0 }] });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const toggleExpand = (idx: number) => {
+    setExpandedResults(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    if (!response) return;
+    if (expandedResults.size === response.results.length) {
+      setExpandedResults(new Set());
+    } else {
+      setExpandedResults(new Set(response.results.map((_, i) => i)));
+    }
+  };
+
+  const handleCopy = (idx: number, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(idx);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
+
+  const handleCopyAll = () => {
+    if (!response) return;
+    const allOutput = response.results.map(r => `=== ${r.machineName} (${r.hostname}) — ${r.status} ===\n${r.output}`).join("\n\n");
+    navigator.clipboard.writeText(allOutput).then(() => {
+      setCopied(-1);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
+
+  const statusIcon = (status: string) => {
+    if (status === "completed") return <CheckCircle className="w-3.5 h-3.5 text-green-400" />;
+    if (status === "error") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    if (status === "skipped") return <AlertTriangle className="w-3.5 h-3.5 text-slate-400" />;
+    return <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />;
+  };
+
+  const statusColor = (status: string) => {
+    if (status === "completed") return "text-green-400";
+    if (status === "error") return "text-red-400";
+    if (status === "skipped") return "text-slate-400";
+    return "text-yellow-400";
+  };
+
+  if (machines.length === 0) return null;
+
+  return (
+    <div className="border border-amber-500/20 rounded-lg bg-amber-500/5 overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 hover:bg-amber-500/10 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-left">
+            <span className="text-sm font-mono font-semibold text-amber-300">Run All Machines</span>
+            <span className="ml-2 text-xs text-slate-500">
+              Execute a task across all {machines.length} machines at once
+            </span>
+          </div>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-mono text-slate-400 mb-1.5">SELECT TASK</label>
+                  <select
+                    value={selectedTask}
+                    onChange={e => setSelectedTask(e.target.value)}
+                    disabled={running}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-amber-500/50 disabled:opacity-50"
+                  >
+                    <option value="">Choose a maintenance task...</option>
+                    {categories.map(cat => (
+                      <optgroup key={cat} label={cat}>
+                        {tasks.filter(t => t.category === cat).map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.label} [{t.risk}]
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleRunAll}
+                  disabled={!selectedTask || running}
+                  className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                  {running ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> RUNNING...</>
+                  ) : (
+                    <><Zap className="w-4 h-4" /> RUN ON ALL ({machines.length})</>
+                  )}
+                </button>
+              </div>
+
+              {selectedTask && !running && !response && (
+                <div className="flex items-start gap-2 p-3 rounded bg-amber-500/10 border border-amber-500/20">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-300">
+                    This will run <strong>{tasks.find(t => t.id === selectedTask)?.label}</strong> on
+                    all {machines.length} registered machines in parallel (5 at a time). Compatible machines
+                    will be filtered by OS automatically.
+                  </p>
+                </div>
+              )}
+
+              {running && progress && (
+                <div className="flex items-center gap-3 p-3 rounded bg-slate-800/50 border border-slate-700">
+                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
+                  <span className="text-xs font-mono text-slate-300">{progress}</span>
+                </div>
+              )}
+
+              {response && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 p-3 rounded bg-slate-800/50 border border-slate-700 flex-1">
+                      <div className="text-center">
+                        <div className="text-lg font-mono font-bold text-green-400">{response.summary.completed}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">Completed</div>
+                      </div>
+                      {response.summary.partial > 0 && (
+                        <div className="text-center">
+                          <div className="text-lg font-mono font-bold text-yellow-400">{response.summary.partial}</div>
+                          <div className="text-[10px] text-slate-500 uppercase">Partial</div>
+                        </div>
+                      )}
+                      {response.summary.errors > 0 && (
+                        <div className="text-center">
+                          <div className="text-lg font-mono font-bold text-red-400">{response.summary.errors}</div>
+                          <div className="text-[10px] text-slate-500 uppercase">Errors</div>
+                        </div>
+                      )}
+                      {response.summary.skipped > 0 && (
+                        <div className="text-center">
+                          <div className="text-lg font-mono font-bold text-slate-400">{response.summary.skipped}</div>
+                          <div className="text-[10px] text-slate-500 uppercase">Skipped</div>
+                        </div>
+                      )}
+                      <div className="text-center ml-auto">
+                        <div className="text-lg font-mono font-bold text-slate-300">{response.totalMachines}</div>
+                        <div className="text-[10px] text-slate-500 uppercase">Total</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button onClick={expandAll}
+                      className="px-2 py-1 text-[10px] font-mono text-amber-400 border border-amber-500/30 rounded hover:bg-amber-500/10 transition-colors">
+                      {expandedResults.size === response.results.length ? "COLLAPSE ALL" : "EXPAND ALL"}
+                    </button>
+                    <button onClick={handleCopyAll}
+                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors">
+                      {copied === -1 ? <><Check className="w-3 h-3" /> COPIED ALL</> : <><ClipboardCopy className="w-3 h-3" /> COPY ALL OUTPUT</>}
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-[500px] overflow-y-auto scrollbar-thin">
+                    {response.results.map((r, idx) => (
+                      <div key={idx} className="border border-slate-700/50 rounded-lg bg-slate-900/40 overflow-hidden">
+                        <button
+                          onClick={() => toggleExpand(idx)}
+                          className="w-full flex items-center gap-3 p-2.5 text-left hover:bg-slate-800/50 transition-colors"
+                        >
+                          {statusIcon(r.status)}
+                          <span className="text-xs font-mono font-semibold text-slate-200 flex-1 truncate">{r.machineName}</span>
+                          <span className="text-[11px] font-mono text-cyan-400 shrink-0">{r.hostname}</span>
+                          <span className={`text-[10px] font-mono ${statusColor(r.status)}`}>{r.status}</span>
+                          {expandedResults.has(idx) ? <ChevronUp className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
+                        </button>
+                        <AnimatePresence>
+                          {expandedResults.has(idx) && (
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: "auto" }}
+                              exit={{ height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="border-t border-slate-700/30">
+                                <div className="flex justify-end p-1.5">
+                                  <button onClick={() => handleCopy(idx, r.output)}
+                                    className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/10 transition-colors">
+                                    {copied === idx ? <><Check className="w-2.5 h-2.5" /> COPIED</> : <><ClipboardCopy className="w-2.5 h-2.5" /> COPY</>}
+                                  </button>
+                                </div>
+                                <pre className="px-3 pb-3 text-[11px] text-slate-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                                  {r.output || "No output"}
+                                </pre>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function RemoteMaintenance() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
@@ -694,6 +966,8 @@ export default function RemoteMaintenance() {
       </WhyThisMatters>
 
       <TailscaleDiscovery onImported={loadData} />
+
+      {!loading && machines.length > 0 && <RunAllPanel machines={machines} tasks={tasks} />}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

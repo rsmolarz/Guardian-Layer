@@ -43,12 +43,12 @@ The project is built as a pnpm monorepo using TypeScript. The frontend uses Reac
 *   **Threat Detection Engine:** A unified threat detection dashboard (`/threat-detection`) with real-time threat correlation, failed login auto-lockout, network traffic anomaly detection, and IP reputation checking.
 *   **Security Hardening Middleware:** A three-layer request protection stack including Helmet, rate limiting, and IP Guard.
 *   **JWT Authentication & User Management:** Database-backed authentication with role-based access control (superadmin/admin/user) and FIDO2/WebAuthn YubiKey authentication.
-*   **DID Login (OAuth Integration):** Decentralized Identity login via the external DID Login service at `did-login.replit.app` using OAuth 2.0.
+*   **MedInvest Login (OAuth Integration):** MedInvest identity verification login via the external service at `did-login.replit.app` using OAuth 2.0. Uses `MEDINVEST_CLIENT_ID`, `MEDINVEST_CLIENT_SECRET`, `MEDINVEST_BASE_URL`, `MEDINVEST_REDIRECT_URI` env vars. Routes at `/api/auth/medinvest/initiate` and `/api/auth/medinvest/callback` with legacy `/api/auth/did/*` redirects.
 *   **Firebase Authentication:** Social sign-in via Firebase with Google, GitHub, Facebook, and Apple providers. Frontend uses `firebase` SDK with popup-based auth; backend uses `firebase-admin` to verify ID tokens and auto-provisions user accounts. Requires `VITE_FIREBASE_*` env vars (frontend) and `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` (backend). Social buttons only appear when configured.
 *   **VIENT Workflow Monitor:** A dedicated security posture and uptime monitoring page (`/vient-monitor`) for `ent-workflow-ai.replit.app`, including comprehensive scans and security scoring.
 *   **Node Diagnostics:** A comprehensive remote system health analysis and optimization page (`/node-diagnostics`) via SSH.
 *   **YubiKey App Coverage Tracker:** Tracks hardware key protection enablement across applications.
-*   **Remote System Maintenance:** SSH-over-Tailscale remote machine management page (`/remote-maintenance`) for cleanup, optimization, and security tasks.
+*   **Remote System Maintenance:** SSH-over-Tailscale remote machine management page (`/remote-maintenance`) for cleanup, optimization, and security tasks. Includes "Run All Machines" panel to execute any maintenance task across all registered machines in parallel batches of 5, with aggregated results, expand/collapse per-machine output, and copy-all functionality. Run All requires superadmin role.
 *   **Credit Protection:** An interactive credit protection checklist page (`/credit-protection`) covering freezes, fraud alerts, and account security.
 *   **App Fleet Monitor:** A portfolio-wide uptime and health monitoring page (`/app-fleet`) tracking 40+ apps.
 *   **Aperture AI Gateway Monitor:** A management page (`/aperture`) for Tailscale Aperture, centralizing AI API keys and tracking usage.
