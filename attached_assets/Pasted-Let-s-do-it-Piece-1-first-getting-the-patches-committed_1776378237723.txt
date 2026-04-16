@@ -1,0 +1,111 @@
+Let's do it. Piece 1 first — getting the patches committed in Replit before anything else touches your repo.
+
+## Piece 1 — Apply the two patches in Replit
+
+Here's a single prompt to paste into **Replit Agent** (the assistant in the Replit project). It contains both patches as executable Python with verification built in, so Replit's agent just has to run it and commit.
+
+**Step 1a:** Open your Guardian-Layer project on Replit.
+
+**Step 1b:** Start a conversation with Replit Agent (Assistant pane). Paste this verbatim — the whole thing between the lines:
+
+---
+
+```
+I need to apply two in-place source patches to this repo, then commit. Both are idempotent (will detect if already applied). Please run this Python script in the shell, then review and commit the diff.
+
+--- PATCH SCRIPT START ---
+import re, pathlib, sys
+
+root = pathlib.Path(".").resolve()
+
+# ---------- Patch 1: APP_ENCRYPTION_KEY (6 files) ----------
+enc_files = [
+    "artifacts/api-server/src/lib/seed-remote-machines.ts",
+    "artifacts/api-server/src/lib/seed-tailscale.ts",
+    "artifacts/api-server/src/routes/gateway.ts",
+    "artifacts/api-server/src/routes/node-diagnostics.ts",
+    "artifacts/api-server/src/routes/remote-maintenance.ts",
+    "artifacts/api-server/src/routes/secure-vault.ts",
+]
+
+enc_pattern = r'function getEncryptionKey\(\): Buffer \{\s*const raw = process\.env\.DATABASE_URL \|\| "(?:gl-remote-fallback-key|gl-vault-fallback-key-do-not-use)";\s*return crypto\.createHash\("sha256"\)\.update\(raw\)\.digest\(\);\s*\}'
+
+enc_replacement = '''// PATCHED: APP_ENCRYPTION_KEY is the source of truth (was sha256(DATABASE_URL)).
+// Two-layer check:
+//   (1) IIFE throws at module load -- server fails fast at boot like JWT_SECRET.
+//   (2) getEncryptionKey() re-checks at call time -- defense-in-depth if (1) is ever removed.
+// No silent fallbacks.
+(() => {
+  if (!process.env.APP_ENCRYPTION_KEY) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required at startup.");
+  }
+})();
+
+function getEncryptionKey(): Buffer {
+  const raw = process.env.APP_ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error("APP_ENCRYPTION_KEY environment variable is required for encryption operations.");
+  }
+  return crypto.createHash("sha256").update(raw).digest();
+}'''
+
+for rel in enc_files:
+    f = root / rel
+    if not f.exists():
+        print(f"[enc] MISSING: {rel}"); sys.exit(1)
+    content = f.read_text()
+    if "PATCHED: APP_ENCRYPTION_KEY" in content:
+        print(f"[enc] already patched: {rel}"); continue
+    new = re.sub(enc_pattern, enc_replacement, content, flags=re.DOTALL)
+    if new == content:
+        print(f"[enc] PATTERN NOT FOUND: {rel}"); sys.exit(2)
+    f.write_text(new)
+    print(f"[enc] OK: {rel}")
+
+# ---------- Patch 2: authMiddleware SPA (1 file) ----------
+auth_f = root / "artifacts/api-server/src/middleware/auth.ts"
+if not auth_f.exists():
+    print(f"[auth] MISSING: {auth_f}"); sys.exit(1)
+auth_content = auth_f.read_text()
+if "PATCHED: only /api/" in auth_content:
+    print(f"[auth] already patched")
+else:
+    auth_pattern = r'function isPublicPath\(path: string\): boolean \{\s*return PUBLIC_PATHS\.some\(\(p\) => path === p \|\| path\.startsWith\(p \+ "/"\)\);\s*\}'
+    auth_replacement = '''function isPublicPath(path: string): boolean {
+  // PATCHED: only /api/* paths go through the PUBLIC_PATHS check. SPA + static assets pass through.
+  if (!path.startsWith("/api/") && path !== "/api") return true;
+  return PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+}'''
+    new = re.sub(auth_pattern, auth_replacement, auth_content, flags=re.DOTALL)
+    if new == auth_content:
+        print(f"[auth] PATTERN NOT FOUND"); sys.exit(2)
+    auth_f.write_text(new)
+    print(f"[auth] OK")
+
+print("All patches applied. Please review the git diff and commit.")
+--- PATCH SCRIPT END ---
+
+Save the script as /tmp/apply_patches.py, run python3 /tmp/apply_patches.py from the repo root, then show me the git diff. After I confirm it looks right, commit with message "fix: require APP_ENCRYPTION_KEY and narrow authMiddleware to /api paths".
+
+Context on why these changes are needed:
+1. The encryption-key patch makes APP_ENCRYPTION_KEY (not DATABASE_URL) the source of truth for AES-256-GCM key derivation in all 6 files that do encryption. Previously if someone rotated DATABASE_URL, every encrypted blob (secure-vault entries, SSH credentials, gateway secrets, etc.) would become undecryptable silently. The two-layer check (module-load IIFE + per-call check) matches the existing JWT_SECRET pattern in the same file.
+2. The auth-middleware patch fixes a bug where authMiddleware was applied to every request including SPA root / and /assets/*, so the frontend returned 401 in production mode and never loaded. Scope is now /api/* only.
+
+Both are already running in production (guardian-layer.com is live) but were applied as out-of-band patches. Getting them into the repo so future builds are self-contained.
+```
+
+---
+
+**Step 1c:** Replit Agent should run the script, show `[enc] OK: ...` × 6 and `[auth] OK`, then display the git diff. Review it — you should see:
+- 6 files in `artifacts/api-server/src/lib/` and `src/routes/` with the IIFE + two-layer `getEncryptionKey()`
+- 1 file `middleware/auth.ts` with the narrowed `isPublicPath()`
+
+**Step 1d:** If the diff looks right, tell Agent to commit it. Use the message it suggests or `"fix: require APP_ENCRYPTION_KEY and narrow authMiddleware to /api paths"`.
+
+**Step 1e:** Paste back here:
+- Output of the patch script (the `[enc] OK:` / `[auth] OK` lines)
+- The commit hash Replit shows after committing
+
+Once I see those, we move to Piece 2 (connect Replit to GitHub, push). I'll also prepare the `.env.example` and `.claude/CLAUDE.md` additions before Piece 2 so we commit everything in one Replit → GitHub push.
+
+Go ahead with Piece 1 — take your time, no rush.

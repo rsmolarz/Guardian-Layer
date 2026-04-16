@@ -1,0 +1,113 @@
+Good question, and you picked a good moment to ask — now that production is working, wiring up a Replit → GitHub → VPS flow is the natural next step.
+
+Here's the shape of what you want:
+
+```
+Replit (where you edit)  ─── git push ───▶  GitHub (source of truth)
+                                                    │
+                                            git pull │ (via redeploy.sh --pull)
+                                                    ▼
+                                          VPS /opt/guardianlayer (production)
+```
+
+Three pieces to set up. I'll lay out the plan first; if you agree, we'll do each piece together and verify.
+
+## Piece 1 — Commit the patches to source (CRITICAL — do this first)
+
+**Problem:** we applied two patches directly on the VPS — `patch-encryption-key.sh` and `patch-auth-spa.sh`. Those changes exist in `/opt/guardianlayer/artifacts/api-server/src/`, but they're **not in your Replit code**. The moment you `git pull` from GitHub on the VPS, the unpatched code overwrites the patched code, and the next build produces a broken bundle.
+
+**Fix:** apply the same two patches in Replit, commit them, so they're in the source going forward.
+
+Two ways:
+- **A. Replit Agent does it.** Open the Replit project, tell Claude/Agent: "Apply these two patches to the source. [paste contents of `deploy/patch-encryption-key.sh` and `deploy/patch-auth-spa.sh`]" — the agent will run them and commit the diff.
+- **B. Manually.** Open the affected 7 files in Replit's editor and make the same edits we made on the VPS:
+  - `lib/seed-remote-machines.ts`, `lib/seed-tailscale.ts`, `routes/gateway.ts`, `routes/node-diagnostics.ts`, `routes/remote-maintenance.ts`, `routes/secure-vault.ts` → replace `getEncryptionKey()` with the two-layer APP_ENCRYPTION_KEY version
+  - `middleware/auth.ts` → change `isPublicPath` to skip non-/api paths
+
+(A) is much faster. I'd recommend it.
+
+While you're at it, also commit:
+- `.env.example` at the repo root (copy from local `deploy/.env.template`) so future devs know what env vars are needed
+- Add the `.claude/CLAUDE.md` operational brief at repo root so it ships with source
+
+## Piece 2 — Replit → GitHub
+
+The zip we extracted shows `.git/` already exists in the Replit project, so Git is initialized. You just need to add GitHub as a remote and push.
+
+Steps:
+1. **Create GitHub repo.** Go to github.com/new, create a repo named `guardian-layer` (private, no README, no .gitignore, no license — let Replit's existing files be the initial content).
+2. **In Replit**, open the Git/Version Control pane (left sidebar).
+3. Click **"Connect to GitHub"** (first-time auth with GitHub).
+4. Point it at the repo you just created.
+5. Commit any uncommitted changes (including the patches from Piece 1).
+6. Click **Push**.
+
+After this, GitHub has the complete source, including patches.
+
+## Piece 3 — GitHub → VPS
+
+One-time setup: give the VPS a read-only deploy key to GitHub, then swap the current `/opt/guardianlayer` directory for a git clone.
+
+On the VPS:
+
+```
+ssh-keygen -t ed25519 -f /root/.ssh/github_deploy -N "" -C "guardianlayer-vps-deploy"
+cat /root/.ssh/github_deploy.pub
+```
+
+That prints a public key. Copy it. In GitHub → the `guardian-layer` repo → Settings → Deploy keys → Add deploy key → paste, title "VPS read-only", leave "Allow write access" UNCHECKED, Save.
+
+Then configure SSH on the VPS to use that key for github.com:
+
+```
+cat >> /root/.ssh/config <<'EOF'
+
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile /root/.ssh/github_deploy
+  IdentitiesOnly yes
+EOF
+chmod 600 /root/.ssh/config
+ssh -T git@github.com
+```
+
+`ssh -T` should say "Hi <username>/guardian-layer! You've successfully authenticated..."
+
+Then swap the app dir for a git clone, preserving `.env`:
+
+```
+cp /opt/guardianlayer/artifacts/api-server/.env /root/env.backup
+rm -rf /opt/guardianlayer
+cd /opt
+git clone git@github.com:YOUR-USERNAME/guardian-layer.git guardianlayer
+mkdir -p /opt/guardianlayer/artifacts/api-server
+cp /root/env.backup /opt/guardianlayer/artifacts/api-server/.env
+chmod 600 /opt/guardianlayer/artifacts/api-server/.env
+rm /root/env.backup
+```
+
+Then run redeploy to build against the git-clone source and restart:
+
+```
+cd /opt/deploy
+./redeploy.sh --pull
+```
+
+`redeploy.sh --pull` does `git pull` first, then the normal rebuild+smoke-test+restart flow. The smoke test will auto-rollback if the new code breaks.
+
+## Ongoing workflow after that
+
+1. Edit code in Replit
+2. In Replit's Git pane: commit with a message, push to `main`
+3. On the VPS: `cd /opt/deploy && ./redeploy.sh --pull`
+4. Smoke test passes → live. Fails → auto-rollback to previous dist.
+
+You can even make step 3 a one-liner you run from your laptop:
+```
+ssh root@187.124.146.122 "cd /opt/deploy && ./redeploy.sh --pull"
+```
+
+---
+
+## Decision point — tell me which to do first
