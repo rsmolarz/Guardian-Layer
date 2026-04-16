@@ -1,0 +1,198 @@
+Piece 3 — swap the VPS from "unzipped one-shot" to "git-cloned repo that pulls from GitHub for updates." I'll structure this as a safe staging swap so if anything goes wrong, we roll back instantly.
+
+**Prerequisite check:** Piece 2 is done and your GitHub repo has the full source on `main`. Substitute your actual GitHub username/org for `YOUR-USERNAME` below.
+
+---
+
+## Step 3a — Generate an SSH deploy key on the VPS
+
+SSH to the VPS, then run:
+
+```
+ssh-keygen -t ed25519 -f /root/.ssh/github_deploy -N "" -C "guardianlayer-vps-deploy"
+cat /root/.ssh/github_deploy.pub
+```
+
+The second command prints the public key (one line starting with `ssh-ed25519 ...` and ending with ` guardianlayer-vps-deploy`). Copy the entire line.
+
+## Step 3b — Add the deploy key to GitHub
+
+In a browser:
+
+1. Go to `github.com/YOUR-USERNAME/guardian-layer/settings/keys`
+2. Click **"Add deploy key"**
+3. **Title:** `VPS production (read-only)`
+4. **Key:** paste the entire public-key line you copied
+5. **Allow write access:** leave UNCHECKED — we want read-only
+6. Click **Add key**
+
+## Step 3c — Configure SSH on the VPS to use that key for github.com
+
+Back on the VPS:
+
+```
+cat >> /root/.ssh/config <<'EOF'
+
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile /root/.ssh/github_deploy
+  IdentitiesOnly yes
+EOF
+chmod 600 /root/.ssh/config
+ssh -T git@github.com
+```
+
+The first time, `ssh -T` will prompt to trust GitHub's host key — type `yes`. Expected final output:
+
+```
+Hi YOUR-USERNAME/guardian-layer! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+If you see that, the deploy key works. If you see "Permission denied (publickey)", the key didn't register correctly on GitHub — check Step 3b.
+
+## Step 3d — Back up the current `.env` and stop PM2
+
+`.env` contains production secrets (JWT_SECRET, APP_ENCRYPTION_KEY, DATABASE_URL with password, superadmin password, etc.). Do NOT lose it.
+
+```
+cp /opt/guardianlayer/artifacts/api-server/.env /root/guardianlayer-env-backup.env
+chmod 600 /root/guardianlayer-env-backup.env
+ls -la /root/guardianlayer-env-backup.env
+pm2 stop guardianlayer-api
+```
+
+The `ls -la` should show the file at ~2-3KB with `-rw-------`. The `pm2 stop` takes the app offline for a few minutes while we swap directories — the site will return 502 during this window. (Nginx is still running, just nothing on :8080 to proxy to.)
+
+## Step 3e — Stage a fresh git clone, then swap
+
+Clone into a staging directory first, verify it looks right, then swap. If anything looks wrong, we abort without touching the current app.
+
+```
+# Clone to a staging location (NOT /opt/guardianlayer yet)
+cd /opt
+git clone --depth 1 git@github.com:YOUR-USERNAME/guardian-layer.git guardianlayer-new
+
+# Verify key files landed
+ls /opt/guardianlayer-new/artifacts/api-server/src/middleware/auth.ts
+ls /opt/guardianlayer-new/artifacts/guardianlayer/src/App.tsx
+ls /opt/guardianlayer-new/lib/db/drizzle/
+
+# Verify the patches are present (these should each print 1 or more)
+grep -c "PATCHED: APP_ENCRYPTION_KEY" /opt/guardianlayer-new/artifacts/api-server/src/routes/secure-vault.ts
+grep -c "PATCHED: only /api/" /opt/guardianlayer-new/artifacts/api-server/src/middleware/auth.ts
+```
+
+**Pass criteria:**
+- The three `ls` lines all print the file path (no "No such file or directory")
+- The two `grep -c` lines each print `1` — confirming your Replit-committed patches are in the checkout
+
+**If any of those fail:** don't proceed. Paste the output to me. Most likely cause would be Piece 1's patches didn't actually get pushed from Replit.
+
+## Step 3f — The atomic swap + restore `.env`
+
+Once Step 3e's verification passes:
+
+```
+# Swap: move current to .old, new to current
+mv /opt/guardianlayer /opt/guardianlayer.old
+mv /opt/guardianlayer-new /opt/guardianlayer
+
+# Restore .env into the new tree
+mkdir -p /opt/guardianlayer/artifacts/api-server
+cp /root/guardianlayer-env-backup.env /opt/guardianlayer/artifacts/api-server/.env
+chmod 600 /opt/guardianlayer/artifacts/api-server/.env
+
+# Verify the .env has APP_ENCRYPTION_KEY set (can't read the value, just confirm non-empty)
+grep -c "^APP_ENCRYPTION_KEY=.\+" /opt/guardianlayer/artifacts/api-server/.env
+```
+
+The grep should print `1`. If `0`, the .env didn't copy correctly — stop and we'll debug.
+
+## Step 3g — Build + restart via redeploy.sh
+
+```
+cd /opt/deploy
+./redeploy.sh --backend-only
+```
+
+`--backend-only` because we need to rebuild the backend bundle from the git-cloned source (which includes the patches). The frontend's `dist/public/` wasn't in the git clone (build artifacts are usually gitignored), so we'll also need to build the frontend — do that next:
+
+```
+./redeploy.sh --frontend-only
+```
+
+Each takes a few minutes. `redeploy.sh` handles:
+- `pnpm install` (fresh, since node_modules isn't in the clone)
+- Build
+- Drizzle migrations (already applied, will be no-ops)
+- PM2 restart with env re-sourced from `.env`
+- Smoke test `/api/healthz` + auto-rollback if it fails
+
+## Step 3h — Verify end-to-end
+
+```
+curl -I https://guardian-layer.com/
+curl -s https://guardian-layer.com/api/healthz
+curl -I https://guardian-layer.com/api/users
+pm2 logs guardianlayer-api --lines 30 --nostream
+```
+
+Expected (same as before the swap):
+- `/` → 200 OK, text/html
+- `/api/healthz` → `{"status":"ok"}`
+- `/api/users` → 401 Unauthorized
+- `pm2 logs` shows `Server listening on port 8080`, seed lines, no errors
+
+## Step 3i — If all green, clean up the backup directory
+
+Wait a day or two before removing `.old` in case you want to roll back. Once confident:
+
+```
+rm -rf /opt/guardianlayer.old
+```
+
+You can also delete the `.env` backup:
+
+```
+rm /root/guardianlayer-env-backup.env
+```
+
+---
+
+## Rollback if Step 3g fails
+
+If `redeploy.sh` dies in a way you don't know how to recover from, you can instantly restore the pre-swap state:
+
+```
+pm2 stop guardianlayer-api 2>/dev/null
+mv /opt/guardianlayer /opt/guardianlayer.failed
+mv /opt/guardianlayer.old /opt/guardianlayer
+cd /opt/guardianlayer/artifacts/api-server
+set -a; source .env; set +a
+pm2 start /opt/guardianlayer/ecosystem.config.cjs
+```
+
+That puts you back exactly where you were before Piece 3. Then paste the failure details to me and we figure out what went wrong.
+
+---
+
+## Your new update workflow after Piece 3 succeeds
+
+From any machine with SSH access to the VPS:
+
+```
+ssh root@187.124.146.122 "cd /opt/deploy && ./redeploy.sh --pull"
+```
+
+That pulls from GitHub, rebuilds, smoke-tests, auto-rolls-back on failure. One command per deploy.
+
+Full iterative loop:
+1. Edit code in Replit
+2. In Replit's Git pane: commit, push to `main`
+3. Run the one-liner above from your laptop
+4. Site is updated. If build fails, auto-rollback keeps the old version serving.
+
+---
+
+Paste back after each step (3a-3d, then 3e-3f, then 3g-3h) so we catch any problem before compounding it. Take 3e carefully — that's the point of no return without a rollback, and the verification greps are the gate.
