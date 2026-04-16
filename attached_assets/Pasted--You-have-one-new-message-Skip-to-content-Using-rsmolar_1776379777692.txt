@@ -1,0 +1,273 @@
+
+You have one new message.
+
+Skip to content
+Using rsmolarz.com Mail with screen readers
+
+Pause Inbox
+1 of 166
+updating apps on vps
+Inbox
+
+Joseph Ryan Smolarz
+6:23 PM (25 minutes ago)
+Let's do it. Piece 1 first — getting the patches committed in Replit before anything else touches your repo. ## Piece 1 — Apply the two patches in Replit Here's
+
+Joseph Ryan Smolarz
+6:47 PM (1 minute ago)
+All patches applied. Now the critical concern: the IIFE will crash the server at startup if APP_ENCRYPTION_KEY isn't set. Let me check and set it: 2 actions All
+
+Joseph Ryan Smolarz <rsmolarz@rsmolarz.com>
+6:49 PM (0 minutes ago)
+to me
+
+Good catch by Replit Agent — both concerns are real and worth pausing on. Here's how to answer.
+
+## My recommendation: **Option C** (fresh random key, same pattern as production but not the same value)
+
+Reasoning:
+
+**Against Option A (same as VPS):** dev/prod sharing an encryption key is a security anti-pattern. If your Replit project ever leaks — screen recording, logs, exposed `.env`, stale session on a shared machine, someone else getting Replit access — the production key leaks with it. Anyone who gets the Replit key can decrypt every secure-vault entry on the live site. The whole point of a dedicated `APP_ENCRYPTION_KEY` env var is that each deploy target has its own. Don't collapse that isolation.
+
+**Against Option B (use DATABASE_URL as the value):** it "works" in the sense that existing Replit dev blobs remain decryptable, but the value looks like a connection string (weird), and it silently couples dev's encryption to a value that's also the DB credential. If someone later rotates the DATABASE_URL in Replit thinking it's just a connection-string change, they lose any encrypted data that was migrated under the old URL. This is exactly the footgun we just removed from production — don't reintroduce it in dev.
+
+**For Option C (fresh random):** clean separation, no confusion. The only cost is that existing Replit dev blobs (any vault entries, SSH credentials, gateway secrets in the dev DB) won't decrypt under the new key. For a dev environment, that's usually fine — dev data is typically throwaway. If you've accumulated real dev test data you care about, tell me and we'll do a one-time migration, but in most cases the cleanest move is to just truncate the affected tables.
+
+## Reply for Replit Agent
+
+Paste this back to Replit Agent:
+
+---
+
+> Use Option C. Generate a fresh key with `openssl rand -hex 32` and add it as `APP_ENCRYPTION_KEY` in Replit's Secrets (not in code). Reasoning: dev and prod should have independent encryption keys for isolation.
+>
+> Before restarting the server:
+> 1. Generate the key: `openssl rand -hex 32`
+> 2. Add it to Replit Secrets (the sidebar panel, not the .env file) with name `APP_ENCRYPTION_KEY` and the generated value.
+> 3. If the Replit dev DB currently has any encrypted blobs we care about preserving, **stop here and tell me** — they won't decrypt under the new key. Otherwise proceed.
+> 4. Restart the dev server. The IIFE should pass (env var is set). Verify the server boots cleanly — look for "Server listening on port ..." with no "APP_ENCRYPTION_KEY environment variable is required" error.
+> 5. If any seed routine logs an error like "bad decrypt" or "unsupported state or unable to authenticate data", that's pre-existing data encrypted under the old sha256(DATABASE_URL) key. We'll need to truncate those rows before the seed can repopulate them. The affected tables are `remote_machines` (for seed-remote-machines + seed-tailscale), `secure_vault_entries`, and any gateway secrets. Run:
+>    ```
+>    TRUNCATE remote_machines CASCADE;
+>    TRUNCATE secure_vault_entries CASCADE;
+>    -- and any similar table if errors mention gateway_api_keys or similar
+>    ```
+>    Then restart the dev server again.
+>
+> Once it boots cleanly without errors: commit the patch. Suggested message: `fix: require APP_ENCRYPTION_KEY and narrow authMiddleware to /api paths`.
+>
+> Do NOT commit the APP_ENCRYPTION_KEY value — it lives in Replit Secrets, not in any file.
+
+---
+
+## On the second question (commit now vs. after verifying)
+
+**After verifying.** There's no point committing a patch that hasn't been proven to boot. If the IIFE check has a typo or some other issue, we catch it while Replit Agent can still iterate easily. Once verified-working in dev, commit with confidence.
+
+Paste back what Replit Agent reports:
+- Confirmation the env var is set in Replit Secrets
+- Output of the dev server restart (boot logs — at minimum the first 30-40 lines after start)
+- If any bad-decrypt errors show up, the table names from the error messages
+- Once clean, the commit hash
+
+Then we move to Piece 3.
+Perfect. Piece 2 — Replit → GitHub. A few things to do in Replit first, then create the GitHub repo, then push.
+
+## Step 2a — Before pushing, add `.env` to `.gitignore`
+
+Your `.gitignore` doesn't currently exclude `.env`. If anyone ever creates a local `.env` with real secrets and commits it, they'd leak to GitHub. Harden this now.
+
+**In Replit**, open `.gitignore` at the repo root. Add these lines at the bottom:
+
+```
+# Secrets — never commit real .env
+.env
+.env.local
+.env.*.local
+!.env.example
+```
+
+The `!.env.example` line allows a *template* file to be committed (useful for documenting required vars), while the actual `.env` stays ignored.
+
+## Step 2b — Add `.env.example` at the repo root
+
+New file, same location as `.gitignore`. Paste this exactly:
+
+```
+# Guardian-Layer environment template
+# Copy to .env on the deploy target and fill in real values.
+# The server will fail to start if any "REQUIRED AT BOOT" value is missing.
+
+# ------------------------------------------------------------------
+# REQUIRED AT BOOT — server throws and exits without these
+# ------------------------------------------------------------------
+NODE_ENV=production
+PORT=8080
+DATABASE_URL=postgresql://guardianlayer:CHANGEME@localhost:5433/guardianlayer
+JWT_SECRET=                      # generate: openssl rand -base64 48
+APP_ENCRYPTION_KEY=              # generate: openssl rand -hex 32
+                                 # WARNING: rotating this after data is written =
+                                 # silent decrypt failures in vault, gateway,
+                                 # remote-machines, node-diagnostics, tailscale.
+
+# OpenAI integration — module-load throw if either is missing.
+# Placeholder values boot the server; AI routes 500 at request time until
+# a real key is provided.
+AI_INTEGRATIONS_OPENAI_BASE_URL=https://api.openai.com/v1
+AI_INTEGRATIONS_OPENAI_API_KEY=sk-placeholder-replace-before-using-ai
+
+# ------------------------------------------------------------------
+# Core app (server boots without, specific features fail)
+# ------------------------------------------------------------------
+SUPERADMIN_INITIAL_PASSWORD=     # used on first boot to seed admin;
+                                 # after first login, REMOVE this line or the
+                                 # seed will re-sync and revert UI password changes
+BACKUP_ADMIN_KEY=                # random 32+ chars, protects /api/backups admin endpoints
+APP_URL=https://guardian-layer.com
+BACKUP_DIR=/opt/guardianlayer/backups
+WORKSPACE_DIR=/opt/guardianlayer
+
+# ------------------------------------------------------------------
+# Auth / payments — fill in what you use
+# ------------------------------------------------------------------
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+STRIPE_TEST_API_KEY=
+
+# ------------------------------------------------------------------
+# Optional third-party integrations — per feature
+# ------------------------------------------------------------------
+ABUSEIPDB_API_KEY=
+HIBP_API_KEY=
+VIRUSTOTAL_API_KEY=
+# TAILSCALE_API_KEY: if set, on every boot the server fetches your
+# tailnet's device list and inserts new ones into remote_machines.
+TAILSCALE_API_KEY=
+NAMESILO_API_KEY=
+DID_CLIENT_ID=
+DID_CLIENT_SECRET=
+GOOGLE_MAIL_ACCESS_TOKEN=
+
+# MedInvest OAuth
+MEDINVEST_BASE_URL=
+MEDINVEST_CLIENT_ID=
+MEDINVEST_CLIENT_SECRET=
+MEDINVEST_REDIRECT_URI=https://guardian-layer.com/api/integrations/medinvest/callback
+```
+
+## Step 2c — Add `.claude/CLAUDE.md` at the repo root (optional but recommended)
+
+Replit Agent and any Claude Code session on the VPS will both read this file. Same content I wrote locally, trimmed slightly for repo-general use.
+
+Create `.claude/CLAUDE.md` (Replit Agent can do `mkdir -p .claude` then create the file). Paste the contents:
+
+```markdown
+# Guardian-Layer — developer context
+
+## Stack
+- pnpm monorepo. Workspaces: `artifacts/api-server`, `artifacts/guardianlayer`, `lib/db`, `lib/api-zod`, `lib/api-client-react`, `lib/integrations-*`.
+- Backend: Express 5 + TypeScript, bundled to CJS via esbuild (`artifacts/api-server/build.ts`).
+- Frontend: React 19 + Vite 7 + Tailwind 4 + Radix + TanStack Query + Wouter.
+- DB: PostgreSQL via Drizzle ORM. Schema in `lib/db/src/schema/*.ts`, migrations in `lib/db/drizzle/*.sql`.
+
+## Env vars that will kill the server at boot if missing
+- `PORT`, `DATABASE_URL`, `NODE_ENV`, `JWT_SECRET`
+- `APP_ENCRYPTION_KEY` — rotating this after data is written causes silent decrypt failures in secure-vault, gateway, remote-machines, node-diagnostics, tailscale-imported devices. Not recoverable without re-encrypting the rows under the old key first.
+- `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_OPENAI_API_KEY` — placeholder values satisfy the boot check; AI routes 500 at request time but app boots.
+
+See `.env.example` for the full list.
+
+## Auth + routing (post-patch)
+- `authMiddleware.isPublicPath()` only gates `/api/*` paths. SPA and static assets pass through to `express.static`.
+- Public `/api` endpoints are listed in `PUBLIC_PATHS` at the top of `src/middleware/auth.ts`: login, firebase, webauthn/login/*, medinvest/*, did/*, health, healthz, /metrics.
+- IP guard auto-allows 127.0.0.1 + RFC1918 ranges. External IPs get rate-tracked; abusive ones get blocked with escalating durations.
+- Global rate limiter: 1000 req / 15 min per IP.
+
+## Encryption (post-patch)
+Six files use AES-256-GCM with a key derived from `sha256(APP_ENCRYPTION_KEY)`: `lib/seed-remote-machines.ts`, `lib/seed-tailscale.ts`, `routes/gateway.ts`, `routes/node-diagnostics.ts`, `routes/remote-maintenance.ts`, `routes/secure-vault.ts`. Each throws at both module load (IIFE) and per-call if `APP_ENCRYPTION_KEY` is missing. No fallbacks.
+
+## Schema
+The Drizzle schema in `lib/db/src/schema/*.ts` may drift ahead of the committed migrations under `lib/db/drizzle/`. If you see `column "..." does not exist` at runtime, run:
+```
+pnpm --filter @workspace/db install
+pnpm --filter @workspace/db run push
+```
+`push` is interactive — say YES to additive changes (ADD column, CREATE table, ADD constraint), STOP and ask a human before any DROP, TRUNCATE, or RENAME.
+
+## Superadmin
+Hardcoded in `src/lib/seed-users.ts`: email `rsmolarz@rsmolarz.com`, username `rsmolarz`, role `superadmin`. Password comes from `SUPERADMIN_INITIAL_PASSWORD` env var; the seed re-syncs the DB hash to this value on every restart if they differ. To change the password for real, remove the env var (not just the value) before the UI change, or the next restart reverts your change.
+
+## Build + deploy
+- Dev: `pnpm dev` (Replit auto-runs via the artifact.toml config).
+- Build (both frontend and backend): `pnpm run build`.
+- The backend bundle externalizes some native deps (ssh2, pg-native, etc.) — `pnpm install` is required on any deploy target to fetch them, even though the CJS bundle is pre-built.
+
+## Conventions
+- Don't commit `.env`, `dist/`, `node_modules/`, `backups/`.
+- Don't edit `dist/` files directly — regenerated by build. All changes go in source.
+- Catalog versions: shared deps live in `pnpm-workspace.yaml` under `catalog:`. Bump there.
+- `activityLoggerMiddleware` is mounted on `/api` — DB write happens on every request. Keep in mind for hot paths.
+
+## Deployment-environment-specific context (VPS)
+The production VPS for guardian-layer.com has a separate `.claude/CLAUDE.md` under `/opt/guardianlayer/.claude/` with VPS-specific details (port 5433 quirk, deploy script paths, etc.). That file is not in this repo.
+```
+
+## Step 2d — Commit the two new files plus .gitignore change
+
+In Replit's Git pane, you should see:
+- modified: `.gitignore`
+- new file: `.env.example`
+- new file: `.claude/CLAUDE.md`
+
+Commit message suggestion:
+```
+chore: add .env.example, .claude/CLAUDE.md, harden .gitignore against .env leaks
+```
+
+## Step 2e — Create the GitHub repo
+
+Go to https://github.com/new. Fill in:
+- **Repository name:** `guardian-layer` (or whatever you prefer)
+- **Description:** your choice
+- **Visibility:** **Private** (recommended — source has secrets in comments, OpenAPI, etc.)
+- **Initialize this repository with:** leave ALL boxes UNCHECKED (no README, no .gitignore, no license) — your Replit repo already has content
+- Click **Create repository**
+
+On the next page, GitHub shows a `Quick setup` section with a repo URL. Copy the SSH URL — it looks like `git@github.com:YOUR-USERNAME/guardian-layer.git`.
+
+## Step 2f — Connect Replit to GitHub and push
+
+Two options depending on your Replit UI:
+
+**Option A — Replit's built-in "Connect to GitHub" button (preferred):**
+1. Open the Version Control / Git pane in Replit (left sidebar icon).
+2. Click "Connect to GitHub" or "Publish to GitHub" (button text varies).
+3. Authorize Replit → GitHub if first time.
+4. When prompted, select the existing repo you just created (or allow Replit to create a new one).
+5. Click "Push".
+
+**Option B — Manual via Replit shell (works if A is flaky):**
+Open the Shell in Replit and run:
+```
+git remote add origin git@github.com:YOUR-USERNAME/guardian-layer.git
+git branch -M main
+git push -u origin main
+```
+Replit's shell should have SSH keys already set up for GitHub. If it asks for auth and fails, use HTTPS with a Personal Access Token:
+```
+git remote add origin https://github.com/YOUR-USERNAME/guardian-layer.git
+git push -u origin main
+```
+On push, it'll prompt for username (your GitHub username) and password (use a GitHub Personal Access Token, NOT your account password — create one at github.com/settings/tokens, scope: `repo`).
+
+## What to paste back here
+
+1. Confirmation that all three files are committed (the .gitignore update, .env.example, .claude/CLAUDE.md)
+2. The GitHub repo URL once it exists (e.g., `github.com/YOUR-USERNAME/guardian-layer`)
+3. Output of the push — whether via Replit's UI or the shell commands — confirming it succeeded
+
+After that we move to Piece 3 (swap `/opt/guardianlayer` for a git clone on the VPS, start using `redeploy.sh --pull` for future updates).
+
+
+Apollo

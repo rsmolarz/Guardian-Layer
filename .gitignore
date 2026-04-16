@@ -48,3 +48,9 @@ Thumbs.db
 .cache/
 .local/
 backups/
+
+# Secrets — never commit real .env
+.env
+.env.local
+.env.*.local
+!.env.example
